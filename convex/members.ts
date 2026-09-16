@@ -145,133 +145,165 @@ export const getAll = query({
 });
 
 /**
- * Paginated member directory with optional server-side search + status filter.
+ * Shared arg validators for every directory facet filter, so `listPage` and
+ * the share-link mutation resolve *exactly* the same set — a share link that
+ * disagreed with the list the admin was looking at would be worse than no
+ * share link at all.
+ */
+export const memberFilterArgs = {
+    organization_id: v.optional(v.id("organizations")),
+    filter: v.optional(v.union(v.literal("active"), v.literal("archived"), v.literal("all"))),
+    search: v.optional(v.string()),
+    status: v.optional(v.string()),
+    // Directory facet filters. Applied server-side across the whole scoped
+    // set *before* slicing, so "Load more" paginates the filtered result
+    // rather than the client having to load every page before it can
+    // filter locally.
+    statuses: v.optional(v.array(v.string())),
+    unit_ids: v.optional(v.array(v.id("units"))),
+    label_ids: v.optional(v.array(v.id("labels"))),
+    household_ids: v.optional(v.array(v.id("households"))),
+    no_household: v.optional(v.boolean()),
+    risk_levels: v.optional(v.array(v.string())),
+};
+
+export type MemberFilterArgs = {
+    organization_id?: Id<"organizations">;
+    filter?: "active" | "archived" | "all";
+    search?: string;
+    status?: string;
+    statuses?: string[];
+    unit_ids?: Id<"units">[];
+    label_ids?: Id<"labels">[];
+    household_ids?: Id<"households">[];
+    no_household?: boolean;
+    risk_levels?: string[];
+};
+
+/**
+ * Every member the caller may see that matches the given facet filters,
+ * sorted by name. Returns `[]` when the caller has no scope at all.
+ */
+export async function resolveFilteredMembers(
+    ctx: Ctx,
+    args: MemberFilterArgs,
+): Promise<Doc<"members">[]> {
+    const user = await getUserSafe(ctx);
+    if (!user) return [];
+
+    const mode = args.filter ?? "active";
+    const search = (args.search ?? "").trim();
+    const scope = await resolveManagedMemberIds(ctx);
+
+    let members: Doc<"members">[] = [];
+
+    if (scope === "all") {
+        if (args.organization_id) {
+            members = await ctx.db
+                .query("members")
+                .withIndex("by_org", (q) => q.eq("organization_id", args.organization_id))
+                .collect();
+        } else {
+            members = await ctx.db.query("members").collect();
+        }
+    } else if (scope === "org") {
+        const orgId =
+            normalizeOrgId(ctx, args.organization_id) ??
+            normalizeOrgId(ctx, user.organization_id);
+        if (!orgId) return [];
+        members = await ctx.db
+            .query("members")
+            .withIndex("by_org", (q) => q.eq("organization_id", orgId))
+            .collect();
+    } else if (scope.size === 0) {
+        return [];
+    } else {
+        const docs = await Promise.all(
+            Array.from(scope).map((id) => ctx.db.get(id)),
+        );
+        members = docs.filter((m): m is Doc<"members"> => m !== null);
+    }
+
+    members = members.filter((m) => matchesArchiveFilter(m, mode));
+    if (args.status) {
+        members = members.filter((m) => m.status === args.status);
+    }
+    if (args.statuses && args.statuses.length > 0) {
+        const wanted = new Set(args.statuses);
+        members = members.filter((m) => wanted.has(m.status));
+    }
+    if (search) {
+        members = members.filter((m) => matchesSearch(m, search));
+    }
+
+    // Unit / label filters resolve through junction tables. Gather the set
+    // of member ids belonging to ANY selected unit/label (union), then keep
+    // members in that set.
+    if (args.unit_ids && args.unit_ids.length > 0) {
+        const inUnits = new Set<string>();
+        await Promise.all(
+            args.unit_ids.map(async (uid) => {
+                const rows = await ctx.db
+                    .query("member_units")
+                    .withIndex("by_unit", (q) => q.eq("unit_id", uid))
+                    .collect();
+                rows.forEach((r) => inUnits.add(r.member_id));
+            }),
+        );
+        members = members.filter((m) => inUnits.has(m._id));
+    }
+    if (args.label_ids && args.label_ids.length > 0) {
+        const withLabel = new Set<string>();
+        await Promise.all(
+            args.label_ids.map(async (lid) => {
+                const rows = await ctx.db
+                    .query("member_labels")
+                    .withIndex("by_label", (q) => q.eq("label_id", lid))
+                    .collect();
+                rows.forEach((r) => withLabel.add(r.member_id));
+            }),
+        );
+        members = members.filter((m) => withLabel.has(m._id));
+    }
+
+    const householdIds = args.household_ids ?? [];
+    if (householdIds.length > 0 || args.no_household) {
+        const wanted = new Set<string>(householdIds);
+        members = members.filter((m) => {
+            const hid = m.household_id as string | undefined;
+            if (!hid) return !!args.no_household;
+            return wanted.has(hid);
+        });
+    }
+
+    if (args.risk_levels && args.risk_levels.length > 0) {
+        const wanted = new Set(args.risk_levels);
+        members = members.filter((m) => wanted.has(m.engagement_risk_level ?? ""));
+    }
+
+    members.sort((a, b) => a.name.localeCompare(b.name));
+    return members;
+}
+
+/**
+ * Paginated member directory with optional server-side search + facet filters.
  * Cursor is a simple offset encoded as a string (stable for name-sorted lists).
  */
 export const listPage = query({
     args: {
-        organization_id: v.optional(v.id("organizations")),
-        filter: v.optional(v.union(v.literal("active"), v.literal("archived"), v.literal("all"))),
-        search: v.optional(v.string()),
-        status: v.optional(v.string()),
-        // Directory facet filters. Applied server-side across the whole scoped
-        // set *before* slicing, so "Load more" paginates the filtered result
-        // rather than the client having to load every page before it can
-        // filter locally.
-        statuses: v.optional(v.array(v.string())),
-        unit_ids: v.optional(v.array(v.id("units"))),
-        label_ids: v.optional(v.array(v.id("labels"))),
-        household_ids: v.optional(v.array(v.id("households"))),
-        no_household: v.optional(v.boolean()),
-        risk_levels: v.optional(v.array(v.string())),
+        ...memberFilterArgs,
         pageSize: v.optional(v.number()),
         cursor: v.optional(v.string()),
     },
     handler: async (ctx, args) => {
-        const user = await getUserSafe(ctx);
-        if (!user) {
-            return { page: [], nextCursor: null, totalCount: 0, isDone: true };
-        }
-
         // The client grows pageSize on "Load more" rather than advancing an
         // offset (so the visible list stays fully reactive to archives/
         // creates instead of needing a merge) -- cap high enough to cover
         // realistic org sizes rather than the old fixed 100.
         const pageSize = Math.min(Math.max(args.pageSize ?? 50, 1), 2000);
         const offset = args.cursor ? Math.max(0, parseInt(args.cursor, 10) || 0) : 0;
-        const mode = args.filter ?? "active";
-        const search = (args.search ?? "").trim();
-        const scope = await resolveManagedMemberIds(ctx);
 
-        let members: Doc<"members">[] = [];
-
-        if (scope === "all") {
-            if (args.organization_id) {
-                members = await ctx.db
-                    .query("members")
-                    .withIndex("by_org", (q) => q.eq("organization_id", args.organization_id))
-                    .collect();
-            } else {
-                members = await ctx.db.query("members").collect();
-            }
-        } else if (scope === "org") {
-            const orgId =
-                normalizeOrgId(ctx, args.organization_id) ??
-                normalizeOrgId(ctx, user.organization_id);
-            if (!orgId) {
-                return { page: [], nextCursor: null, totalCount: 0, isDone: true };
-            }
-            members = await ctx.db
-                .query("members")
-                .withIndex("by_org", (q) => q.eq("organization_id", orgId))
-                .collect();
-        } else if (scope.size === 0) {
-            return { page: [], nextCursor: null, totalCount: 0, isDone: true };
-        } else {
-            const docs = await Promise.all(
-                Array.from(scope).map((id) => ctx.db.get(id)),
-            );
-            members = docs.filter((m): m is Doc<"members"> => m !== null);
-        }
-
-        members = members.filter((m) => matchesArchiveFilter(m, mode));
-        if (args.status) {
-            members = members.filter((m) => m.status === args.status);
-        }
-        if (args.statuses && args.statuses.length > 0) {
-            const wanted = new Set(args.statuses);
-            members = members.filter((m) => wanted.has(m.status));
-        }
-        if (search) {
-            members = members.filter((m) => matchesSearch(m, search));
-        }
-
-        // Unit / label filters resolve through junction tables. Gather the set
-        // of member ids belonging to ANY selected unit/label (union), then keep
-        // members in that set.
-        if (args.unit_ids && args.unit_ids.length > 0) {
-            const inUnits = new Set<string>();
-            await Promise.all(
-                args.unit_ids.map(async (uid) => {
-                    const rows = await ctx.db
-                        .query("member_units")
-                        .withIndex("by_unit", (q) => q.eq("unit_id", uid))
-                        .collect();
-                    rows.forEach((r) => inUnits.add(r.member_id));
-                }),
-            );
-            members = members.filter((m) => inUnits.has(m._id));
-        }
-        if (args.label_ids && args.label_ids.length > 0) {
-            const withLabel = new Set<string>();
-            await Promise.all(
-                args.label_ids.map(async (lid) => {
-                    const rows = await ctx.db
-                        .query("member_labels")
-                        .withIndex("by_label", (q) => q.eq("label_id", lid))
-                        .collect();
-                    rows.forEach((r) => withLabel.add(r.member_id));
-                }),
-            );
-            members = members.filter((m) => withLabel.has(m._id));
-        }
-
-        const householdIds = args.household_ids ?? [];
-        if (householdIds.length > 0 || args.no_household) {
-            const wanted = new Set<string>(householdIds);
-            members = members.filter((m) => {
-                const hid = m.household_id as string | undefined;
-                if (!hid) return !!args.no_household;
-                return wanted.has(hid);
-            });
-        }
-
-        if (args.risk_levels && args.risk_levels.length > 0) {
-            const wanted = new Set(args.risk_levels);
-            members = members.filter((m) => wanted.has(m.engagement_risk_level ?? ""));
-        }
-
-        members.sort((a, b) => a.name.localeCompare(b.name));
+        const members = await resolveFilteredMembers(ctx, args);
 
         const totalCount = members.length;
         const slice = members.slice(offset, offset + pageSize);

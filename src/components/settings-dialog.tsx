@@ -29,6 +29,10 @@ import { api } from "../../convex/_generated/api"
 import { Id } from "../../convex/_generated/dataModel"
 import { Settings, Shield, Sparkles, Save, RotateCcw } from "lucide-react"
 import { cn } from "@/lib/utils"
+import { BrandingPanel } from "@/components/branding-panel"
+import { AiCredentialsPanel } from "@/components/ai-credentials-panel"
+import { useSubscription } from "@/providers/SubscriptionProvider"
+import { useFlag } from "@/hooks/use-flags"
 
 // The generic default for every level is "Unit Level N" (`unit_level`), listed
 // first so it's the top preset. The named presets below are optional
@@ -106,6 +110,11 @@ export function SettingsDialog({ open, onOpenChange, onSuccess }: SettingsDialog
 
   const currentOrg = useQuery(api.organizations.current)
   const updateOrgMutation = useMutation(api.organizations.update)
+  const brandingEnabled = useFlag("release.org_branding")
+  // Storing a provider key is only useful to an org whose plan can use it; the
+  // backend refuses regardless (ai/internal:forCredentialChange).
+  const { isPro } = useSubscription()
+  const tabCount = 3 + (brandingEnabled ? 1 : 0) + (isPro ? 1 : 0)
 
   // Organization structure local state
   const [orgTerms, setOrgTerms] = useState({ ...DEFAULT_ORG_TERMS })
@@ -239,9 +248,20 @@ export function SettingsDialog({ open, onOpenChange, onSuccess }: SettingsDialog
 
         <div className="flex-1 min-h-0 overflow-y-auto custom-scrollbar p-6">
           <Tabs defaultValue="terminology" className="space-y-6">
-            <TabsList className="bg-muted/50 p-1 rounded-xl w-full grid grid-cols-3">
+            <TabsList
+              className={cn(
+                "bg-muted/50 p-1 rounded-xl w-full grid",
+                tabCount === 5 ? "grid-cols-5" : tabCount === 4 ? "grid-cols-4" : "grid-cols-3",
+              )}
+            >
               <TabsTrigger value="terminology" className="rounded-lg data-[state=active]:bg-background data-[state=active]:shadow-sm">Identity</TabsTrigger>
               <TabsTrigger value="organization" className="rounded-lg data-[state=active]:bg-background data-[state=active]:shadow-sm">Structure</TabsTrigger>
+              {brandingEnabled && (
+                <TabsTrigger value="branding" className="rounded-lg data-[state=active]:bg-background data-[state=active]:shadow-sm">Branding</TabsTrigger>
+              )}
+              {isPro && (
+                <TabsTrigger value="ai" className="rounded-lg data-[state=active]:bg-background data-[state=active]:shadow-sm">AI</TabsTrigger>
+              )}
               <TabsTrigger value="general" className="rounded-lg data-[state=active]:bg-background data-[state=active]:shadow-sm">General</TabsTrigger>
             </TabsList>
 
@@ -388,6 +408,26 @@ export function SettingsDialog({ open, onOpenChange, onSuccess }: SettingsDialog
             </Button>
           </div>
         </TabsContent>
+
+            {brandingEnabled && (
+              <TabsContent value="branding" className="space-y-6 animate-in fade-in slide-in-from-bottom-2 duration-300">
+                <Card className="border border-border/50 shadow-sm overflow-hidden bg-card/50">
+                  <CardContent className="p-6">
+                    <BrandingPanel />
+                  </CardContent>
+                </Card>
+              </TabsContent>
+            )}
+
+            {isPro && (
+              <TabsContent value="ai" className="space-y-6 animate-in fade-in slide-in-from-bottom-2 duration-300">
+                <Card className="border border-border/50 shadow-sm overflow-hidden bg-card/50">
+                  <CardContent className="p-6">
+                    <AiCredentialsPanel />
+                  </CardContent>
+                </Card>
+              </TabsContent>
+            )}
 
             <TabsContent value="general" className="space-y-6 animate-in fade-in slide-in-from-bottom-2 duration-300">
               <Card className="border border-border/50 shadow-sm overflow-hidden bg-card/50">

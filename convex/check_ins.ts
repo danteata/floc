@@ -1,4 +1,5 @@
 import { v } from "convex/values";
+import { publicBrandHex } from "./lib/theme/publicBrand";
 import { mutation, query, internalMutation, QueryCtx, MutationCtx } from "./_generated/server";
 import { internal } from "./_generated/api";
 import { Id, Doc } from "./_generated/dataModel";
@@ -1106,6 +1107,7 @@ export const getSessionByToken = query({
             date: session.date,
             event_type_label: eventType?.label ?? null,
             organization_name: org?.name ?? null,
+            brand_hex: await publicBrandHex(ctx, session.organization_id, org),
             status: session.status,
             opens_at: session.opens_at,
             closes_at: session.closes_at,

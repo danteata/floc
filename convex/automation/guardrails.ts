@@ -7,21 +7,29 @@
 // =============================================================================
 
 import { MutationCtx, QueryCtx } from "../_generated/server";
+import { isFlagEnabled } from "../lib/flags/server";
 
 /**
- * Global kill switch: `app_config` row with key "automation.enabled" and
- * `value: { enabled: boolean }`. Missing row = enabled (opt-out, not opt-in),
- * so the automation engine works out of the box without any config seeding.
+ * Global kill switch, now `kill.automations` in the flag catalogue — declared,
+ * typed, audited on every flip and visible in the flags console, which the
+ * `app_config` row it replaces was none of.
+ *
+ * The old row is still honoured for one release so an existing deployment that
+ * has automation switched OFF stays off across the deploy. Either switch being
+ * off means off; the flag is the one to use from here on, and this fallback
+ * comes out once no deployment has the row.
  */
 export async function isAutomationEnabled(
     ctx: MutationCtx | QueryCtx,
 ): Promise<boolean> {
-    const cfg = await ctx.db
+    if (!(await isFlagEnabled(ctx, "kill.automations"))) return false;
+
+    const legacy = await ctx.db
         .query("app_config")
         .withIndex("by_key", (q) => q.eq("key", "automation.enabled"))
         .unique();
-    if (!cfg) return true;
-    return (cfg.value as { enabled?: boolean } | undefined)?.enabled !== false;
+    if (!legacy) return true;
+    return (legacy.value as { enabled?: boolean } | undefined)?.enabled !== false;
 }
 
 // SMS rate caps (from the enhancement plan's throttling table).

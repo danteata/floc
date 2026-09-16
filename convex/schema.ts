@@ -28,6 +28,71 @@ export default defineSchema({
         updated_at: v.optional(v.string()),
     }).index("by_key", ["key"]),
 
+    /**
+     * An organization's own AI provider key ("bring your own key").
+     *
+     * The reason is data protection before it is cost. With a key of their own,
+     * a church's pastoral notes and member details reach the model under the
+     * church's contract, retention settings and region — a better answer to a
+     * safeguarding question than "trust our agreement with a third party".
+     * Cost attribution and rate-limit isolation follow, but they are not the
+     * argument. See PASTORAL_CARE_COPILOT_PLAN.md §privacy.
+     *
+     * The key is encrypted at rest (convex/lib/secretBox.ts). The plaintext is
+     * readable in exactly one place — the internal query the provider calls use
+     * — and never by a client.
+     */
+    ai_credentials: defineTable({
+        organization_id: v.id("organizations"),
+        /** Which adapter to build. `openai` covers every OpenAI-compatible endpoint. */
+        provider: v.union(v.literal("anthropic"), v.literal("openai")),
+        ciphertext: v.string(),
+        iv: v.string(),
+        /**
+         * The last four characters of the key, so the settings page can show
+         * WHICH key is stored without decrypting anything to render itself.
+         */
+        hint: v.string(),
+        /** Where to send it. Absent means the provider's own default. */
+        base_url: v.optional(v.string()),
+        /** Overrides the deployment's model choice for this organization. */
+        model: v.optional(v.string()),
+        status: v.union(v.literal("active"), v.literal("disabled")),
+        /**
+         * When it last worked, and what went wrong if it didn't. Between them
+         * they answer "is this key still good?", which is the question an
+         * administrator actually has and shouldn't have to run a drafting job
+         * at 6am on a Sunday to find out.
+         */
+        last_used_at: v.optional(v.string()), // ISO timestamp
+        last_error: v.optional(v.string()),
+        created_by: v.optional(v.string()), // clerk_user_id
+        created_at: v.string(),
+        updated_at: v.string(),
+    }).index("by_org_provider", ["organization_id", "provider"]),
+
+    /**
+     * Feature-flag overrides. The catalogue in `convex/lib/flags/catalog.ts` is
+     * the source of truth for which flags EXIST; a row here only says what a
+     * given flag has been set to, so a flag with no row still resolves (to its
+     * declared default) and the console still lists it.
+     *
+     * A row with no `organization_id` is a deployment-wide override, written by
+     * super admins. A row with one is that organization's override, and applies
+     * only to flags declared `orgOverridable` — never to a kill switch, which is
+     * refused at write time and ignored again at resolution time.
+     */
+    feature_flags: defineTable({
+        key: v.string(),
+        organization_id: v.optional(v.id("organizations")),
+        enabled: v.boolean(),
+        updated_at: v.string(), // ISO timestamp
+        updated_by: v.optional(v.string()), // clerk_user_id
+    })
+        .index("by_key", ["key"])
+        .index("by_org", ["organization_id"])
+        .index("by_org_key", ["organization_id", "key"]),
+
     event_types: defineTable({
         value: v.string(),
         label: v.string(),
@@ -88,6 +153,21 @@ export default defineSchema({
         timezone: v.optional(v.string()), // IANA tz, e.g. "Africa/Accra"
         hq_latitude: v.optional(v.number()),
         hq_longitude: v.optional(v.number()),
+        // Brand colour. ONE hex is stored; the dozen CSS variables it becomes
+        // are derived on read by convex/lib/theme/brand.ts, shared by the app
+        // and the settings preview. Storing the resolved palette would be
+        // faster and would fork the design system per tenant, one row at a
+        // time — a later improvement to the derivation (or a change to the
+        // surfaces it is contrast-checked against) would leave existing
+        // customers on a palette that no longer clears AA.
+        theme: v.optional(
+            v.object({
+                brandHex: v.string(),
+                /** Which preset it came from, if any — for re-selecting it in the UI. */
+                presetId: v.optional(v.string()),
+                updatedAt: v.string(), // ISO timestamp
+            }),
+        ),
     })
         .index("by_parent", ["parent_organization_id"])
         .index("by_path", ["path"])
@@ -320,6 +400,29 @@ export default defineSchema({
     })
         .index("by_token", ["token"])
         .index("by_org_event_date", ["organization_id", "event_type_value", "date"]),
+
+    // Public, link-shared snapshot of a members directory list. The matching
+    // member ids are frozen at creation time (so the link can't widen as the
+    // directory grows, and a unit leader's link can never resolve beyond the
+    // scope they had), while the member details themselves are read live, so
+    // a corrected phone number reaches everyone holding the link.
+    member_list_shares: defineTable({
+        organization_id: v.id("organizations"),
+        token: v.string(),
+        title: v.string(),
+        // Human-readable summary of the filters the list was built from.
+        description: v.optional(v.string()),
+        member_ids: v.array(v.id("members")),
+        // Whitelisted optional columns (see MEMBER_SHARE_COLUMNS); `name` is
+        // always included and never listed here.
+        columns: v.array(v.string()),
+        created_by: v.optional(v.string()), // clerk_user_id
+        created_by_name: v.optional(v.string()),
+        expires_at: v.optional(v.number()),
+        revoked: v.boolean(),
+    })
+        .index("by_token", ["token"])
+        .index("by_org", ["organization_id"]),
 
     labels: defineTable({
         name: v.string(),

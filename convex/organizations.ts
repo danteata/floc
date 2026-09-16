@@ -20,6 +20,11 @@ import {
     provisionAncestorTemplatesToOrg,
     detachTemplatesOwnedBy,
 } from "./unit_templates";
+import { deriveBrand, isBrandHex } from "./lib/theme/brand";
+import { DEFAULT_BRAND_HEX, brandPreset } from "./lib/theme/presets";
+import { appError, invalidArgument } from "./lib/errors";
+import { requireFlag } from "./lib/flags/server";
+import { publicBrandHex } from "./lib/theme/publicBrand";
 
 export const list = query({
     handler: async (ctx) => {
@@ -469,7 +474,11 @@ export const getPublicGivingInfo = query({
     handler: async (ctx, args) => {
         const org = await ctx.db.get(args.id);
         if (!org) return null;
-        return { name: org.name, active: org.active !== false };
+        return {
+            name: org.name,
+            active: org.active !== false,
+            brand_hex: await publicBrandHex(ctx, args.id, org),
+        };
     },
 });
 
@@ -702,5 +711,112 @@ export const getTerminology = query({
         }
 
         return result;
+    },
+});
+
+// ---------------------------------------------------------------------------
+// Branding
+// ---------------------------------------------------------------------------
+
+/**
+ * An organization's brand colour.
+ *
+ * ## Where it is delivered from
+ *
+ * The app reads `getTheme`, org-scoped like every other setting. The public
+ * pages — giving, check-in, a shared list — get their brand inside the query
+ * they are ALREADY making against their token or organization id, rather than
+ * from a public endpoint keyed by organization.
+ *
+ * That is a deliberate difference from the obvious design. An unauthenticated
+ * `/theme?organization=…` works, and it costs an endpoint that confirms whether
+ * an organization id is real, which then needs its own rate limiter. Our public
+ * pages all resolve an organization server-side already, so the brand can ride
+ * along: no new surface, nothing to enumerate.
+ */
+export const getTheme = query({
+    args: { organization_id: v.optional(v.id("organizations")) },
+    handler: async (ctx, args) => {
+        // Readable by any signed-in member of the org, not just admins: every
+        // one of them renders the app in it. Writing is the admin-gated half.
+        await requireUser(ctx);
+        const orgId = await resolveOrgId(ctx, args.organization_id);
+        if (!orgId) return null;
+
+        const org = await ctx.db.get(orgId);
+        if (!org) return null;
+
+        return {
+            brandHex: org.theme?.brandHex ?? DEFAULT_BRAND_HEX,
+            presetId: org.theme?.presetId ?? null,
+            /** False when nothing was ever set, so the UI says "default" rather than implying a choice. */
+            configured: org.theme !== undefined,
+            updatedAt: org.theme?.updatedAt ?? null,
+        };
+    },
+});
+
+export const setTheme = mutation({
+    args: {
+        organization_id: v.optional(v.id("organizations")),
+        /** A hex, or a preset id which supplies one. Exactly one of them. */
+        brandHex: v.optional(v.string()),
+        presetId: v.optional(v.string()),
+    },
+    handler: async (ctx, args) => {
+        await requireOrgAdmin(ctx);
+        const orgId = await resolveOrgId(ctx, args.organization_id);
+        if (!orgId) throw appError("FORBIDDEN", "Organization context required");
+        await requireOrgAccess(ctx, orgId);
+        await requireFlag(ctx, "release.org_branding", orgId);
+
+        const preset = args.presetId ? brandPreset(args.presetId) : undefined;
+        if (args.presetId && !preset) {
+            throw invalidArgument("That colour preset does not exist");
+        }
+
+        const raw = (preset?.hex ?? args.brandHex ?? "").trim();
+        if (!isBrandHex(raw)) {
+            // Named rather than generic: an admin pasting `rgb(193, 0, 58)`
+            // from a brand guide needs to know which form to paste instead.
+            throw invalidArgument(
+                "A brand colour is a hex value such as #0369a1. Colour names and rgb() are not accepted.",
+            );
+        }
+        const brandHex = raw.toLowerCase();
+
+        /**
+         * Derived here purely to be sure it CAN be, and to count what moved.
+         *
+         * The result is thrown away — the app derives its own on read. What
+         * this buys is that an impossible colour fails at the moment somebody
+         * saves it, with a message, rather than at render time on a volunteer's
+         * phone with no way back to the person who chose it.
+         */
+        const derived = deriveBrand(brandHex);
+
+        await ctx.db.patch(orgId, {
+            theme: {
+                brandHex,
+                ...(preset ? { presetId: preset.id } : {}),
+                updatedAt: new Date().toISOString(),
+            },
+        });
+
+        return { brandHex, adjusted: derived.adjustments.length };
+    },
+});
+
+/** Drop the brand colour; the product's own palette comes back. */
+export const clearTheme = mutation({
+    args: { organization_id: v.optional(v.id("organizations")) },
+    handler: async (ctx, args) => {
+        await requireOrgAdmin(ctx);
+        const orgId = await resolveOrgId(ctx, args.organization_id);
+        if (!orgId) throw appError("FORBIDDEN", "Organization context required");
+        await requireOrgAccess(ctx, orgId);
+
+        await ctx.db.patch(orgId, { theme: undefined });
+        return { brandHex: DEFAULT_BRAND_HEX };
     },
 });

@@ -26,6 +26,7 @@ const BillingPage = lazy(() => import("@/pages/settings/Billing"));
 const ProfilePage = lazy(() => import("@/pages/profile/Profile"));
 const AttendancePage = lazy(() => import("@/pages/attendance/Attendance"));
 const AbsentMembersSharePage = lazy(() => import("@/pages/share/AbsentMembersShare"));
+const MembersListSharePage = lazy(() => import("@/pages/share/MembersListShare"));
 const MapPage = lazy(() => import("@/pages/map/Map"));
 const ReportsPage = lazy(() => import("@/pages/reports/Reports"));
 const AuditTrailPage = lazy(() => import("@/pages/admin/AuditTrail"));
@@ -150,6 +151,14 @@ export default function App() {
           element={
             <Suspense fallback={<PageLoader />}>
               <AbsentMembersSharePage />
+            </Suspense>
+          }
+        />
+        <Route
+          path="/share/members/:token"
+          element={
+            <Suspense fallback={<PageLoader />}>
+              <MembersListSharePage />
             </Suspense>
           }
         />

@@ -9,6 +9,9 @@
  */
 
 import type * as absentShares from "../absentShares.js";
+import type * as ai_credentials from "../ai/credentials.js";
+import type * as ai_internal from "../ai/internal.js";
+import type * as ai_queries from "../ai/queries.js";
 import type * as app_config from "../app_config.js";
 import type * as attendance from "../attendance.js";
 import type * as audit from "../audit.js";
@@ -38,10 +41,25 @@ import type * as event_types from "../event_types.js";
 import type * as events from "../events.js";
 import type * as files from "../files.js";
 import type * as financial from "../financial.js";
+import type * as flags from "../flags.js";
 import type * as households from "../households.js";
 import type * as http from "../http.js";
 import type * as invitations from "../invitations.js";
 import type * as labels from "../labels.js";
+import type * as lib_aiProviders from "../lib/aiProviders.js";
+import type * as lib_errors from "../lib/errors.js";
+import type * as lib_flags_catalog from "../lib/flags/catalog.js";
+import type * as lib_flags_resolve from "../lib/flags/resolve.js";
+import type * as lib_flags_server from "../lib/flags/server.js";
+import type * as lib_secretBox from "../lib/secretBox.js";
+import type * as lib_theme_brand from "../lib/theme/brand.js";
+import type * as lib_theme_chart from "../lib/theme/chart.js";
+import type * as lib_theme_contrast from "../lib/theme/contrast.js";
+import type * as lib_theme_css from "../lib/theme/css.js";
+import type * as lib_theme_oklch from "../lib/theme/oklch.js";
+import type * as lib_theme_presets from "../lib/theme/presets.js";
+import type * as lib_theme_publicBrand from "../lib/theme/publicBrand.js";
+import type * as memberShares from "../memberShares.js";
 import type * as members from "../members.js";
 import type * as notifications from "../notifications.js";
 import type * as organizations from "../organizations.js";
@@ -61,6 +79,9 @@ import type {
 
 declare const fullApi: ApiFromModules<{
   absentShares: typeof absentShares;
+  "ai/credentials": typeof ai_credentials;
+  "ai/internal": typeof ai_internal;
+  "ai/queries": typeof ai_queries;
   app_config: typeof app_config;
   attendance: typeof attendance;
   audit: typeof audit;
@@ -90,10 +111,25 @@ declare const fullApi: ApiFromModules<{
   events: typeof events;
   files: typeof files;
   financial: typeof financial;
+  flags: typeof flags;
   households: typeof households;
   http: typeof http;
   invitations: typeof invitations;
   labels: typeof labels;
+  "lib/aiProviders": typeof lib_aiProviders;
+  "lib/errors": typeof lib_errors;
+  "lib/flags/catalog": typeof lib_flags_catalog;
+  "lib/flags/resolve": typeof lib_flags_resolve;
+  "lib/flags/server": typeof lib_flags_server;
+  "lib/secretBox": typeof lib_secretBox;
+  "lib/theme/brand": typeof lib_theme_brand;
+  "lib/theme/chart": typeof lib_theme_chart;
+  "lib/theme/contrast": typeof lib_theme_contrast;
+  "lib/theme/css": typeof lib_theme_css;
+  "lib/theme/oklch": typeof lib_theme_oklch;
+  "lib/theme/presets": typeof lib_theme_presets;
+  "lib/theme/publicBrand": typeof lib_theme_publicBrand;
+  memberShares: typeof memberShares;
   members: typeof members;
   notifications: typeof notifications;
   organizations: typeof organizations;

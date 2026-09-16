@@ -41,6 +41,13 @@ interface MembersTableProps {
   members: Member[];
   onMemberUpdate?: () => void;
   isArchivedView?: boolean;
+  /**
+   * Selection lives in the parent so it survives the table unmounting while
+   * "Load more" refetches, and so the share dialog in the page header can see
+   * what's checked.
+   */
+  selectedMembers: string[];
+  onSelectedMembersChange: (ids: string[]) => void;
 }
 
 import { useMutation, useQuery } from "convex/react"
@@ -48,8 +55,13 @@ import { api } from "../../convex/_generated/api"
 import { useToast } from "@/hooks/use-toast"
 import { useOrganization } from "@/hooks/use-organization"
 
-export function MembersTable({ members, onMemberUpdate, isArchivedView = false }: MembersTableProps) {
-  const [selectedMembers, setSelectedMembers] = useState<string[]>([]);
+export function MembersTable({
+  members,
+  onMemberUpdate,
+  isArchivedView = false,
+  selectedMembers,
+  onSelectedMembersChange,
+}: MembersTableProps) {
   const [sortColumn, setSortColumn] = useState<string | null>(null);
   const [sortDirection, setSortDirection] = useState<"asc" | "desc">("asc");
   const [editingMember, setEditingMember] = useState<Member | null>(null);
@@ -128,19 +140,27 @@ export function MembersTable({ members, onMemberUpdate, isArchivedView = false }
     }
   };
 
+  // "Select all" acts on the rows currently loaded: checking it selects every
+  // loaded row, unchecking clears only those, leaving any selection carried
+  // over from earlier pages intact.
+  const loadedIds = members.map((member) => member.id || '');
+  const allLoadedSelected =
+    loadedIds.length > 0 && loadedIds.every((id) => selectedMembers.includes(id));
+
   const handleSelectAll = () => {
-    if (selectedMembers.length === members.length) {
-      setSelectedMembers([]);
+    if (allLoadedSelected) {
+      const loaded = new Set(loadedIds);
+      onSelectedMembersChange(selectedMembers.filter((id) => !loaded.has(id)));
     } else {
-      setSelectedMembers(members.map((member) => member.id || ''));
+      onSelectedMembersChange(Array.from(new Set([...selectedMembers, ...loadedIds])));
     }
   };
 
   const handleSelectMember = (id: string) => {
     if (selectedMembers.includes(id)) {
-      setSelectedMembers(selectedMembers.filter((memberId) => memberId !== id));
+      onSelectedMembersChange(selectedMembers.filter((memberId) => memberId !== id));
     } else {
-      setSelectedMembers([...selectedMembers, id]);
+      onSelectedMembersChange([...selectedMembers, id]);
     }
   };
 
@@ -258,7 +278,7 @@ export function MembersTable({ members, onMemberUpdate, isArchivedView = false }
                 </Button>
               }
               onSuccess={() => {
-                setSelectedMembers([]);
+                onSelectedMembersChange([]);
                 onMemberUpdate?.();
               }}
             />
@@ -271,7 +291,7 @@ export function MembersTable({ members, onMemberUpdate, isArchivedView = false }
                 </Button>
               }
               onSuccess={() => {
-                setSelectedMembers([]);
+                onSelectedMembersChange([]);
                 onMemberUpdate?.();
               }}
             />
@@ -284,14 +304,14 @@ export function MembersTable({ members, onMemberUpdate, isArchivedView = false }
                 </Button>
               }
               onSuccess={() => {
-                setSelectedMembers([]);
+                onSelectedMembersChange([]);
                 onMemberUpdate?.();
               }}
             />
             <Button
               variant="ghost"
               size="sm"
-              onClick={() => setSelectedMembers([])}
+              onClick={() => onSelectedMembersChange([])}
               className="text-gray-600 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-800"
             >
               Clear selection
@@ -339,7 +359,7 @@ export function MembersTable({ members, onMemberUpdate, isArchivedView = false }
             <TableRow className="bg-muted/30">
               <TableHead className="w-[50px]">
                 <Checkbox
-                  checked={selectedMembers.length === members.length && members.length > 0}
+                  checked={allLoadedSelected}
                   onCheckedChange={handleSelectAll}
                   aria-label="Select all members"
                 />

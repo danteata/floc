@@ -1,6 +1,7 @@
 'use client'
 
 import { useParams } from "react-router-dom"
+import { BrandProvider } from "@/components/brand-provider"
 import { useQuery } from "convex/react"
 import { HeartHandshake, Loader2 } from "lucide-react"
 import { api } from "../../../convex/_generated/api"
@@ -21,6 +22,7 @@ export default function GivePage() {
     )
 
     return (
+        <BrandProvider brandHex={org?.brand_hex}>
         <div className="min-h-screen flex items-center justify-center bg-muted/30 p-4">
             <Card className="max-w-md w-full border-border/50 shadow-soft">
                 <CardHeader>
@@ -47,5 +49,6 @@ export default function GivePage() {
                 </CardContent>
             </Card>
         </div>
+        </BrandProvider>
     )
 }

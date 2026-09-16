@@ -13,6 +13,13 @@ type ThemeProviderProps = {
 
 type ThemeProviderState = {
   theme: Theme
+  /**
+   * What `theme` actually resolves to right now — "system" turned into one of
+   * the two. Anything painting colours in JavaScript (see `brand-provider.tsx`)
+   * needs this rather than `theme`, and needs it to CHANGE when the OS flips at
+   * sunset, which `theme` alone never does.
+   */
+  resolvedTheme: ResolvedTheme
   setTheme: (theme: Theme) => void
 }
 
@@ -37,6 +44,13 @@ function getSystemTheme(): ResolvedTheme {
   }
 
   return "light"
+}
+
+/** Subscribe to the OS preference. Stable identity, so it isn't re-subscribed. */
+function subscribeToSystemTheme(onChange: () => void) {
+  const mediaQuery = window.matchMedia(COLOR_SCHEME_QUERY)
+  mediaQuery.addEventListener("change", onChange)
+  return () => mediaQuery.removeEventListener("change", onChange)
 }
 
 function disableTransitionsTemporarily() {
@@ -92,6 +106,23 @@ export function ThemeProvider({
 
     return defaultTheme
   })
+
+  /**
+   * What the theme currently resolves to.
+   *
+   * Derived rather than stored: for an explicit choice it IS the choice, and
+   * for "system" it is the OS preference, read through `useSyncExternalStore`
+   * — which is the supported way to subscribe to something outside React. The
+   * obvious alternative, setting state from inside the effect that applies the
+   * class, cascades a second render on every theme change and is what the
+   * react-hooks lint objects to.
+   */
+  const systemTheme = React.useSyncExternalStore(
+    subscribeToSystemTheme,
+    getSystemTheme,
+    () => "light" as ResolvedTheme
+  )
+  const resolvedTheme: ResolvedTheme = theme === "system" ? systemTheme : theme
 
   const setTheme = React.useCallback(
     (nextTheme: Theme) => {
@@ -207,9 +238,10 @@ export function ThemeProvider({
   const value = React.useMemo(
     () => ({
       theme,
+      resolvedTheme,
       setTheme,
     }),
-    [theme, setTheme]
+    [theme, resolvedTheme, setTheme]
   )
 
   return (

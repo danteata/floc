@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useMemo, useEffect } from "react"
-import { Download, Filter, Plus, Upload, Users, Building2, Home, Tag, X, ShieldAlert, Search } from "lucide-react"
+import { Download, Filter, Plus, Upload, Users, Building2, Home, Tag, X, ShieldAlert, Search, Share2, Loader2 } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
 import { useTerminology } from "@/hooks/use-terminology"
@@ -15,6 +15,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { MembersTable } from "@/components/members-table"
 import { MemberDialog } from "@/components/member-dialog"
 import { BulkUploadDialog } from "@/components/bulk-upload-dialog"
+import { ShareMembersLinkDialog } from "@/components/share-members-link-dialog"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import type { Member } from "@/types/database"
 import { cn } from "@/lib/utils"
@@ -22,6 +23,7 @@ import { useOrganization } from "@/hooks/use-organization"
 import { useUserRole } from "@/hooks/use-user-role"
 import { useToast } from "@/hooks/use-toast"
 import { useSubscription } from "@/providers/SubscriptionProvider"
+import { useFlag } from "@/hooks/use-flags"
 
 interface MembersContentProps {
   view?: 'active' | 'archived'
@@ -52,6 +54,8 @@ export function MembersContent({ view = 'active', onViewChange }: MembersContent
   const [riskFilters, setRiskFilters] = useState<string[]>([])
   const [isAddMemberOpen, setIsAddMemberOpen] = useState(false)
   const [isBulkUploadOpen, setIsBulkUploadOpen] = useState(false)
+  const [isShareOpen, setIsShareOpen] = useState(false)
+  const [selectedMemberIds, setSelectedMemberIds] = useState<string[]>([])
   const [searchInput, setSearchInput] = useState("")
   const search = useDebouncedValue(searchInput.trim(), 250)
   const [loadedCount, setLoadedCount] = useState(PAGE_SIZE)
@@ -65,6 +69,7 @@ export function MembersContent({ view = 'active', onViewChange }: MembersContent
   const { isAdmin } = useUserRole()
   const { toast } = useToast()
   const { isPro } = useSubscription()
+  const canShareList = useFlag("release.member_list_share")
 
   // Households can include the "no household" sentinel; split it out so the
   // server receives real household ids plus a boolean.
@@ -91,6 +96,10 @@ export function MembersContent({ view = 'active', onViewChange }: MembersContent
   if (filterKey !== prevFilterKey) {
     setPrevFilterKey(filterKey)
     setLoadedCount(PAGE_SIZE)
+    // A different result set means the checked rows may no longer be in it;
+    // "Load more" deliberately doesn't change filterKey, so growing the page
+    // keeps the selection.
+    setSelectedMemberIds([])
   }
 
   const page = useQuery(
@@ -111,10 +120,21 @@ export function MembersContent({ view = 'active', onViewChange }: MembersContent
       : "skip",
   )
 
-  const isLoading = page === undefined
-  const isDone = page?.isDone ?? true
-  const totalCount = page?.totalCount
-  const filteredMembers = useMemo(() => (page?.page ?? []) as unknown as Member[], [page])
+  // useQuery goes back to `undefined` while a bigger pageSize is in flight, so
+  // "Load more" used to unmount the whole table mid-refetch. Hold on to the
+  // last result for the same filters and keep rendering it — otherwise the
+  // remount wipes row selection and the list jumps to a spinner.
+  const [lastResult, setLastResult] = useState<{ key: string; data: NonNullable<typeof page> } | null>(null)
+  if (page !== undefined && (lastResult?.data !== page || lastResult.key !== filterKey)) {
+    setLastResult({ key: filterKey, data: page })
+  }
+  const shownPage = page ?? (lastResult?.key === filterKey ? lastResult.data : undefined)
+
+  const isLoading = shownPage === undefined
+  const isLoadingMore = page === undefined && shownPage !== undefined
+  const isDone = shownPage?.isDone ?? true
+  const totalCount = shownPage?.totalCount
+  const filteredMembers = useMemo(() => (shownPage?.page ?? []) as unknown as Member[], [shownPage])
 
   // Filter helpers
   const addFilter = (setter: React.Dispatch<React.SetStateAction<string[]>>, value: string) =>
@@ -137,6 +157,20 @@ export function MembersContent({ view = 'active', onViewChange }: MembersContent
   const riskLabel = (level: string) => RISK_LABELS[level] ?? level
   const activeFilterCount =
     statusFilters.length + unitFilters.length + labelFilters.length + householdFilters.length + riskFilters.length
+
+  // Sentence describing the current filters, stored on a share link so the
+  // public page can say what the list is ("Active · Unit: Youth").
+  const filterSummary = useMemo(() => {
+    const parts: string[] = [view === 'archived' ? "Archived" : "Active"]
+    if (search) parts.push(`Search: "${search}"`)
+    if (statusFilters.length) parts.push(`Status: ${statusFilters.join(", ")}`)
+    if (unitFilters.length) parts.push(`Unit: ${unitFilters.map(unitName).join(", ")}`)
+    if (labelFilters.length) parts.push(`Label: ${labelFilters.map(labelName).join(", ")}`)
+    if (householdFilters.length) parts.push(`Household: ${householdFilters.map(householdName).join(", ")}`)
+    if (riskFilters.length) parts.push(`Risk: ${riskFilters.map(riskLabel).join(", ")}`)
+    return parts.join(" · ")
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [view, search, statusFilters, unitFilters, labelFilters, householdFilters, riskFilters, unitsData, labelsData, householdsData])
 
   // Export the whole filtered result, not just the rows "Load more" happens to
   // have pulled in — the CSV silently stopped at the loaded page before, so a
@@ -205,10 +239,10 @@ export function MembersContent({ view = 'active', onViewChange }: MembersContent
       (m.unit_names || []).join("; "),
       (m.labels || []).map((l: any) => l.name).join("; "),
       m.address ?? "",
-      m.date_of_birth ?? "",
+      m.dob ?? "",
       m.gender ?? "",
       m.marital_status ?? "",
-      m.join_date ?? "",
+      m.joined_date ?? "",
     ])
 
     const csv = [headers, ...rows]
@@ -256,6 +290,22 @@ export function MembersContent({ view = 'active', onViewChange }: MembersContent
             <Download className="mr-2 h-4 w-4" />
             Export
           </Button>
+          {canShareList && organization?._id && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setIsShareOpen(true)}
+              className="shadow-sm hover:shadow-md transition-all rounded-lg"
+            >
+              <Share2 className="mr-2 h-4 w-4" />
+              Share list
+              {selectedMemberIds.length > 0 && (
+                <Badge variant="secondary" className="ml-2 h-5 px-1.5 font-normal">
+                  {selectedMemberIds.length}
+                </Badge>
+              )}
+            </Button>
+          )}
           {view === 'active' && (
             <Button
               variant="outline"
@@ -491,6 +541,8 @@ export function MembersContent({ view = 'active', onViewChange }: MembersContent
             <MembersTable
               members={filteredMembers}
               isArchivedView={view === 'archived'}
+              selectedMembers={selectedMemberIds}
+              onSelectedMembersChange={setSelectedMemberIds}
             />
           </div>
 
@@ -498,8 +550,10 @@ export function MembersContent({ view = 'active', onViewChange }: MembersContent
             <div className="mt-4 flex justify-center">
               <Button
                 variant="outline"
+                disabled={isLoadingMore}
                 onClick={() => setLoadedCount((c) => c + PAGE_SIZE)}
               >
+                {isLoadingMore && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                 Load more
               </Button>
             </div>
@@ -515,6 +569,26 @@ export function MembersContent({ view = 'active', onViewChange }: MembersContent
         open={isBulkUploadOpen}
         onOpenChange={setIsBulkUploadOpen}
       />
+      {canShareList && organization?._id && (
+        <ShareMembersLinkDialog
+          open={isShareOpen}
+          onOpenChange={setIsShareOpen}
+          filters={{
+            organization_id: organization._id,
+            filter: view,
+            search: search || undefined,
+            statuses: statusFilters.length ? statusFilters : undefined,
+            unit_ids: unitFilters.length ? (unitFilters as Id<"units">[]) : undefined,
+            label_ids: labelFilters.length ? (labelFilters as Id<"labels">[]) : undefined,
+            household_ids: householdIds.length ? (householdIds as Id<"households">[]) : undefined,
+            no_household: noHousehold || undefined,
+            risk_levels: riskFilters.length ? riskFilters : undefined,
+          }}
+          filterSummary={filterSummary}
+          totalCount={totalCount}
+          selectedMemberIds={selectedMemberIds}
+        />
+      )}
     </div>
   )
 }

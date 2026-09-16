@@ -2,6 +2,7 @@ import { v } from "convex/values";
 import { mutation, query } from "./_generated/server";
 import { Id } from "./_generated/dataModel";
 import { requireOrgAdmin, requireOrgAccess, resolveOrgId } from "./auth";
+import { publicBrandHex } from "./lib/theme/publicBrand";
 
 const DEFAULT_EXPIRY_DAYS = 30;
 
@@ -100,6 +101,7 @@ export const getByToken = query({
         if (!matchingRecord) {
             return {
                 organization_name: organization?.name ?? "",
+                brand_hex: await publicBrandHex(ctx, share.organization_id, organization),
                 event_type_label: eventType?.label ?? share.event_type_value,
                 date: share.date,
                 units: [],
@@ -194,6 +196,7 @@ export const getByToken = query({
 
         return {
             organization_name: organization?.name ?? "",
+            brand_hex: await publicBrandHex(ctx, share.organization_id, organization),
             event_type_label: eventType?.label ?? share.event_type_value,
             date: share.date,
             units: Array.from(unitSet).sort(),

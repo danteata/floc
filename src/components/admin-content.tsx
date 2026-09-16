@@ -8,6 +8,7 @@ import type { Unit } from "@/types/database"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { FeatureFlagsPanel } from "@/components/feature-flags-panel"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Badge } from "@/components/ui/badge"
 import { SettingsDialog } from "@/components/settings-dialog"
@@ -130,6 +131,9 @@ export function AdminContent() {
           </TabsTrigger>
           <TabsTrigger value="settings" className="rounded-lg data-[state=active]:bg-background data-[state=active]:shadow-sm px-4">
             System Core
+          </TabsTrigger>
+          <TabsTrigger value="flags" className="rounded-lg data-[state=active]:bg-background data-[state=active]:shadow-sm px-4">
+            Feature Flags
           </TabsTrigger>
         </TabsList>
 
@@ -301,6 +305,10 @@ export function AdminContent() {
               </div>
             </CardContent>
           </Card>
+        </TabsContent>
+
+        <TabsContent value="flags" className="mt-6 w-full animate-in fade-in slide-in-from-bottom-2 duration-300">
+          <FeatureFlagsPanel />
         </TabsContent>
       </Tabs>
 

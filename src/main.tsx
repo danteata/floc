@@ -7,6 +7,7 @@ import { ConvexProviderWithClerk } from 'convex/react-clerk'
 import { ConvexReactClient } from 'convex/react'
 import { OrganizationProvider } from './hooks/use-organization.tsx'
 import { ThemeProvider } from './components/theme-provider'
+import { OrgBrand } from './components/org-brand'
 import { AnalyticsProvider } from './providers/AnalyticsProvider'
 import { SubscriptionProvider } from './providers/SubscriptionProvider'
 import { AnalyticsProviderType } from './services/analytics'
@@ -42,6 +43,11 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
                     >
                         <OrganizationProvider>
                             <SubscriptionProvider>
+                                {/* Inside OrganizationProvider (it needs the
+                                    org) and inside ThemeProvider (it needs the
+                                    resolved theme), wrapping App so every route
+                                    — including the public ones — is painted. */}
+                                <OrgBrand />
                                 <App />
                                 {/* Two toast systems coexist in this codebase (shadcn's
                                     useToast + sonner) — mount both roots so every

@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect } from "react"
+import { BrandProvider } from "@/components/brand-provider"
 import { useParams, Link } from "react-router-dom"
 import { useConvexAuth, useMutation, useQuery } from "convex/react"
 import { SignIn } from "@clerk/clerk-react"
@@ -41,7 +42,23 @@ type CheckInResult =
     | { status: "outside_geofence" }
     | { status: "error"; message: string }
 
+/**
+ * The brand rides on `getSessionByToken`, which this page already calls — so a
+ * check-in screen at the door carries the church's colour without a second
+ * request and without a public theme endpoint keyed by organization.
+ */
 export default function CheckInPage() {
+    const { token } = useParams<{ token: string }>()
+    const sessionInfo = useQuery(api.check_ins.getSessionByToken, token ? { token } : "skip")
+
+    return (
+        <BrandProvider brandHex={sessionInfo?.brand_hex}>
+            <CheckInFlow />
+        </BrandProvider>
+    )
+}
+
+function CheckInFlow() {
     const { token } = useParams<{ token: string }>()
     const { isAuthenticated, isLoading } = useConvexAuth()
     const [result, setResult] = useState<CheckInResult>({ status: "loading" })

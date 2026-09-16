@@ -6,10 +6,10 @@
  * here so Free orgs cannot bypass limits by calling the API directly.
  */
 
-import { ConvexError } from "convex/values";
 import { Id } from "./_generated/dataModel";
 import { MutationCtx, QueryCtx } from "./_generated/server";
 import { isSuperAdmin, normalizeOrgId, requireUser } from "./auth";
+import { appError, forbidden } from "./lib/errors";
 
 type Ctx = MutationCtx | QueryCtx;
 
@@ -21,7 +21,8 @@ export type ProFeature =
     | "map"
     | "unlimited_members"
     | "automations"
-    | "engagement_scoring";
+    | "engagement_scoring"
+    | "ai_copilot";
 
 export const FREE_MEMBER_LIMIT = 200;
 
@@ -123,14 +124,11 @@ export async function assertMemberLimit(
 
     const current = await countOrgMembers(ctx, organizationId);
     if (current + additional > FREE_MEMBER_LIMIT) {
-        throw new ConvexError({
-            code: "PLAN_LIMIT",
-            feature: "unlimited_members",
-            message: `Free plan allows up to ${FREE_MEMBER_LIMIT} members. Upgrade to Pro for unlimited members. (Currently ${current}, trying to add ${additional}.)`,
-            limit: FREE_MEMBER_LIMIT,
-            current,
-            additional,
-        });
+        throw appError(
+            "PLAN_LIMIT",
+            `Free plan allows up to ${FREE_MEMBER_LIMIT} members. Upgrade to Pro for unlimited members. (Currently ${current}, trying to add ${additional}.)`,
+            { feature: "unlimited_members", limit: FREE_MEMBER_LIMIT, current, additional },
+        );
     }
 }
 
@@ -150,19 +148,12 @@ export async function requireFeature(
         normalizeOrgId(ctx, organizationId) ??
         normalizeOrgId(ctx, user.organization_id);
     if (!orgId) {
-        throw new ConvexError({
-            code: "FORBIDDEN",
-            message: "Organization not set",
-        });
+        throw forbidden("Organization not set");
     }
 
     if (await orgIsPro(ctx, orgId)) return;
 
-    throw new ConvexError({
-        code: "PLAN_REQUIRED",
-        feature,
-        message: proFeatureMessage(feature),
-    });
+    throw appError("PLAN_REQUIRED", proFeatureMessage(feature), { feature });
 }
 
 function proFeatureMessage(feature: ProFeature): string {
@@ -179,6 +170,8 @@ function proFeatureMessage(feature: ProFeature): string {
             return "Automations (if-this-then-that rules) are a Pro feature. Upgrade to create and enable rules.";
         case "engagement_scoring":
             return "Engagement/at-risk scoring is a Pro feature. Upgrade to see who needs outreach.";
+        case "ai_copilot":
+            return "AI assistance is a Pro feature. Upgrade to connect a provider and use drafting and triage.";
         case "unlimited_members":
             return `Free plan is limited to ${FREE_MEMBER_LIMIT} members. Upgrade to Pro for unlimited members.`;
         default:
@@ -206,6 +199,7 @@ export async function getEntitlementsForOrg(
             unlimited_members: isPro,
             automations: isPro,
             engagement_scoring: isPro,
+            ai_copilot: isPro,
             qr_check_in: true,
             attendance: true,
             financial: true,

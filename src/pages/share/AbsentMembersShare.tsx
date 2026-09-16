@@ -9,6 +9,7 @@ import { api } from "../../../convex/_generated/api"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { MultiSelectFilter } from "@/components/multi-select-filter"
+import { BrandProvider } from "@/components/brand-provider"
 
 export default function AbsentMembersSharePage() {
   const { token } = useParams<{ token: string }>()
@@ -45,6 +46,7 @@ export default function AbsentMembersSharePage() {
   }
 
   return (
+    <BrandProvider brandHex={data.brand_hex}>
     <div className="min-h-screen bg-muted/30 py-8 px-4">
       <div className="mx-auto max-w-2xl space-y-4">
         <div className="flex items-center gap-2">
@@ -125,5 +127,6 @@ export default function AbsentMembersSharePage() {
         </p>
       </div>
     </div>
+    </BrandProvider>
   )
 }

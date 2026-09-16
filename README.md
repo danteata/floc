@@ -70,6 +70,22 @@ The application is structured with a modern React architecture using TypeScript 
     VITE_GOOGLE_MAPS_API_KEY=your_google_maps_api_key
    ```
 
+   Some settings belong to the Convex **deployment**, not the browser bundle,
+   and are set with `npx convex env set` rather than in `.env.local`:
+
+   ```bash
+   # Required before an organization can store its own AI provider key.
+   # Without it, saving a key fails loudly rather than storing plaintext.
+   npx convex env set AI_CREDENTIAL_KEY "$(openssl rand -base64 32)"
+
+   # Optional: a platform-wide AI key, used only by organizations that have
+   # not supplied one of their own.
+   npx convex env set ANTHROPIC_API_KEY sk-ant-...
+   ```
+
+   Rotating `AI_CREDENTIAL_KEY` makes every stored provider key undecryptable;
+   admins are told to re-enter theirs. Keep it somewhere you can recover it.
+
 4. Run the development server:
 
    ```bash
