@@ -11,6 +11,7 @@ import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { MultiSelectFilter } from "@/components/multi-select-filter"
 import { BrandProvider } from "@/components/brand-provider"
+import { downloadCsv, slugForFilename, toCsv } from "@/lib/csv"
 
 export default function AbsentMembersSharePage() {
   const { token } = useParams<{ token: string }>()
@@ -27,28 +28,19 @@ export default function AbsentMembersSharePage() {
   const handleExport = () => {
     if (filteredMembers.length === 0) return
 
-    const headers = ["Name", "Phone", "Units", "Consecutive Absences"]
-    const csvContent = [
-      headers.join(","),
-      ...filteredMembers.map((member) =>
-        [
-          `"${member.name}"`,
-          `"${member.phone || ''}"`,
-          `"${member.unit_names.join('; ') || 'None'}"`,
+    const label = slugForFilename(data?.event_type_label ?? "", "event")
+    downloadCsv(
+      `absent-members-${label}-${data?.date ?? "export"}.csv`,
+      toCsv(
+        ["Name", "Phone", "Units", "Consecutive Absences"],
+        filteredMembers.map((member) => [
+          member.name,
+          member.phone || "",
+          member.unit_names.join("; ") || "None",
           member.consecutive_absences,
-        ].join(",")
+        ]),
       ),
-    ].join("\n")
-
-    const blob = new Blob([csvContent], { type: "text/csv" })
-    const url = window.URL.createObjectURL(blob)
-    const a = document.createElement("a")
-    a.href = url
-    a.download = `absent-members-${data?.event_type_label ?? "event"}-${data?.date ?? "export"}.csv`
-    document.body.appendChild(a)
-    a.click()
-    document.body.removeChild(a)
-    window.URL.revokeObjectURL(url)
+    )
   }
 
   if (data === undefined) {

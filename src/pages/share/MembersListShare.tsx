@@ -3,13 +3,15 @@
 import { useMemo, useState } from "react"
 import { useParams } from "react-router-dom"
 import { useQuery } from "convex/react"
-import { AlertTriangle, Church, Mail, MapPin, Phone, Search } from "lucide-react"
+import { AlertTriangle, Church, Download, Mail, MapPin, Phone, Search } from "lucide-react"
 import { api } from "../../../convex/_generated/api"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
+import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { MultiSelectFilter } from "@/components/multi-select-filter"
 import { BrandProvider } from "@/components/brand-provider"
+import { downloadCsv, slugForFilename, todayStamp, toCsv } from "@/lib/csv"
 
 export default function MembersListSharePage() {
   const { token } = useParams<{ token: string }>()
@@ -59,6 +61,38 @@ export default function MembersListSharePage() {
   // The reader returns only the columns the link was created with.
   const shows = (column: (typeof data.columns)[number]) => data.columns.includes(column)
 
+  // Built from `data.columns` for the same reason the reader projects by it:
+  // a column the link was not created with is undefined on every row, so
+  // emitting its header would hand the reader an empty field the link's owner
+  // deliberately withheld. Name is unconditional — it is never optional.
+  const handleExport = () => {
+    if (filteredMembers.length === 0) return
+
+    type Member = (typeof filteredMembers)[number]
+    const optional: { column: (typeof data.columns)[number]; label: string; cell: (member: Member) => string }[] = [
+      { column: "phone", label: "Phone", cell: (m) => m.phone ?? "" },
+      { column: "email", label: "Email", cell: (m) => m.email ?? "" },
+      { column: "status", label: "Status", cell: (m) => m.status ?? "" },
+      { column: "units", label: "Units", cell: (m) => (m.unit_names ?? []).join("; ") },
+      { column: "household", label: "Household", cell: (m) => m.household_name ?? "" },
+      { column: "address", label: "Address", cell: (m) => m.address ?? "" },
+      { column: "gender", label: "Gender", cell: (m) => m.gender ?? "" },
+      { column: "joined_date", label: "Joined", cell: (m) => m.joined_date ?? "" },
+    ]
+    const included = optional.filter(({ column }) => shows(column))
+
+    downloadCsv(
+      `${slugForFilename(data.title, "member-list")}-${todayStamp()}.csv`,
+      toCsv(
+        ["Name", ...included.map(({ label }) => label)],
+        filteredMembers.map((member) => [
+          member.name,
+          ...included.map(({ cell }) => cell(member)),
+        ]),
+      ),
+    )
+  }
+
   return (
     <BrandProvider brandHex={data.brand_hex}>
     <div className="min-h-screen bg-muted/30 py-8 px-4">
@@ -70,8 +104,18 @@ export default function MembersListSharePage() {
 
         <Card>
           <CardHeader>
-            <CardTitle>{data.title}</CardTitle>
-            {data.description && <CardDescription>{data.description}</CardDescription>}
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <CardTitle>{data.title}</CardTitle>
+                {data.description && <CardDescription>{data.description}</CardDescription>}
+              </div>
+              {filteredMembers.length > 0 && (
+                <Button variant="outline" size="sm" onClick={handleExport}>
+                  <Download className="mr-2 h-4 w-4" />
+                  Export CSV
+                </Button>
+              )}
+            </div>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="flex flex-col gap-2 sm:flex-row">
