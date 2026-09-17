@@ -3,11 +3,12 @@
 import { useState, useMemo } from "react"
 import { useParams } from "react-router-dom"
 import { useQuery } from "convex/react"
-import { Church, Phone, AlertTriangle } from "lucide-react"
+import { Church, Phone, AlertTriangle, Download } from "lucide-react"
 import { format } from "date-fns"
 import { api } from "../../../convex/_generated/api"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
+import { Button } from "@/components/ui/button"
 import { MultiSelectFilter } from "@/components/multi-select-filter"
 import { BrandProvider } from "@/components/brand-provider"
 
@@ -22,6 +23,33 @@ export default function AbsentMembersSharePage() {
     if (unitFilter.length === 0) return data.members
     return data.members.filter((member) => member.unit_names.some((unit) => unitFilter.includes(unit)))
   }, [data, unitFilter])
+
+  const handleExport = () => {
+    if (filteredMembers.length === 0) return
+
+    const headers = ["Name", "Phone", "Units", "Consecutive Absences"]
+    const csvContent = [
+      headers.join(","),
+      ...filteredMembers.map((member) =>
+        [
+          `"${member.name}"`,
+          `"${member.phone || ''}"`,
+          `"${member.unit_names.join('; ') || 'None'}"`,
+          member.consecutive_absences,
+        ].join(",")
+      ),
+    ].join("\n")
+
+    const blob = new Blob([csvContent], { type: "text/csv" })
+    const url = window.URL.createObjectURL(blob)
+    const a = document.createElement("a")
+    a.href = url
+    a.download = `absent-members-${data?.event_type_label ?? "event"}-${data?.date ?? "export"}.csv`
+    document.body.appendChild(a)
+    a.click()
+    document.body.removeChild(a)
+    window.URL.revokeObjectURL(url)
+  }
 
   if (data === undefined) {
     return (
@@ -56,10 +84,20 @@ export default function AbsentMembersSharePage() {
 
         <Card>
           <CardHeader>
-            <CardTitle>Absent Members</CardTitle>
-            <CardDescription>
-              {data.event_type_label} &middot; {format(new Date(data.date), "PPP")}
-            </CardDescription>
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <CardTitle>Absent Members</CardTitle>
+                <CardDescription>
+                  {data.event_type_label} &middot; {format(new Date(data.date), "PPP")}
+                </CardDescription>
+              </div>
+              {filteredMembers.length > 0 && (
+                <Button variant="outline" size="sm" onClick={handleExport}>
+                  <Download className="mr-2 h-4 w-4" />
+                  Export CSV
+                </Button>
+              )}
+            </div>
           </CardHeader>
           <CardContent className="space-y-4">
             {data.units.length > 0 && (
