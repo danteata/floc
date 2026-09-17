@@ -45,10 +45,20 @@ const PortalProfile = lazy(() => import("@/pages/portal/PortalProfile"));
 const PortalLink = lazy(() => import("@/pages/portal/PortalLink"));
 const PortalGiving = lazy(() => import("@/pages/portal/PortalGiving"));
 
+import { Church } from "lucide-react";
+
 function PageLoader() {
   return (
-    <div className="flex items-center justify-center min-h-screen">
-      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+    <div className="flex items-center justify-center min-h-screen bg-background">
+      <div className="flex flex-col items-center gap-4 fade-in">
+        <div className="relative">
+          <div className="w-12 h-12 rounded-xl bg-gradient-primary shadow-soft-lg flex items-center justify-center animate-pulse-soft">
+            <Church className="h-6 w-6 text-primary-foreground" />
+          </div>
+          <div className="absolute -inset-2 rounded-2xl border-2 border-primary/20 border-t-primary animate-spin" />
+        </div>
+        <p className="text-sm text-muted-foreground font-medium tracking-wide">Floc</p>
+      </div>
     </div>
   );
 }

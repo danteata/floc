@@ -31,7 +31,16 @@ interface NavigationItem {
   icon: React.ComponentType<{ className?: string }>
   badge?: string
   capability: Capability
+  group: string
 }
+
+const GROUP_ORDER = [
+  "Overview",
+  "Community",
+  "Care",
+  "Insight",
+  "Administration",
+] as const
 
 export function RoleBasedNavigation() {
   const { pathname } = useLocation()
@@ -43,66 +52,77 @@ export function RoleBasedNavigation() {
       href: "/dashboard",
       icon: Home,
       capability: "dashboard",
+      group: "Overview",
     },
     {
       title: "My Portal",
       href: "/portal",
       icon: QrCode,
       capability: "portal",
+      group: "Overview",
     },
     {
       title: "Members",
       href: "/members",
       icon: Users,
       capability: "members",
+      group: "Community",
     },
     {
       title: "Organization",
       href: "/organization",
       icon: Building2,
       capability: "organization",
+      group: "Community",
     },
     {
       title: "Events",
       href: "/events",
       icon: Calendar,
       capability: "events",
+      group: "Community",
     },
     {
       title: "Attendance",
       href: "/attendance",
       icon: UserCheck,
       capability: "attendance",
+      group: "Community",
     },
     {
       title: "Command Center",
       href: "/command-center",
       icon: Radio,
       capability: "command_center",
+      group: "Care",
     },
     {
       title: "Care Tasks",
       href: "/care",
       icon: HeartHandshake,
       capability: "care_tasks",
+      group: "Care",
     },
     {
       title: "Financial",
       href: "/financial",
       icon: DollarSign,
       capability: "financial",
+      group: "Insight",
     },
     {
       title: "Reports",
       href: "/reports",
       icon: BarChart3,
       capability: "reports",
+      group: "Insight",
     },
     {
       title: "Map",
       href: "/map",
       icon: MapPin,
       capability: "map",
+      group: "Insight",
     },
     {
       title: "User Management",
@@ -110,6 +130,7 @@ export function RoleBasedNavigation() {
       icon: Shield,
       badge: "Admin",
       capability: "user_management",
+      group: "Administration",
     },
     {
       title: "Automations",
@@ -117,18 +138,21 @@ export function RoleBasedNavigation() {
       icon: Zap,
       badge: "Pro",
       capability: "automations",
+      group: "Administration",
     },
     {
       title: "Settings",
       href: "/settings",
       icon: Settings,
       capability: "settings",
+      group: "Administration",
     },
     {
       title: "Billing",
       href: "/billing",
       icon: CreditCard,
       capability: "billing",
+      group: "Administration",
     },
     {
       title: "Audit Trail",
@@ -136,6 +160,7 @@ export function RoleBasedNavigation() {
       icon: ClipboardList,
       badge: "Pro",
       capability: "audit_trail",
+      group: "Administration",
     },
   ]
 
@@ -154,44 +179,73 @@ export function RoleBasedNavigation() {
     )
   }
 
-  return (
-    <nav className="space-y-1">
-      {visibleItems.map((item) => {
-        const Icon = item.icon
-        const isActive =
-          pathname === item.href ||
-          (item.href !== "/dashboard" && pathname.startsWith(item.href + "/"))
+  const grouped = GROUP_ORDER.map((group) => ({
+    group,
+    items: visibleItems.filter((item) => item.group === group),
+  })).filter(({ items }) => items.length > 0)
 
-        return (
-          <Link key={item.href} to={item.href}>
-            <Button
-              variant="ghost"
-              className={cn(
-                "w-full justify-start gap-3 h-10 px-3 rounded-xl text-sm transition-all duration-300",
-                isActive
-                  ? "bg-sidebar-accent/15 text-sidebar-accent-foreground border border-sidebar-accent/30"
-                  : "text-sidebar-foreground/60 hover:text-sidebar-foreground hover:bg-sidebar-foreground/5 hover:border hover:border-sidebar-foreground/10",
-              )}
-            >
-              <Icon
-                className={cn(
-                  "h-5 w-5 transition-all duration-300",
-                  isActive && "text-sidebar-accent-foreground",
-                )}
-              />
-              <span>{item.title}</span>
-              {item.badge && (
-                <Badge
-                  variant="secondary"
-                  className="ml-auto text-[10px] px-2 py-0.5 h-5 bg-accent/20 text-accent-foreground border-0"
-                >
-                  {item.badge}
-                </Badge>
-              )}
-            </Button>
-          </Link>
-        )
-      })}
+  return (
+    <nav>
+      {grouped.map(({ group, items }, groupIndex) => (
+        <div key={group} className={groupIndex > 0 ? "mt-6" : ""}>
+          {grouped.length > 1 && (
+            <div className="text-[10px] text-sidebar-foreground/40 tracking-widest mb-2 px-3 font-medium uppercase">
+              {group}
+            </div>
+          )}
+          <div className="space-y-0.5">
+            {items.map((item) => {
+              const Icon = item.icon
+              const isActive =
+                pathname === item.href ||
+                (item.href !== "/dashboard" && pathname.startsWith(item.href + "/"))
+
+              return (
+                <Link key={item.href} to={item.href} className="block relative group/nav">
+                  {isActive && (
+                    <span
+                      className="absolute left-0 top-1/2 -translate-y-1/2 h-5 w-0.5 rounded-full bg-primary transition-all"
+                      aria-hidden
+                    />
+                  )}
+                  <Button
+                    variant="ghost"
+                    className={cn(
+                      "relative w-full justify-start gap-3 h-9 px-3 rounded-lg text-sm transition-all duration-200 font-normal",
+                      isActive
+                        ? "bg-primary/10 text-primary font-medium"
+                        : "text-sidebar-foreground/60 hover:text-sidebar-foreground hover:bg-sidebar-foreground/5",
+                    )}
+                  >
+                    <Icon
+                      className={cn(
+                        "h-4 w-4 shrink-0 transition-colors duration-200",
+                        isActive
+                          ? "text-primary"
+                          : "text-sidebar-foreground/50 group-hover/nav:text-sidebar-foreground",
+                      )}
+                    />
+                    <span className="truncate">{item.title}</span>
+                    {item.badge && (
+                      <Badge
+                        variant="secondary"
+                        className={cn(
+                          "ml-auto text-[10px] px-1.5 py-0 h-4.5 border-0 font-medium",
+                          isActive
+                            ? "bg-primary/15 text-primary"
+                            : "bg-accent/20 text-accent-foreground"
+                        )}
+                      >
+                        {item.badge}
+                      </Badge>
+                    )}
+                  </Button>
+                </Link>
+              )
+            })}
+          </div>
+        </div>
+      ))}
     </nav>
   )
 }

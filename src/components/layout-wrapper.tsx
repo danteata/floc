@@ -1,4 +1,5 @@
 import { type ReactNode, useState, useEffect } from "react"
+import { useLocation } from "react-router-dom"
 import {
   Menu,
   X,
@@ -25,6 +26,7 @@ export function LayoutWrapper({ children, showSearch = true }: LayoutWrapperProp
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [isMobile, setIsMobile] = useState(false)
   const { isSignedIn, isLoaded } = useUser()
+  const { pathname } = useLocation()
 
   const isClerkConfigured =
     typeof import.meta.env.VITE_CLERK_PUBLISHABLE_KEY === "string" &&
@@ -53,25 +55,25 @@ export function LayoutWrapper({ children, showSearch = true }: LayoutWrapperProp
         {/* Mobile sidebar overlay - only render on mobile */}
         {sidebarOpen && isMobile && (
           <div
-            className="fixed inset-0 z-40 bg-black/60 backdrop-blur-sm transition-opacity"
+            className="fixed inset-0 z-40 bg-black/60 backdrop-blur-sm transition-opacity animate-in fade-in"
             onClick={() => setSidebarOpen(false)}
           />
         )}
 
         {/* Sidebar - solid background, not affected by blur */}
         <div className={cn(
-          "fixed inset-y-0 left-0 z-50 w-64 bg-sidebar border-r border-sidebar-border transform transition-all duration-300 ease-out lg:translate-x-0 lg:static lg:inset-0",
+          "fixed inset-y-0 left-0 z-50 w-64 bg-sidebar border-r border-sidebar-border transform transition-transform duration-300 ease-out flex flex-col lg:translate-x-0 lg:static lg:inset-0",
           sidebarOpen ? "translate-x-0" : "-translate-x-full"
         )}>
           {/* Logo */}
-          <div className="flex items-center justify-between h-16 px-5 border-b border-sidebar-border/50">
+          <div className="flex items-center justify-between h-16 px-5 border-b border-sidebar-border/50 shrink-0">
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-primary/20 flex items-center justify-center">
-                <Sparkles className="h-5 w-5 text-primary" />
+              <div className="w-10 h-10 rounded-xl bg-gradient-primary shadow-soft flex items-center justify-center">
+                <Sparkles className="h-5 w-5 text-primary-foreground" />
               </div>
               <div className="flex flex-col">
-                <span className="font-bold text-sidebar-foreground tracking-tight">Floc</span>
-                <span className="text-[10px] text-sidebar-foreground/50">Church Management</span>
+                <span className="font-bold text-sidebar-foreground tracking-tight font-serif text-lg leading-none">Floc</span>
+                <span className="text-[10px] text-sidebar-foreground/50 mt-1">Church Management</span>
               </div>
             </div>
             <Button
@@ -85,13 +87,8 @@ export function LayoutWrapper({ children, showSearch = true }: LayoutWrapperProp
           </div>
 
           {/* Navigation */}
-          <div className="flex-1 px-3 py-5 overflow-y-auto scrollbar-thin">
-            <div className="text-[10px] text-sidebar-foreground/40 tracking-widest mb-3 px-3">
-              Navigation
-            </div>
-            <div onClick={() => setSidebarOpen(false)}>
-              <RoleBasedNavigation />
-            </div>
+          <div className="flex-1 px-3 py-5 overflow-y-auto scrollbar-thin" onClick={() => setSidebarOpen(false)}>
+            <RoleBasedNavigation />
           </div>
 
           {/* Role Indicator */}
@@ -101,7 +98,7 @@ export function LayoutWrapper({ children, showSearch = true }: LayoutWrapperProp
         {/* Main content */}
         <div className="flex-1 flex flex-col min-w-0">
           {/* Header */}
-          <header className="h-16 glass border-b border-border/50 flex items-center justify-between px-6 sticky top-0 z-30">
+          <header className="h-16 glass border-b border-border/50 flex items-center justify-between px-6 sticky top-0 z-30 shrink-0">
             {/* Left section */}
             <div className="flex items-center gap-4">
               <Button
@@ -127,9 +124,9 @@ export function LayoutWrapper({ children, showSearch = true }: LayoutWrapperProp
 
           <ViewingOrgBanner />
 
-          {/* Content */}
+          {/* Content — keyed by route so each page fades in on navigation */}
           <main className="flex-1 overflow-auto">
-            <div className="p-6 w-full max-w-7xl mx-auto">
+            <div key={pathname} className="p-6 w-full max-w-7xl mx-auto fade-in-up">
               {children}
             </div>
           </main>
