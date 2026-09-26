@@ -35,7 +35,7 @@ import {
 } from '@/components/ui/dialog'
 import { Label } from '@/components/ui/label'
 import { Checkbox } from '@/components/ui/checkbox'
-import { Shield, Users, Edit, UserPlus, Trash2, UserX, UserCheck } from 'lucide-react'
+import { Users, Edit, UserPlus, Trash2, UserX, UserCheck } from 'lucide-react'
 import {
   AlertDialog,
   AlertDialogAction,
@@ -56,9 +56,11 @@ import { LeaderInvitationSystem } from '@/components/leader-invitation-system'
 import type { UserRole } from '@/types/database'
 import { Id } from "../../convex/_generated/dataModel"
 import { PageHeader } from "@/components/ui/page-header"
+import { NoAccess } from "@/components/ui/no-access"
+import { LoadingState } from "@/components/ui/loading-state"
 
 export function UserManagement() {
-  const { isAdmin, user: currentUser } = useUserRole()
+  const { isAdmin, user: currentUser, isLoading: roleLoading } = useUserRole()
   const { toast } = useToast()
   const { terminology } = useTerminology()
   const { organization } = useOrganization()
@@ -226,22 +228,9 @@ export function UserManagement() {
     return allUnits.filter((u: any) => adminUnitIds.has(u._id) || u.leader_id === member._id)
   }
 
-  if (!isAdmin) {
-    return (
-      <div className="container p-4 md:p-6">
-        <Card>
-          <CardContent className="pt-6">
-            <div className="text-center">
-              <Shield className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-              <h3 className="text-lg font-semibold mb-2">Access Denied</h3>
-              <p className="text-muted-foreground">
-                You don't have permission to access user management.
-              </p>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-    )
+  if (roleLoading) return <LoadingState message="Checking your access…" />
+    if (!isAdmin) {
+    return <NoAccess what="manage users and roles" who="administrators" />
   }
 
   return (

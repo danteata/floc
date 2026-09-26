@@ -35,6 +35,8 @@ import { useToast } from '@/hooks/use-toast'
 import { useQuery, useMutation } from 'convex/react'
 import { api } from '../../convex/_generated/api'
 import { Id } from '../../convex/_generated/dataModel'
+import { NoAccess } from "@/components/ui/no-access"
+import { LoadingState } from "@/components/ui/loading-state"
 
 interface ChartNode {
   id: string
@@ -63,7 +65,7 @@ interface OrganizationChartProps {
 }
 
 export function OrganizationChart({ organizationId }: OrganizationChartProps) {
-  const { isAdmin, role } = useUserRole()
+  const { isAdmin, role, isLoading: roleLoading } = useUserRole()
   const { toast } = useToast()
 
   // State
@@ -630,22 +632,9 @@ export function OrganizationChart({ organizationId }: OrganizationChartProps) {
     )
   }
 
-  if (!isAdmin && role !== 'organization_admin' && role !== 'division_admin' && role !== 'unit_admin') {
-    return (
-      <Card className="shadow-soft rounded-xl border border-border/50">
-        <CardContent className="pt-6">
-          <div className="text-center">
-            <div className="p-3 bg-muted rounded-full inline-block mb-4">
-              <Building2 className="h-6 w-6 text-muted-foreground" />
-            </div>
-            <h3 className="text-lg font-semibold mb-2">Access Denied</h3>
-            <p className="text-muted-foreground">
-              You don't have permission to view the organization chart.
-            </p>
-          </div>
-        </CardContent>
-      </Card>
-    )
+  if (roleLoading) return <LoadingState message="Checking your access…" />
+    if (!isAdmin && role !== 'organization_admin' && role !== 'division_admin' && role !== 'unit_admin') {
+    return <NoAccess what="view the organization chart" who="organization and unit leaders" />
   }
 
   if (!chartData) {

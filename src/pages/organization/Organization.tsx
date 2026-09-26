@@ -7,7 +7,6 @@ import {
     Building2,
     Settings,
     BarChart3,
-    Shield,
     Layout,
     ArrowUpRight
 } from 'lucide-react'
@@ -19,9 +18,11 @@ import { OrganizationLinks } from '@/components/organization-links'
 import { LayoutWrapper } from '@/components/layout-wrapper'
 import { useUserRole } from '@/hooks/use-user-role'
 import { PageHeader } from '@/components/ui/page-header'
+import { NoAccess } from "@/components/ui/no-access"
+import { LoadingState } from "@/components/ui/loading-state"
 
 export default function OrganizationPage() {
-    const { isAdmin, role } = useUserRole()
+    const { isAdmin, role, isLoading: roleLoading } = useUserRole()
     const [activeTab, setActiveTab] = useState('units')
     const [settingsDialogOpen, setSettingsDialogOpen] = useState(false)
 
@@ -30,22 +31,12 @@ export default function OrganizationPage() {
         role === 'division_admin' ||
         role === 'unit_admin'
 
+    if (roleLoading) return <LayoutWrapper><LoadingState message="Checking your access…" /></LayoutWrapper>
     if (!hasAccess) {
         return (
             <LayoutWrapper>
-                <div className="container p-20 flex items-center justify-center">
-                    <div className="text-center space-y-6 max-w-md p-10 border border-border bg-card shadow-soft-lg rounded-xl">
-                        <div className="mx-auto h-20 w-20 bg-destructive/10 text-destructive rounded-full flex items-center justify-center">
-                            <Shield className="h-10 w-10" />
-                        </div>
-                        <h2 className="text-2xl tracking-tight">Access Denied</h2>
-                        <p className="font-medium text-muted-foreground">
-                            Your security clearance is insufficient for organization architecture protocols.
-                        </p>
-                        <Button variant="outline" className="shadow-sm hover:shadow-md rounded-lg" onClick={() => window.history.back()}>
-                            Return to Dashboard
-                        </Button>
-                    </div>
+                <div className="container py-10">
+                    <NoAccess what="manage your church's structure" who="organization and unit leaders" />
                 </div>
             </LayoutWrapper>
         )

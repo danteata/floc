@@ -18,6 +18,8 @@ import { useUserRole } from '@/hooks/use-user-role'
 import { useQuery, useMutation } from 'convex/react'
 import { api } from '../../convex/_generated/api'
 import { useToast } from '@/hooks/use-toast'
+import { NoAccess } from "@/components/ui/no-access"
+import { LoadingState } from "@/components/ui/loading-state"
 
 // Generic defaults for an org that hasn't customized its structure: every
 // level is just "Unit Level N". Named vocabularies are opt-in, not default.
@@ -29,7 +31,7 @@ const DEFAULT_LEVEL_TERMS = {
 }
 
 export function TerminologyManagement() {
-  const { isAdmin } = useUserRole()
+  const { isAdmin, isLoading: roleLoading } = useUserRole()
   const { toast } = useToast()
   const [isSaving, setIsSaving] = useState(false)
 
@@ -84,22 +86,9 @@ export function TerminologyManagement() {
     setFormData({ ...DEFAULT_LEVEL_TERMS })
   }
 
-  if (!isAdmin) {
-    return (
-      <div className="container p-4 md:p-6">
-        <Card className="border-border/50 shadow-soft rounded-3xl overflow-hidden">
-          <CardContent className="pt-12 pb-12">
-            <div className="text-center">
-              <Settings className="h-12 w-12 text-muted-foreground/40 mx-auto mb-4" />
-              <h3 className="text-xl tracking-tight mb-2">Access Denied</h3>
-              <p className="text-muted-foreground">
-                You don't have permission to manage terminology settings.
-              </p>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-    )
+  if (roleLoading) return <LoadingState message="Checking your access…" />
+    if (!isAdmin) {
+    return <NoAccess what="change your church's terminology" who="administrators" />
   }
 
   if (organizationData === undefined) {

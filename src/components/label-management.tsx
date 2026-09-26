@@ -38,19 +38,21 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { useUserRole } from "@/hooks/use-user-role"
 import { useToast } from "@/hooks/use-toast"
-import { Plus, Edit, Trash2, Tag, Users, Palette, Info, Check, Shield } from "lucide-react"
+import { Plus, Edit, Trash2, Users, Palette, Info, Check, Shield } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { useQuery, useMutation } from "convex/react"
 import { api } from "../../convex/_generated/api"
 import { Id } from "../../convex/_generated/dataModel"
 import { useOrganization } from "@/hooks/use-organization"
+import { NoAccess } from "@/components/ui/no-access"
+import { LoadingState } from "@/components/ui/loading-state"
 
 interface LabelManagementProps {
     onLabelsChange?: () => void
 }
 
 export function LabelManagement({ onLabelsChange }: LabelManagementProps) {
-    const { user, isAdmin } = useUserRole()
+    const { user, isAdmin, isLoading: roleLoading } = useUserRole()
     const { toast } = useToast()
     const { context } = useOrganization()
 
@@ -171,14 +173,9 @@ export function LabelManagement({ onLabelsChange }: LabelManagementProps) {
         return acc
     }, {} as Record<string, any[]>)
 
+    if (roleLoading) return <LoadingState message="Checking your access…" />
     if (!isAdmin) {
-        return (
-            <div className="text-center py-20 bg-muted/50 border border-dashed border-border rounded-[32px]">
-                <Tag className="mx-auto h-16 w-16 mb-6 text-muted-foreground/40" />
-                <h3 className="text-xl tracking-tight mb-2">Access Denied</h3>
-                <p className="font-medium text-muted-foreground/70 text-sm">You need administrator privileges to manage member labels</p>
-            </div>
-        )
+        return <NoAccess what="manage labels" who="administrators" />
     }
 
     return (
