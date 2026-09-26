@@ -9,6 +9,7 @@ import {
   CardTitle,
 } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
+import { PageHeader } from '@/components/ui/page-header'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Badge } from '@/components/ui/badge'
@@ -112,14 +113,10 @@ export function TerminologyManagement() {
 
   return (
     <div className="container p-4 md:p-10 max-w-6xl mx-auto space-y-10">
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <div className="space-y-1">
-          <h1 className="text-3xl tracking-tight text-slate-900">Terminology Configuration</h1>
-          <p className="font-medium text-slate-500">
-            Define the naming conventions used across your organizational hierarchy
-          </p>
-        </div>
-      </div>
+      <PageHeader
+        title="Terminology"
+        description="The names used for each level of your church's structure."
+      />
 
       <div className="grid gap-8">
         {/* Current Terminology Preview */}

@@ -2,7 +2,6 @@
 
 import { useState } from 'react'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import {
     Building2,
@@ -19,20 +18,12 @@ import { EventTypesManagement } from '@/components/event-types-management'
 import { OrganizationLinks } from '@/components/organization-links'
 import { LayoutWrapper } from '@/components/layout-wrapper'
 import { useUserRole } from '@/hooks/use-user-role'
-import { useOrganization } from '@/hooks/use-organization'
-import { useQuery } from 'convex/react'
-import { api } from '../../../convex/_generated/api'
+import { PageHeader } from '@/components/ui/page-header'
 
 export default function OrganizationPage() {
     const { isAdmin, role } = useUserRole()
-    const { organization } = useOrganization()
     const [activeTab, setActiveTab] = useState('units')
     const [settingsDialogOpen, setSettingsDialogOpen] = useState(false)
-
-    // Powers the header subtitle ("oversight of {org name}").
-    const chartData = useQuery(api.organizations.getChartData, {
-        organization_id: organization?._id
-    })
 
     const hasAccess = isAdmin ||
         role === 'organization_admin' ||
@@ -63,34 +54,19 @@ export default function OrganizationPage() {
     return (
         <LayoutWrapper>
             <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-700">
-                {/* Header Area */}
-                <div className="flex flex-col md:flex-row items-start md:items-end justify-between gap-6 pb-6 border-b border-border/50">
-                    <div className="space-y-1">
-                        <div className="flex items-center gap-3">
-                            <div className="p-2.5 bg-[#5b21b6] text-white rounded-xl shadow-md">
-                                <Building2 className="h-6 w-6" />
-                            </div>
-                            <h1 className="text-3xl tracking-tight text-foreground">Command Center</h1>
-                        </div>
-                        <p className="text-muted-foreground pl-12 text-sm">
-                            Architectural oversight of {chartData?.organization?.name || "The Organization"}
-                        </p>
-                    </div>
-
-                    <div className="flex items-center gap-3">
-                        <Badge variant="secondary" className="h-9 px-4 rounded-lg bg-muted text-muted-foreground shadow-sm">
-                            Role: {role?.replace('_', ' ')}
-                        </Badge>
-
+                <PageHeader
+                    title="Organization"
+                    description="How your church is structured: units, leaders and event types."
+                    actions={<>
                         <Button
                             className="bg-primary text-primary-foreground shadow-soft hover:shadow-soft-lg transition-all rounded-lg"
                             onClick={() => setSettingsDialogOpen(true)}
                         >
                             <Settings className="h-4 w-4 mr-2" />
-                            Global Params
+                            Church settings
                         </Button>
-                    </div>
-                </div>
+                    </>}
+                />
 
                 {/* Operational Tabs */}
                 <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-8">

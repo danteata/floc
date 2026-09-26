@@ -20,7 +20,7 @@ import { useAnalytics } from "@/hooks/useAnalytics"
 import { AnalyticsEventType } from "@/services/analytics/types"
 import { useUserRole, useManagedMembers, useAccessibleUnits } from "@/hooks/use-user-role"
 import { ScopeBadge } from "@/components/scope-badge"
-import { scopeSubtitle } from "@/lib/report-scope"
+import { PageHeader } from "@/components/ui/page-header"
 import { hasCapability } from "@/lib/permissions"
 import {
   DropdownMenu,
@@ -110,58 +110,54 @@ export function AttendanceContent() {
 
   return (
     <div className="flex flex-col gap-6">
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <div>
-          <div className="flex flex-wrap items-center gap-2">
-            <h1 className="text-xl font-semibold tracking-tight text-foreground">Attendance</h1>
+      <PageHeader
+        title="Attendance"
+        description="Who came, service by service, and who has been missing."
+        actions={
+          <>
             <ScopeBadge scope={stats?.scope} />
-          </div>
-          <p className="text-sm text-muted-foreground">
-            {scopeSubtitle(stats?.scope, "Track and manage participation")}
-          </p>
-        </div>
-        <div className="flex items-center gap-2">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={refreshStats}
-            disabled={isRefreshing}
-            className="h-8"
-          >
-            <RefreshCw className={`mr-2 h-3.5 w-3.5 ${isRefreshing ? 'animate-spin' : ''}`} />
-            {isRefreshing ? 'Syncing...' : 'Refresh'}
-          </Button>
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="outline" size="sm" className="h-8">
-                <Download className="mr-2 h-3.5 w-3.5" />
-                Export
-                <ChevronDown className="ml-2 h-3.5 w-3.5" />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-80">
-              {attendanceRecords && attendanceRecords.length > 0 ? (
-                attendanceRecords.slice(0, 10).map((record: any) => (
-                  <DropdownMenuItem
-                    key={record._id}
-                    onClick={() => handleExportAttendance(record._id)}
-                    className="flex flex-col items-start gap-1 p-3"
-                  >
-                    <div className="font-medium">{record.event_type_label || "Attendance Record"}</div>
-                    <div className="text-xs text-muted-foreground">
-                      {record.date} • {record.count} attendees
-                    </div>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={refreshStats}
+              disabled={isRefreshing}
+              className="h-8"
+            >
+              <RefreshCw className={`mr-2 h-3.5 w-3.5 ${isRefreshing ? 'animate-spin' : ''}`} />
+              {isRefreshing ? 'Syncing...' : 'Refresh'}
+            </Button>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline" size="sm" className="h-8">
+                  <Download className="mr-2 h-3.5 w-3.5" />
+                  Export
+                  <ChevronDown className="ml-2 h-3.5 w-3.5" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-80">
+                {attendanceRecords && attendanceRecords.length > 0 ? (
+                  attendanceRecords.slice(0, 10).map((record: any) => (
+                    <DropdownMenuItem
+                      key={record._id}
+                      onClick={() => handleExportAttendance(record._id)}
+                      className="flex flex-col items-start gap-1 p-3"
+                    >
+                      <div className="font-medium">{record.event_type_label || "Attendance Record"}</div>
+                      <div className="text-xs text-muted-foreground">
+                        {record.date} • {record.count} attendees
+                      </div>
+                    </DropdownMenuItem>
+                  ))
+                ) : (
+                  <DropdownMenuItem disabled>
+                    No attendance records found
                   </DropdownMenuItem>
-                ))
-              ) : (
-                <DropdownMenuItem disabled>
-                  No attendance records found
-                </DropdownMenuItem>
-              )}
-            </DropdownMenuContent>
-          </DropdownMenu>
-        </div>
-      </div>
+                )}
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </>
+        }
+      />
 
       {/* Page-level scope control. Sits above the cards because it governs
           them as well as every tab below. */}

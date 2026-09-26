@@ -55,7 +55,7 @@ export function RoleBasedNavigation() {
       group: "Overview",
     },
     {
-      title: "My Portal",
+      title: "My portal",
       href: "/portal",
       icon: QrCode,
       capability: "portal",
@@ -90,21 +90,21 @@ export function RoleBasedNavigation() {
       group: "Community",
     },
     {
-      title: "Command Center",
+      title: "Command center",
       href: "/command-center",
       icon: Radio,
       capability: "command_center",
       group: "Care",
     },
     {
-      title: "Care Tasks",
+      title: "Care tasks",
       href: "/care",
       icon: HeartHandshake,
       capability: "care_tasks",
       group: "Care",
     },
     {
-      title: "Financial",
+      title: "Finance",
       href: "/financial",
       icon: DollarSign,
       capability: "financial",
@@ -125,7 +125,7 @@ export function RoleBasedNavigation() {
       group: "Insight",
     },
     {
-      title: "User Management",
+      title: "User management",
       href: "/user-management",
       icon: Shield,
       badge: "Admin",

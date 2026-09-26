@@ -18,10 +18,10 @@ import {
   Edit,
   Trash2,
   Search,
-  Filter,
-  CalendarDays
+  Filter
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import { PageHeader } from "@/components/ui/page-header"
 import { Input } from '@/components/ui/input'
 import {
   Select,
@@ -59,7 +59,6 @@ import {
 import { UpcomingEvents } from '@/components/upcoming-events'
 import { EventDialog } from '@/components/event-dialog'
 import { useTerminology, getUnitLabels } from '@/hooks/use-terminology'
-import { useOrganization } from '@/hooks/use-organization'
 import { useEventTypes } from '@/hooks/use-event-types'
 import { format, isAfter, isBefore, startOfDay } from 'date-fns'
 import { Skeleton } from '@/components/ui/skeleton'
@@ -86,7 +85,6 @@ export function EventsContent() {
   const [itemsPerPage] = useState(10)
 
   const { terminology, isLoading: terminologyLoading } = useTerminology()
-  const { currentOrganization } = useOrganization()
   const { eventTypes } = useEventTypes()
   const unitLabels = getUnitLabels(terminology)
 
@@ -178,26 +176,21 @@ export function EventsContent() {
 
   return (
     <div className="container px-4 py-8 md:p-8 space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-700">
-      <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 pb-6 border-b border-border/50">
-        <div className="space-y-1">
-          <div className="flex items-center gap-3">
-            <div className="p-2.5 bg-[#5b21b6] text-white rounded-xl shadow-md">
-              <CalendarDays className="h-6 w-6" />
-            </div>
-            <h1 className="text-3xl tracking-tight text-foreground">Events</h1>
-          </div>
-          <p className="text-muted-foreground pl-12 text-sm">
-            Manage and schedule upcoming events for {currentOrganization?.name ?? "your organization"}
-          </p>
-        </div>
-        <Button
-          onClick={handleAddEvent}
-          className="bg-primary text-primary-foreground shadow-soft hover:shadow-soft-lg transition-all rounded-lg"
-        >
-          <Plus className="mr-2 h-4 w-4" />
-          Add Event
-        </Button>
-      </div>
+      <PageHeader
+        title="Events"
+        description="Services and events, and when each one runs."
+        actions={
+          <>
+            <Button
+              onClick={handleAddEvent}
+              className="bg-primary text-primary-foreground shadow-soft hover:shadow-soft-lg transition-all rounded-lg"
+            >
+              <Plus className="mr-2 h-4 w-4" />
+              Add Event
+            </Button>
+          </>
+        }
+      />
 
       <Tabs defaultValue="overview" className="space-y-8">
         <TabsList className="bg-muted/50 p-1 rounded-xl w-full md:w-auto inline-flex">

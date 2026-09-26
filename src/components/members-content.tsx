@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useMemo, useEffect } from "react"
-import { Download, Filter, Plus, Upload, Users, Building2, Home, Tag, X, ShieldAlert, Search, Share2, Loader2 } from "lucide-react"
+import { Download, Filter, Plus, Upload, Building2, Home, Tag, X, ShieldAlert, Search, Share2, Loader2 } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
 import { useTerminology } from "@/hooks/use-terminology"
@@ -11,6 +11,7 @@ import { AnalyticsEventType } from "@/services/analytics/types"
 import { api } from "../../convex/_generated/api"
 import type { Id } from "../../convex/_generated/dataModel"
 import { Button } from "@/components/ui/button"
+import { PageHeader } from "@/components/ui/page-header"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { MembersTable } from "@/components/members-table"
 import { MemberDialog } from "@/components/member-dialog"
@@ -267,87 +268,79 @@ export function MembersContent({ view = 'active', onViewChange }: MembersContent
 
   return (
     <div className="flex flex-col gap-6 w-full animate-in fade-in slide-in-from-bottom-4 duration-700">
-      {/* Header section */}
-      <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 pb-6 border-b border-border/50">
-        <div className="space-y-1">
-          <div className="flex items-center gap-3">
-            <div className="p-2.5 bg-[#5b21b6] text-white rounded-xl shadow-md">
-              <Users className="h-6 w-6" />
-            </div>
-            <h1 className="text-3xl tracking-tight text-foreground">Members</h1>
-          </div>
-          <p className="text-muted-foreground pl-12 text-sm">
-            Manage your community directory and profiles
-          </p>
-        </div>
-        <div className="flex flex-wrap items-center gap-3">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={handleExport}
-            className="shadow-sm hover:shadow-md transition-all rounded-lg"
-          >
-            <Download className="mr-2 h-4 w-4" />
-            Export
-          </Button>
-          {canShareList && organization?._id && (
+      <PageHeader
+        title="Members"
+        description="Everyone in your church, their households, units and labels."
+        actions={
+          <>
             <Button
               variant="outline"
               size="sm"
-              onClick={() => setIsShareOpen(true)}
+              onClick={handleExport}
               className="shadow-sm hover:shadow-md transition-all rounded-lg"
             >
-              <Share2 className="mr-2 h-4 w-4" />
-              Share list
-              {selectedMemberIds.length > 0 && (
-                <Badge variant="secondary" className="ml-2 h-5 px-1.5 font-normal">
-                  {selectedMemberIds.length}
-                </Badge>
-              )}
+              <Download className="mr-2 h-4 w-4" />
+              Export
             </Button>
-          )}
-          {view === 'active' && (
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setIsBulkUploadOpen(true)}
-              className="shadow-sm hover:shadow-md transition-all rounded-lg"
-            >
-              <Upload className="mr-2 h-4 w-4" />
-              Bulk Upload
-            </Button>
-          )}
-          {view === 'active' && isAdmin && organization?._id && (
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={async () => {
-                if (!window.confirm("Merge duplicates by name + phone? This will merge members with matching first & last names. If a member has a real phone number, phones must also match. This cannot be undone.")) return
-                try {
-                  const result = await mergeDuplicates({ organization_id: organization._id })
-                  alert(`✅ Deduplication Complete!\n\n📊 Groups merged: ${result.mergedGroups}\n🗑️ Duplicates removed: ${result.removed}\n\nThe member list has been updated.`)
-                  window.location.reload() // Refresh to show updated data
-                } catch (err: any) {
-                  alert(`❌ Deduplication Failed\n\n${err.message || "Unable to merge duplicates."}`)
-                }
-              }}
-              className="shadow-sm hover:shadow-md transition-all rounded-lg"
-            >
-              Merge Duplicates
-            </Button>
-          )}
-          {view === 'active' && (
-            <Button
-              size="sm"
-              onClick={() => setIsAddMemberOpen(true)}
-              className="bg-primary text-primary-foreground shadow-soft hover:shadow-soft-lg transition-all rounded-lg"
-            >
-              <Plus className="mr-2 h-4 w-4" />
-              Add Member
-            </Button>
-          )}
-        </div>
-      </div>
+            {canShareList && organization?._id && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setIsShareOpen(true)}
+                className="shadow-sm hover:shadow-md transition-all rounded-lg"
+              >
+                <Share2 className="mr-2 h-4 w-4" />
+                Share list
+                {selectedMemberIds.length > 0 && (
+                  <Badge variant="secondary" className="ml-2 h-5 px-1.5 font-normal">
+                    {selectedMemberIds.length}
+                  </Badge>
+                )}
+              </Button>
+            )}
+            {view === 'active' && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setIsBulkUploadOpen(true)}
+                className="shadow-sm hover:shadow-md transition-all rounded-lg"
+              >
+                <Upload className="mr-2 h-4 w-4" />
+                Bulk Upload
+              </Button>
+            )}
+            {view === 'active' && isAdmin && organization?._id && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={async () => {
+                  if (!window.confirm("Merge duplicates by name + phone? This will merge members with matching first & last names. If a member has a real phone number, phones must also match. This cannot be undone.")) return
+                  try {
+                    const result = await mergeDuplicates({ organization_id: organization._id })
+                    alert(`✅ Deduplication Complete!\n\n📊 Groups merged: ${result.mergedGroups}\n🗑️ Duplicates removed: ${result.removed}\n\nThe member list has been updated.`)
+                    window.location.reload() // Refresh to show updated data
+                  } catch (err: any) {
+                    alert(`❌ Deduplication Failed\n\n${err.message || "Unable to merge duplicates."}`)
+                  }
+                }}
+                className="shadow-sm hover:shadow-md transition-all rounded-lg"
+              >
+                Merge Duplicates
+              </Button>
+            )}
+            {view === 'active' && (
+              <Button
+                size="sm"
+                onClick={() => setIsAddMemberOpen(true)}
+                className="bg-primary text-primary-foreground shadow-soft hover:shadow-soft-lg transition-all rounded-lg"
+              >
+                <Plus className="mr-2 h-4 w-4" />
+                Add Member
+              </Button>
+            )}
+          </>
+        }
+      />
 
       {/* Active / Archived tabs */}
       {onViewChange && (

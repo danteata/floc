@@ -41,7 +41,6 @@ import {
     ArrowUpRight,
     ArrowDownRight,
     BarChart3,
-    Wallet
 } from 'lucide-react'
 import {
     formatCurrency,
@@ -50,6 +49,7 @@ import {
     TRANSACTION_CATEGORIES
 } from '@/lib/financial-utils'
 import { LayoutWrapper } from '@/components/layout-wrapper'
+import { PageHeader } from '@/components/ui/page-header'
 import { useQuery, useMutation } from 'convex/react'
 import { api } from '../../../convex/_generated/api'
 import { Id } from '../../../convex/_generated/dataModel'
@@ -178,21 +178,10 @@ export default function FinancialPage() {
     return (
         <LayoutWrapper>
             <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-700">
-                {/* Header Area */}
-                <div className="flex flex-col md:flex-row items-start md:items-end justify-between gap-6 pb-6 border-b border-border/50">
-                    <div className="space-y-1">
-                        <div className="flex items-center gap-3">
-                            <div className="p-2.5 bg-[#5b21b6] text-white rounded-xl shadow-md">
-                                <Wallet className="h-6 w-6" />
-                            </div>
-                            <h1 className="text-3xl tracking-tight text-foreground">Treasury</h1>
-                        </div>
-                        <p className="text-muted-foreground pl-12 text-sm">
-                            Financial management for {organization?.name || "The Organization"}
-                        </p>
-                    </div>
-
-                    <div className="flex items-center gap-3">
+                <PageHeader
+                    title="Finance"
+                    description="Giving, offerings and expenses, service by service."
+                    actions={<>
                         <Button
                             variant="outline"
                             className="shadow-sm hover:shadow-md transition-all rounded-lg"
@@ -208,8 +197,8 @@ export default function FinancialPage() {
                             <Plus className="h-4 w-4 mr-2" />
                             New Record
                         </Button>
-                    </div>
-                </div>
+                    </>}
+                />
 
                 {/* Tactical Stats Grid */}
                 <div className="grid grid-cols-1 md:grid-cols-4 gap-6">

@@ -6,6 +6,7 @@ import { api } from "../../convex/_generated/api"
 import type { Unit } from "@/types/database"
 
 import { Button } from "@/components/ui/button"
+import { PageHeader } from "@/components/ui/page-header"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { FeatureFlagsPanel } from "@/components/feature-flags-panel"
@@ -99,26 +100,18 @@ export function AdminContent() {
 
   return (
     <div className="w-full space-y-8 animate-in fade-in duration-500">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-6 border-b border-border/40 pb-8">
-        <div className="space-y-2">
-          <div className="flex items-center gap-3">
-            <div className="p-2.5 bg-[#5b21b6] text-white rounded-xl shadow-md">
-              <Shield className="h-6 w-6" />
-            </div>
-            <h1 className="text-3xl tracking-tight text-foreground">System Console</h1>
-          </div>
-          <p className="text-muted-foreground text-sm pl-12">
-            Central Command Interface / Tactical Configuration Node
-          </p>
-        </div>
-        <div className="flex items-center gap-2">
-          <Badge variant="outline" className="bg-emerald-500/10 text-emerald-600 border-emerald-500/20 px-4 py-1.5 rounded-full text-xs">
-            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 mr-2 animate-pulse"></span>
-            System Active
-          </Badge>
-        </div>
-      </div>
+      <PageHeader
+        title="Administration"
+        description="Your church's units, operations, settings and features."
+        actions={
+          <>
+            <Badge variant="outline" className="bg-emerald-500/10 text-emerald-600 border-emerald-500/20 px-4 py-1.5 rounded-full text-xs">
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 mr-2 animate-pulse"></span>
+              System Active
+            </Badge>
+          </>
+        }
+      />
 
       {/* Tabs */}
       <Tabs defaultValue="units" className="w-full">

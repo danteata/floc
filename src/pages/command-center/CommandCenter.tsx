@@ -26,6 +26,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { EmptyState } from "@/components/ui/empty-state"
+import { PageHeader } from "@/components/ui/page-header"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
 import { ShareAbsentLinkDialog } from "@/components/share-absent-link-dialog"
@@ -137,17 +138,19 @@ export default function CommandCenterPage() {
     return (
         <LayoutWrapper>
             <div className="space-y-6">
-                <div>
-                    <h1 className="text-2xl font-semibold tracking-tight">Command Center</h1>
-                    <p className="text-sm text-muted-foreground">
-                        Live view for today —{" "}
-                        {new Date(`${date}T00:00:00`).toLocaleDateString(undefined, {
-                            weekday: "long",
-                            month: "long",
-                            day: "numeric",
-                        })}
-                    </p>
-                </div>
+                <PageHeader
+                    title="Command center"
+                    description={
+                        <>
+                            Live for today,{" "}
+                            {new Date(`${date}T00:00:00`).toLocaleDateString(undefined, {
+                                weekday: "long",
+                                month: "long",
+                                day: "numeric",
+                            })}
+                        </>
+                    }
+                />
 
                 {isLoading ? (
                     <div className="flex items-center justify-center h-64">

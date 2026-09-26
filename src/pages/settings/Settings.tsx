@@ -11,6 +11,7 @@ import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { LayoutWrapper } from "@/components/layout-wrapper"
+import { PageHeader } from "@/components/ui/page-header"
 
 export default function SettingsPage() {
     const [activeTab, setActiveTab] = useState("Profile")
@@ -20,10 +21,7 @@ export default function SettingsPage() {
     return (
         <LayoutWrapper>
             <div className="max-w-4xl mx-auto space-y-6">
-                <div>
-                    <h1 className="text-3xl tracking-tight text-foreground">Settings</h1>
-                    <p className="text-muted-foreground mt-1">Manage your account settings and preferences.</p>
-                </div>
+                <PageHeader title="Settings" description="Your account and preferences." />
 
                 <div className="glass-card border-border/50 shadow-soft rounded-xl overflow-hidden p-6 md:p-8">
                     {/* Tabs */}

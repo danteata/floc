@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { LayoutWrapper } from "@/components/layout-wrapper"
+import { PageHeader } from "@/components/ui/page-header"
 import { useSubscription } from "@/providers/SubscriptionProvider"
 import { useUserRole } from "@/hooks/use-user-role"
 import { toast } from "sonner"
@@ -79,12 +80,7 @@ export default function BillingPage() {
     return (
         <LayoutWrapper>
             <div className="max-w-4xl mx-auto space-y-6">
-                <div>
-                    <h1 className="text-3xl tracking-tight text-foreground">Billing</h1>
-                    <p className="text-muted-foreground mt-1">
-                        Manage your organization's subscription plan.
-                    </p>
-                </div>
+                <PageHeader title="Billing" description="Your church's plan and payments." />
 
                 {/* Current plan */}
                 <Card className="border-border/50 shadow-soft">

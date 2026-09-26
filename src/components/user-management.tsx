@@ -55,6 +55,7 @@ import { useTerminology } from '@/hooks/use-terminology'
 import { LeaderInvitationSystem } from '@/components/leader-invitation-system'
 import type { UserRole } from '@/types/database'
 import { Id } from "../../convex/_generated/dataModel"
+import { PageHeader } from "@/components/ui/page-header"
 
 export function UserManagement() {
   const { isAdmin, user: currentUser } = useUserRole()
@@ -245,14 +246,11 @@ export function UserManagement() {
 
   return (
     <div className="container p-4 md:p-6">
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
-        <div>
-          <h1 className="text-2xl tracking-tight">User Management</h1>
-          <p className="text-muted-foreground">
-            Manage user roles, permissions, and invite leaders
-          </p>
-        </div>
-      </div>
+      <PageHeader
+        className="mb-6"
+        title="User management"
+        description="Who can sign in, their roles, and leader invitations."
+      />
 
       {/* Tab Navigation */}
       <div className="flex space-x-1 mb-6">

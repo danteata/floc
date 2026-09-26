@@ -13,6 +13,7 @@ import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { LayoutWrapper } from "@/components/layout-wrapper";
+import { PageHeader } from "@/components/ui/page-header";
 import {
     Shield,
     Search,
@@ -184,25 +185,22 @@ export default function AuditTrail() {
     return (
         <LayoutWrapper>
             <div className="container mx-auto py-6 space-y-6">
-                <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                        <Shield className="h-8 w-8 text-primary" />
-                        <div>
-                            <h1 className="text-2xl font-bold">Audit Trail</h1>
-                            <p className="text-muted-foreground">Monitor all system activities and changes</p>
-                        </div>
-                    </div>
-                    <div className="flex items-center gap-2">
-                        <Button variant="outline" onClick={exportToCSV} disabled={!auditData?.logs?.length}>
-                            <Download className="h-4 w-4 mr-2" />
-                            Export CSV
-                        </Button>
-                        <Button variant="outline" onClick={() => setPage(0)}>
-                            <RefreshCw className="h-4 w-4 mr-2" />
-                            Refresh
-                        </Button>
-                    </div>
-                </div>
+                <PageHeader
+                    title="Audit trail"
+                    description="Every change made in Floc: who made it, and when."
+                    actions={
+                        <>
+                            <Button variant="outline" onClick={exportToCSV} disabled={!auditData?.logs?.length}>
+                                <Download className="h-4 w-4 mr-2" />
+                                Export CSV
+                            </Button>
+                            <Button variant="outline" onClick={() => setPage(0)}>
+                                <RefreshCw className="h-4 w-4 mr-2" />
+                                Refresh
+                            </Button>
+                        </>
+                    }
+                />
 
                 {/* Filters */}
                 <Card>

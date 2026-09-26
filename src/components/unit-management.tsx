@@ -240,9 +240,9 @@ export function UnitManagement() {
     <div className="container p-4 md:p-6 space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-2xl tracking-tight">Unit Management</h1>
-          <p className="text-muted-foreground">
-            Manage teams and groups within {chartData.organization.name}
+          <h2 className="text-lg font-semibold">Units</h2>
+          <p className="text-sm text-muted-foreground">
+            Departments, zones and groups, and who leads each.
           </p>
         </div>
 

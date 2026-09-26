@@ -1,4 +1,5 @@
 import { LayoutWrapper } from "@/components/layout-wrapper"
+import { PageHeader } from "@/components/ui/page-header"
 import { UserProfile } from "@clerk/clerk-react"
 
 export default function ProfilePage() {
@@ -10,7 +11,7 @@ export default function ProfilePage() {
     return (
         <LayoutWrapper showSearch={false}>
             <div className="mx-auto max-w-4xl py-6">
-                <h1 className="mb-6 text-2xl">Your Profile</h1>
+                <PageHeader title="Your profile" className="mb-6" />
                 <div className="rounded-lg border bg-card p-1">
                     {isClerkConfigured ? (
                         <UserProfile

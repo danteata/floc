@@ -2,20 +2,17 @@ import { AttendanceTrends } from "@/components/attendance-trends"
 import { MemberInsights } from "@/components/member-insights"
 import { LayoutWrapper } from "@/components/layout-wrapper"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { PageHeader } from "@/components/ui/page-header"
 import { BarChart3, Users } from "lucide-react"
 
 export default function ReportsPage() {
   return (
     <LayoutWrapper>
       <div className="flex flex-col gap-4">
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-2xl tracking-tight text-foreground">Reports & Analytics</h1>
-            <p className="text-sm text-muted-foreground mt-1">
-              Participation and membership insights for the members you oversee
-            </p>
-          </div>
-        </div>
+        <PageHeader
+          title="Reports"
+          description="Attendance and membership trends for the people you oversee."
+        />
 
         <Tabs defaultValue="attendance" className="w-full space-y-6">
           <TabsList className="bg-muted/50 p-1 rounded-lg h-auto flex-wrap gap-0.5">

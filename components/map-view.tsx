@@ -1,26 +1,61 @@
 'use client'
 
-import React, { useState, useCallback, useRef } from 'react'
+import React, { useState, useCallback, useRef, useEffect, useMemo } from 'react'
 import { GoogleMap, useJsApiLoader, Marker, InfoWindow } from '@react-google-maps/api'
 import { Member } from '../src/types/database'
-import { ExternalLink } from 'lucide-react'
+import { ExternalLink, MapPinOff } from 'lucide-react'
+
+const MAPS_KEY: string = import.meta.env.VITE_GOOGLE_MAPS_API_KEY || ""
+
+declare global {
+    interface Window {
+        /** Google calls this when it rejects the Maps key (invalid, restricted, no billing). */
+        gm_authFailure?: () => void
+    }
+}
+
+type Unavailable = 'missing-key' | 'rejected'
+
+/** What the page shows instead of Google's grey error box when the map cannot load. */
+function MapUnavailable({ reason }: { reason: Unavailable }) {
+    const copy = reason === 'missing-key'
+        ? {
+            title: "The map isn't set up yet",
+            body: "It needs a Google Maps key, which an administrator adds once for the whole church.",
+        }
+        : {
+            title: "The map can't load right now",
+            body: "Google turned down this site's map key, so the map is off until an administrator replaces or re-enables the key.",
+        }
+    return (
+        <div className="flex h-[480px] flex-col items-center justify-center gap-3 rounded-lg border border-dashed border-border px-6 text-center">
+            <MapPinOff className="h-8 w-8 text-muted-foreground/60" aria-hidden="true" />
+            <div className="max-w-sm space-y-1">
+                <p className="text-sm font-medium text-foreground">{copy.title}</p>
+                <p className="text-sm text-muted-foreground">{copy.body}</p>
+            </div>
+        </div>
+    )
+}
 
 const containerStyle = {
     width: '100%',
     height: '600px'
 }
 
-const center = {
-    lat: 5.6037,
-    lng: -0.1870
-}
+/** Only used when no member has a location yet; the map otherwise fits the pins. */
+const fallbackCenter = { lat: 20, lng: 0 }
 
-// Create a custom purple marker icon with human icon
+// The Floc crimson (the primary token), written out because a marker icon is a
+// data URI drawn by Google, outside the stylesheet.
+const MARKER_COLOUR = '#c1153f'
+
+// A marker with a person in it, in the brand colour
 const createCustomMarkerIcon = () => {
     return {
         url: 'data:image/svg+xml;charset=UTF-8,' + encodeURIComponent(`
       <svg width="24" height="24" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-        <circle cx="12" cy="12" r="10" fill="#9333ea" stroke="white" stroke-width="2"/>
+        <circle cx="12" cy="12" r="10" fill="${MARKER_COLOUR}" stroke="white" stroke-width="2"/>
         <g transform="translate(12,12)">
           <circle cx="0" cy="-2" r="2" fill="white"/>
           <path d="M -3 0 Q 0 0 3 0 L 3 2 Q 0 2 -3 2 Z" fill="white"/>
@@ -39,10 +74,22 @@ interface MapViewProps {
 }
 
 export default function MapView({ members }: MapViewProps) {
-    const { isLoaded } = useJsApiLoader({
+    const { isLoaded, loadError } = useJsApiLoader({
         id: 'google-map-script',
-        googleMapsApiKey: import.meta.env.VITE_GOOGLE_MAPS_API_KEY || ""
+        googleMapsApiKey: MAPS_KEY
     })
+    const [rejected, setRejected] = useState(false)
+
+    // Google reports a rejected key through this global, not through the loader.
+    useEffect(() => {
+        window.gm_authFailure = () => setRejected(true)
+        return () => { window.gm_authFailure = undefined }
+    }, [])
+
+    const located = useMemo(
+        () => members.filter((m) => m.latitude && m.longitude),
+        [members]
+    )
 
     const [hoveredMember, setHoveredMember] = useState<Member | null>(null)
     const [selectedMember, setSelectedMember] = useState<Member | null>(null)
@@ -50,9 +97,13 @@ export default function MapView({ members }: MapViewProps) {
     const [isInfoWindowHovered, setIsInfoWindowHovered] = useState(false)
     const closeTimeoutRef = useRef<NodeJS.Timeout | null>(null)
 
-    const handleMapLoad = useCallback(() => {
+    const handleMapLoad = useCallback((map: google.maps.Map) => {
         setIsMapLoaded(true)
-    }, [])
+        if (located.length === 0) return
+        const bounds = new google.maps.LatLngBounds()
+        located.forEach((m) => bounds.extend({ lat: m.latitude!, lng: m.longitude! }))
+        map.fitBounds(bounds, 48)
+    }, [located])
 
     const handleMarkerMouseOver = useCallback((member: Member) => {
         // Clear any pending close timeout
@@ -128,11 +179,14 @@ export default function MapView({ members }: MapViewProps) {
         }
     }, [])
 
+    if (!MAPS_KEY) return <MapUnavailable reason="missing-key" />
+    if (rejected || loadError) return <MapUnavailable reason="rejected" />
+
     return isLoaded ? (
         <GoogleMap
             mapContainerStyle={containerStyle}
-            center={center}
-            zoom={10}
+            center={fallbackCenter}
+            zoom={2}
             onLoad={handleMapLoad}
             onClick={handleMapClick}
         >
@@ -168,13 +222,16 @@ export default function MapView({ members }: MapViewProps) {
                                 onMouseOver={handleInfoWindowMouseOver}
                                 onMouseOut={handleInfoWindowMouseOut}
                             >
-                                <h4 className="font-semibold text-gray-900 mb-1">{displayMember.name}</h4>
+                                {/* Google draws the info window white in both themes, so its text
+                                    keeps fixed dark colours rather than theme tokens. */}
+                                <h4 className="mb-1 font-semibold" style={{ color: '#1c1917' }}>{displayMember.name}</h4>
                                 {displayMember.phone && (
-                                    <p className="text-sm text-gray-600 mb-2">{displayMember.phone}</p>
+                                    <p className="mb-2 text-sm" style={{ color: '#57534e' }}>{displayMember.phone}</p>
                                 )}
                                 <button
                                     onClick={(e) => handleOpenInMaps(e, displayMember)}
-                                    className="flex items-center gap-1.5 text-sm text-purple-600 hover:text-purple-800 font-medium transition-colors"
+                                    className="flex items-center gap-1.5 text-sm font-medium hover:underline"
+                                    style={{ color: MARKER_COLOUR }}
                                 >
                                     <ExternalLink className="h-3.5 w-3.5" />
                                     Open in Maps

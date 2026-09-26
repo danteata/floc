@@ -2,6 +2,7 @@ import { Outlet, NavLink } from "react-router-dom"
 import { User, Calendar, QrCode, HeartHandshake } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { LayoutWrapper } from "@/components/layout-wrapper"
+import { PageHeader } from "@/components/ui/page-header"
 
 const portalNav = [
     { to: "/portal", label: "My Check-in", icon: QrCode, end: true },
@@ -14,10 +15,7 @@ export default function PortalLayout() {
     return (
         <LayoutWrapper showSearch={false}>
             <div className="flex flex-col gap-6">
-                <div>
-                    <h1 className="text-xl font-semibold tracking-tight">Member Portal</h1>
-                    <p className="text-sm text-muted-foreground">Your check-in, attendance, and profile</p>
-                </div>
+                <PageHeader title="My portal" description="Your check-ins, attendance, giving and profile." />
                 <nav className="flex gap-1 border-b border-border/50">
                     {portalNav.map((item) => {
                         const Icon = item.icon

@@ -10,6 +10,7 @@ import {
 } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
+import { PageHeader } from "@/components/ui/page-header"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
@@ -98,23 +99,17 @@ export function AutomationsContent() {
 
   return (
     <div className="w-full space-y-8 animate-in fade-in duration-500">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-6 border-b border-border/40 pb-8">
-        <div className="space-y-2">
-          <div className="flex items-center gap-3">
-            <div className="p-2.5 bg-[#5b21b6] text-white rounded-xl shadow-md">
-              <Zap className="h-6 w-6" />
-            </div>
-            <h1 className="text-3xl tracking-tight text-foreground">Automations</h1>
-          </div>
-          <p className="text-muted-foreground text-sm pl-12">
-            If-this-then-that rules — follow up on absences, greet birthdays, welcome new members, and more.
-          </p>
-        </div>
-        <Button onClick={() => setGalleryOpen(true)} className="shadow-sm rounded-lg gap-2">
-          <Plus className="h-4 w-4" /> New automation
-        </Button>
-      </div>
+      <PageHeader
+        title="Automations"
+        description="Rules that act for you: follow up on absences, greet birthdays, welcome new members."
+        actions={
+          <>
+            <Button onClick={() => setGalleryOpen(true)} className="shadow-sm rounded-lg gap-2">
+              <Plus className="h-4 w-4" /> New automation
+            </Button>
+          </>
+        }
+      />
 
       <Tabs defaultValue="rules" className="w-full">
         <TabsList className="bg-muted/50 p-1 rounded-xl w-full md:w-auto inline-flex">

@@ -2,6 +2,7 @@
 
 import { useState } from "react"
 import { Button } from "@/components/ui/button"
+import { PageHeader } from "@/components/ui/page-header"
 import { Input } from "@/components/ui/input"
 import { Label as FormLabel } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
@@ -182,129 +183,128 @@ export function LabelManagement({ onLabelsChange }: LabelManagementProps) {
 
     return (
         <div className="space-y-8">
-            <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
-                <div className="space-y-1">
-                    <h2 className="text-3xl tracking-tight">Label Management</h2>
-                    <p className="text-slate-500 text-sm flex items-center gap-2">
-                        <Palette className="h-4 w-4 text-slate-400" /> Define the taxonomy for classifying your community members
-                    </p>
-                </div>
-
-                <Dialog open={dialogOpen} onOpenChange={(open) => {
-                    setDialogOpen(open)
-                    if (!open) resetForm()
-                }}>
-                    <DialogTrigger asChild>
-                        <Button
-                            className="h-12 px-6 bg-slate-900 text-white hover:bg-slate-800 shadow-soft-xl rounded-xl transition-all"
-                        >
-                            <Plus className="w-5 h-5 mr-2 stroke-[3px]" />
-                            Create New Label
-                        </Button>
-                    </DialogTrigger>
-                    <DialogContent className="sm:max-w-[550px] p-0 border border-border/50 shadow-soft-2xl rounded-3xl overflow-hidden">
-                        <DialogHeader className="p-8 pb-4">
-                            <DialogTitle className="text-2xl tracking-tight flex items-center gap-3">
-                                {editingLabel ? <Edit className="h-6 w-6 text-slate-400" /> : <Plus className="h-6 w-6 text-slate-400" />}
-                                {editingLabel ? 'Update Label' : 'New Label Identity'}
-                            </DialogTitle>
-                            <DialogDescription className="text-slate-500 text-sm">
-                                Configure labels to categorize and track member engagement
-                            </DialogDescription>
-                        </DialogHeader>
-                        <form onSubmit={handleSubmit} className="p-8 pt-4 space-y-6">
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                <div className="space-y-2">
-                                    <FormLabel className="text-[10px] text-slate-400 tracking-wider pl-1">Label Name</FormLabel>
-                                    <Input
-                                        value={formData.name}
-                                        onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                                        placeholder="e.g. Core Team"
-                                        className="rounded-xl border-slate-200 h-11"
-                                        required
-                                    />
-                                </div>
-
-                                <div className="space-y-2">
-                                    <FormLabel className="text-[10px] text-slate-400 tracking-wider pl-1">Category</FormLabel>
-                                    <Select value={formData.category} onValueChange={(value) => setFormData({ ...formData, category: value })}>
-                                        <SelectTrigger className="rounded-xl border-slate-200 h-11 capitalize">
-                                            <SelectValue placeholder="Select Category" />
-                                        </SelectTrigger>
-                                        <SelectContent className="border border-border/50 shadow-soft rounded-xl">
-                                            {categories.map(category => (
-                                                <SelectItem key={category} value={category} className="font-medium capitalize text-sm">
-                                                    {category}
-                                                </SelectItem>
-                                            ))}
-                                        </SelectContent>
-                                    </Select>
-                                </div>
-                            </div>
-
-                            <div className="space-y-2">
-                                <FormLabel className="text-[10px] text-slate-400 tracking-wider pl-1">Description</FormLabel>
-                                <Textarea
-                                    value={formData.description}
-                                    onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                                    placeholder="Briefly explain the criteria for this label"
-                                    rows={3}
-                                    className="rounded-xl border-slate-200 text-sm resize-none"
-                                />
-                            </div>
-
-                            <div className="space-y-4">
-                                <FormLabel className="text-[10px] text-slate-400 tracking-wider pl-1">Visual Identity</FormLabel>
-                                <div className="p-4 border border-slate-100 rounded-2xl bg-slate-50/50">
-                                    <div className="flex flex-wrap gap-2 justify-center">
-                                        {predefinedColors.map(color => (
-                                            <button
-                                                key={color}
-                                                type="button"
-                                                onClick={() => setFormData({ ...formData, color })}
-                                                className={cn(
-                                                    "w-10 h-10 rounded-lg border-4 transition-all",
-                                                    formData.color === color ? "border-slate-900 scale-110 shadow-sm" : "border-transparent hover:border-slate-200"
-                                                )}
-                                                style={{ backgroundColor: color }}
-                                            />
-                                        ))}
-                                        <div className="relative">
-                                            <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-                                                <Palette className="h-4 w-4 text-white drop-shadow-md" />
-                                            </div>
+            <PageHeader
+                title="Labels"
+                description="Tags for grouping members, such as visitors to follow up."
+                actions={
+                    <>
+                        <Dialog open={dialogOpen} onOpenChange={(open) => {
+                            setDialogOpen(open)
+                            if (!open) resetForm()
+                        }}>
+                            <DialogTrigger asChild>
+                                <Button
+                                    className="h-12 px-6 bg-slate-900 text-white hover:bg-slate-800 shadow-soft-xl rounded-xl transition-all"
+                                >
+                                    <Plus className="w-5 h-5 mr-2 stroke-[3px]" />
+                                    Create New Label
+                                </Button>
+                            </DialogTrigger>
+                            <DialogContent className="sm:max-w-[550px] p-0 border border-border/50 shadow-soft-2xl rounded-3xl overflow-hidden">
+                                <DialogHeader className="p-8 pb-4">
+                                    <DialogTitle className="text-2xl tracking-tight flex items-center gap-3">
+                                        {editingLabel ? <Edit className="h-6 w-6 text-slate-400" /> : <Plus className="h-6 w-6 text-slate-400" />}
+                                        {editingLabel ? 'Update Label' : 'New Label Identity'}
+                                    </DialogTitle>
+                                    <DialogDescription className="text-slate-500 text-sm">
+                                        Configure labels to categorize and track member engagement
+                                    </DialogDescription>
+                                </DialogHeader>
+                                <form onSubmit={handleSubmit} className="p-8 pt-4 space-y-6">
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                        <div className="space-y-2">
+                                            <FormLabel className="text-[10px] text-slate-400 tracking-wider pl-1">Label Name</FormLabel>
                                             <Input
-                                                type="color"
-                                                value={formData.color}
-                                                onChange={(e) => setFormData({ ...formData, color: e.target.value })}
-                                                className="w-10 h-10 p-0 border-0 rounded-lg cursor-pointer overflow-hidden"
+                                                value={formData.name}
+                                                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                                                placeholder="e.g. Core Team"
+                                                className="rounded-xl border-slate-200 h-11"
+                                                required
                                             />
                                         </div>
-                                    </div>
-                                </div>
-                            </div>
 
-                            <div className="flex justify-end gap-3 pt-4">
-                                <Button
-                                    type="button"
-                                    variant="ghost"
-                                    onClick={() => setDialogOpen(false)}
-                                    className="rounded-xl text-slate-500"
-                                >
-                                    Cancel
-                                </Button>
-                                <Button
-                                    type="submit"
-                                    disabled={loading}
-                                    className="px-8 h-11 bg-slate-900 text-white hover:bg-slate-800 rounded-xl shadow-soft"
-                                >
-                                    {loading ? "Processing..." : editingLabel ? 'Update Label' : 'Save Label'}
-                                </Button>
-                            </div>
-                        </form>
-                    </DialogContent>
-                </Dialog>
-            </div>
+                                        <div className="space-y-2">
+                                            <FormLabel className="text-[10px] text-slate-400 tracking-wider pl-1">Category</FormLabel>
+                                            <Select value={formData.category} onValueChange={(value) => setFormData({ ...formData, category: value })}>
+                                                <SelectTrigger className="rounded-xl border-slate-200 h-11 capitalize">
+                                                    <SelectValue placeholder="Select Category" />
+                                                </SelectTrigger>
+                                                <SelectContent className="border border-border/50 shadow-soft rounded-xl">
+                                                    {categories.map(category => (
+                                                        <SelectItem key={category} value={category} className="font-medium capitalize text-sm">
+                                                            {category}
+                                                        </SelectItem>
+                                                    ))}
+                                                </SelectContent>
+                                            </Select>
+                                        </div>
+                                    </div>
+
+                                    <div className="space-y-2">
+                                        <FormLabel className="text-[10px] text-slate-400 tracking-wider pl-1">Description</FormLabel>
+                                        <Textarea
+                                            value={formData.description}
+                                            onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                                            placeholder="Briefly explain the criteria for this label"
+                                            rows={3}
+                                            className="rounded-xl border-slate-200 text-sm resize-none"
+                                        />
+                                    </div>
+
+                                    <div className="space-y-4">
+                                        <FormLabel className="text-[10px] text-slate-400 tracking-wider pl-1">Visual Identity</FormLabel>
+                                        <div className="p-4 border border-slate-100 rounded-2xl bg-slate-50/50">
+                                            <div className="flex flex-wrap gap-2 justify-center">
+                                                {predefinedColors.map(color => (
+                                                    <button
+                                                        key={color}
+                                                        type="button"
+                                                        onClick={() => setFormData({ ...formData, color })}
+                                                        className={cn(
+                                                            "w-10 h-10 rounded-lg border-4 transition-all",
+                                                            formData.color === color ? "border-slate-900 scale-110 shadow-sm" : "border-transparent hover:border-slate-200"
+                                                        )}
+                                                        style={{ backgroundColor: color }}
+                                                    />
+                                                ))}
+                                                <div className="relative">
+                                                    <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                                                        <Palette className="h-4 w-4 text-white drop-shadow-md" />
+                                                    </div>
+                                                    <Input
+                                                        type="color"
+                                                        value={formData.color}
+                                                        onChange={(e) => setFormData({ ...formData, color: e.target.value })}
+                                                        className="w-10 h-10 p-0 border-0 rounded-lg cursor-pointer overflow-hidden"
+                                                    />
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <div className="flex justify-end gap-3 pt-4">
+                                        <Button
+                                            type="button"
+                                            variant="ghost"
+                                            onClick={() => setDialogOpen(false)}
+                                            className="rounded-xl text-slate-500"
+                                        >
+                                            Cancel
+                                        </Button>
+                                        <Button
+                                            type="submit"
+                                            disabled={loading}
+                                            className="px-8 h-11 bg-slate-900 text-white hover:bg-slate-800 rounded-xl shadow-soft"
+                                        >
+                                            {loading ? "Processing..." : editingLabel ? 'Update Label' : 'Save Label'}
+                                        </Button>
+                                    </div>
+                                </form>
+                            </DialogContent>
+                        </Dialog>
+                    </>
+                }
+            />
 
             <Tabs defaultValue="all" className="w-full space-y-6">
                 <TabsList className="bg-slate-100/50 p-1 rounded-xl h-11">

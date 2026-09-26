@@ -15,6 +15,7 @@ import { Card, CardContent } from "@/components/ui/card"
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Textarea } from "@/components/ui/textarea"
 import { EmptyState } from "@/components/ui/empty-state"
+import { PageHeader } from "@/components/ui/page-header"
 import { LoadingState } from "@/components/ui/loading-state"
 import { AssignFollowUpDialog } from "@/components/assign-follow-up-dialog"
 import { cn } from "@/lib/utils"
@@ -328,15 +329,10 @@ export function CareTasksContent() {
 
   return (
     <div className="space-y-4">
-      <div>
-        <h1 className="text-xl font-semibold flex items-center gap-2">
-          <HeartHandshake className="h-5 w-5 text-primary" />
-          Care
-        </h1>
-        <p className="text-sm text-muted-foreground">
-          Who to reach out to next, and the follow-ups already in flight.
-        </p>
-      </div>
+      <PageHeader
+        title="Care"
+        description="Who to reach out to next, and the follow-ups already under way."
+      />
 
       <Tabs value={view} onValueChange={(v) => setView(v as "queue" | "tasks")}>
         <TabsList>
