@@ -162,7 +162,11 @@ and widths.
 1. **Signing in**: a new test account on the dev Clerk instance, created by you in
    the capture browser window (the assistant does not create accounts or sign in
    through an outside identity provider); the session is reused for every capture.
-2. **Sample data**: yes, a sample church on the dev deployment.
+2. **Sample data**: the test account belongs to a church with real-looking data,
+   treated as read-only. Where a screen needs more (upcoming events, finance
+   records, portal attendance), add records created on the day of capture so they
+   can be found by creation date and removed afterwards; log each batch in
+   `docs/UI_AUDIT.md`.
 3. **Identity**: keep crimson, cream and Fraunces, and apply them consistently.
 4. **Market**: neutral. Copy for churches anywhere: no country named in the
    positioning; currency shown in the organization's own currency where the product
