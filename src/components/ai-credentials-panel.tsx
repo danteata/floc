@@ -126,8 +126,8 @@ export function AiCredentialsPanel() {
       </div>
 
       {status && !status.enabled && (
-        <div className="flex items-start gap-3 rounded-lg border border-amber-500/40 bg-amber-500/5 p-3">
-          <AlertTriangle className="h-4 w-4 text-amber-600 mt-0.5 shrink-0" />
+        <div className="flex items-start gap-3 rounded-lg border border-warning/40 bg-warning/5 p-3">
+          <AlertTriangle className="h-4 w-4 text-warning-strong mt-0.5 shrink-0" />
           <p className="text-sm">
             AI features are switched off across the whole deployment right now, so a key saved here
             won't be used until that's lifted.
@@ -160,7 +160,7 @@ export function AiCredentialsPanel() {
                   </p>
                 ) : credential.last_used_at ? (
                   <p className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                    <CheckCircle2 className="h-3 w-3 shrink-0 text-emerald-600" />
+                    <CheckCircle2 className="h-3 w-3 shrink-0 text-success-strong" />
                     Last worked {new Date(credential.last_used_at).toLocaleString()}
                   </p>
                 ) : (

@@ -5,7 +5,7 @@ import { useQuery } from "convex/react"
 import { formatDistanceToNow } from "date-fns"
 import { ArrowRight, HeartHandshake } from "lucide-react"
 import { api } from "../../convex/_generated/api"
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
+import { MemberAvatar } from "@/components/ui/member-avatar"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -43,12 +43,7 @@ export function MyCareTasksWidget() {
         {pending.slice(0, MAX_SHOWN).map((task) => (
           <div key={task._id} className="flex items-center justify-between gap-3 py-1.5">
             <div className="flex items-center gap-2.5">
-              <Avatar className="h-7 w-7">
-                <AvatarImage src={task.member_avatar_url} alt={task.member_name} />
-                <AvatarFallback className="bg-primary/10 text-primary text-[10px] font-semibold">
-                  {task.member_name.slice(0, 2).toUpperCase()}
-                </AvatarFallback>
-              </Avatar>
+              <MemberAvatar name={task.member_name} src={task.member_avatar_url} size="sm" />
               <div>
                 <p className="text-sm font-medium leading-none">{task.member_name}</p>
                 <p className="text-xs text-muted-foreground">

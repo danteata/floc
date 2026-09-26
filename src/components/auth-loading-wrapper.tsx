@@ -26,7 +26,7 @@ export function AuthLoadingWrapper({ children, fallback }: AuthLoadingWrapperPro
     // Show loading state while Clerk is determining authentication
     if (!isLoaded) {
         return fallback || (
-            <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
+            <div className="min-h-screen bg-muted/50 flex items-center justify-center p-4">
                 <Card className="w-full max-w-md">
                     <CardHeader className="text-center">
                         <div className="flex justify-center mb-4">

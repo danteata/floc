@@ -471,8 +471,8 @@ export function LeaderInvitationSystem() {
           )}
 
           {!activeOrganization && !isSuperAdmin && (
-            <div className="p-4 bg-yellow-50 border border-yellow-200 rounded-lg mb-4">
-              <p className="text-yellow-800">No organization selected. Please select an organization to manage invitations.</p>
+            <div className="p-4 bg-warning/10 border border-warning/30 rounded-lg mb-4">
+              <p className="text-warning-strong">No organization selected. Please select an organization to manage invitations.</p>
             </div>
           )}
 

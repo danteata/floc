@@ -421,7 +421,7 @@ export function UserManagement() {
                               {user.active ? (
                                 <UserX className="h-4 w-4" />
                               ) : (
-                                <UserCheck className="h-4 w-4 text-green-600" />
+                                <UserCheck className="h-4 w-4 text-success-strong" />
                               )}
                             </Button>
                             <Button

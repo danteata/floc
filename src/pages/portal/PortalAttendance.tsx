@@ -40,7 +40,7 @@ export default function PortalAttendance() {
                                 </div>
                                 <div className="flex items-center gap-2 text-xs text-muted-foreground">
                                     {h.is_late && (
-                                        <Badge variant="outline" className="text-amber-600 border-amber-600/30">
+                                        <Badge variant="outline" className="text-warning-strong border-warning/30">
                                             <Clock className="mr-1 h-3 w-3" /> late
                                         </Badge>
                                     )}

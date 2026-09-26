@@ -4,7 +4,7 @@ import { Link } from "react-router-dom"
 import { useQuery } from "convex/react"
 import { AlertTriangle, ArrowRight } from "lucide-react"
 import { api } from "../../convex/_generated/api"
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
+import { MemberAvatar } from "@/components/ui/member-avatar"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -38,7 +38,7 @@ export function AtRiskWidget() {
       <CardHeader className="border-b border-border/30 bg-muted/10 flex flex-row items-center justify-between">
         <div>
           <CardTitle className="text-lg font-semibold flex items-center gap-2">
-            <AlertTriangle className="h-4 w-4 text-amber-500" />
+            <AlertTriangle className="h-4 w-4 text-warning-strong" />
             Members at Risk
           </CardTitle>
           <CardDescription>
@@ -55,12 +55,7 @@ export function AtRiskWidget() {
         {atRisk.map((m) => (
           <div key={m.id} className="flex items-center justify-between gap-3 py-1.5">
             <div className="flex items-center gap-2.5">
-              <Avatar className="h-7 w-7">
-                <AvatarImage src={m.avatar_url} alt={m.name} />
-                <AvatarFallback className="bg-primary/10 text-primary text-[10px] font-semibold">
-                  {m.name.slice(0, 2).toUpperCase()}
-                </AvatarFallback>
-              </Avatar>
+              <MemberAvatar name={m.name} src={m.avatar_url} size="sm" />
               <div>
                 <p className="text-sm font-medium leading-none">{m.name}</p>
                 <p className="text-xs text-muted-foreground">Score: {m.engagement_score}</p>

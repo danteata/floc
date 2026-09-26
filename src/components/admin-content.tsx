@@ -105,8 +105,8 @@ export function AdminContent() {
         description="Your church's units, operations, settings and features."
         actions={
           <>
-            <Badge variant="outline" className="bg-emerald-500/10 text-emerald-600 border-emerald-500/20 px-4 py-1.5 rounded-full text-xs">
-              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 mr-2 animate-pulse"></span>
+            <Badge variant="outline" className="bg-success/10 text-success-strong border-success/20 px-4 py-1.5 rounded-full text-xs">
+              <span className="w-1.5 h-1.5 rounded-full bg-success mr-2 animate-pulse"></span>
               System Active
             </Badge>
           </>
@@ -199,7 +199,7 @@ export function AdminContent() {
                       <TableCell>
                         <Badge
                           variant="outline"
-                          className={`cursor-pointer px-2.5 py-0.5 rounded-full border text-xs ${unit.active ? "bg-emerald-500/10 text-emerald-600 border-emerald-500/20" : "bg-muted text-muted-foreground border-border"}`}
+                          className={`cursor-pointer px-2.5 py-0.5 rounded-full border text-xs ${unit.active ? "bg-success/10 text-success-strong border-success/20" : "bg-muted text-muted-foreground border-border"}`}
                           onClick={() => handleToggleUnitStatus(unit)}
                         >
                           {unit.active ? "Active" : "Standby"}

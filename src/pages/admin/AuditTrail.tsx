@@ -31,24 +31,24 @@ import { format, parseISO } from "date-fns";
 
 // Action type colors for badges
 const actionColors: Record<string, string> = {
-    "member.created": "bg-green-100 text-green-800",
-    "member.updated": "bg-blue-100 text-blue-800",
-    "member.deleted": "bg-red-100 text-red-800",
-    "user.role_changed": "bg-purple-100 text-purple-800",
-    "user.login": "bg-gray-100 text-gray-800",
-    "event.created": "bg-emerald-100 text-emerald-800",
-    "event.updated": "bg-cyan-100 text-cyan-800",
-    "event.deleted": "bg-rose-100 text-rose-800",
-    "attendance.recorded": "bg-indigo-100 text-indigo-800",
-    "financial.transaction_added": "bg-amber-100 text-amber-800",
-    "financial.transaction_updated": "bg-orange-100 text-orange-800",
-    "financial.transaction_deleted": "bg-red-100 text-red-800",
-    "label.created": "bg-pink-100 text-pink-800",
-    "label.assigned": "bg-violet-100 text-violet-800",
-    "label.removed": "bg-gray-100 text-gray-800",
-    "invitation.sent": "bg-teal-100 text-teal-800",
-    "invitation.accepted": "bg-green-100 text-green-800",
-    "invitation.revoked": "bg-red-100 text-red-800",
+    "member.created": "bg-success/15 text-success-strong",
+    "member.updated": "bg-info/15 text-info-strong",
+    "member.deleted": "bg-destructive/15 text-destructive-strong",
+    "user.role_changed": "bg-primary/15 text-primary",
+    "user.login": "bg-muted text-foreground",
+    "event.created": "bg-success/15 text-success-strong",
+    "event.updated": "bg-info/15 text-info-strong",
+    "event.deleted": "bg-destructive/15 text-destructive-strong",
+    "attendance.recorded": "bg-primary/15 text-primary",
+    "financial.transaction_added": "bg-warning/15 text-warning-strong",
+    "financial.transaction_updated": "bg-warning/15 text-warning-strong",
+    "financial.transaction_deleted": "bg-destructive/15 text-destructive-strong",
+    "label.created": "bg-primary/15 text-primary",
+    "label.assigned": "bg-primary/15 text-primary",
+    "label.removed": "bg-muted text-foreground",
+    "invitation.sent": "bg-success/15 text-success-strong",
+    "invitation.accepted": "bg-success/15 text-success-strong",
+    "invitation.revoked": "bg-destructive/15 text-destructive-strong",
 };
 
 // Entity type icons
@@ -136,7 +136,7 @@ export default function AuditTrail() {
     };
 
     const getActionColor = (action: string) => {
-        return actionColors[action] || "bg-gray-100 text-gray-800";
+        return actionColors[action] || "bg-muted text-foreground";
     };
 
     const getEntityIcon = (entityType: string) => {

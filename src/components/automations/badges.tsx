@@ -4,8 +4,8 @@ import { cn } from "@/lib/utils"
 // Rule lifecycle status.
 export function RuleStatusBadge({ status, dryRun }: { status: string; dryRun?: boolean }) {
   const map: Record<string, string> = {
-    enabled: "bg-emerald-500/10 text-emerald-600 border-emerald-500/20",
-    paused: "bg-amber-500/10 text-amber-600 border-amber-500/20",
+    enabled: "bg-success/10 text-success-strong border-success/20",
+    paused: "bg-warning/10 text-warning-strong border-warning/20",
     draft: "bg-muted text-muted-foreground border-border",
   }
   const label = status.charAt(0).toUpperCase() + status.slice(1)
@@ -15,7 +15,7 @@ export function RuleStatusBadge({ status, dryRun }: { status: string; dryRun?: b
         {label}
       </Badge>
       {dryRun && (
-        <Badge variant="outline" className="px-2 py-0.5 rounded-full text-xs bg-sky-500/10 text-sky-600 border-sky-500/20">
+        <Badge variant="outline" className="px-2 py-0.5 rounded-full text-xs bg-info/10 text-info-strong border-info/20">
           Dry run
         </Badge>
       )}
@@ -26,13 +26,13 @@ export function RuleStatusBadge({ status, dryRun }: { status: string; dryRun?: b
 // message_log outcome.
 export function OutcomeBadge({ outcome }: { outcome: string }) {
   const map: Record<string, string> = {
-    sent: "bg-emerald-500/10 text-emerald-600 border-emerald-500/20",
-    dry_run: "bg-sky-500/10 text-sky-600 border-sky-500/20",
+    sent: "bg-success/10 text-success-strong border-success/20",
+    dry_run: "bg-info/10 text-info-strong border-info/20",
     deduped: "bg-muted text-muted-foreground border-border",
-    suppressed_consent: "bg-amber-500/10 text-amber-600 border-amber-500/20",
-    quiet_hours_deferred: "bg-amber-500/10 text-amber-600 border-amber-500/20",
-    throttled: "bg-amber-500/10 text-amber-600 border-amber-500/20",
-    skipped_no_provider: "bg-slate-500/10 text-slate-500 border-slate-500/20",
+    suppressed_consent: "bg-warning/10 text-warning-strong border-warning/20",
+    quiet_hours_deferred: "bg-warning/10 text-warning-strong border-warning/20",
+    throttled: "bg-warning/10 text-warning-strong border-warning/20",
+    skipped_no_provider: "bg-muted text-muted-foreground border-border",
     failed: "bg-destructive/10 text-destructive border-destructive/20",
   }
   const label = outcome.replace(/_/g, " ")

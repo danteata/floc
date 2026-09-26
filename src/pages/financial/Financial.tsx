@@ -45,11 +45,14 @@ import {
 import {
     formatCurrency,
     calculateTransactionTotals,
+    monthOnMonth,
+    describeMonthOnMonth,
     exportTransactionsToCSV,
     TRANSACTION_CATEGORIES
 } from '@/lib/financial-utils'
 import { LayoutWrapper } from '@/components/layout-wrapper'
 import { PageHeader } from '@/components/ui/page-header'
+import { StatCard, StatGrid } from '@/components/ui/stat-card'
 import { useQuery, useMutation } from 'convex/react'
 import { api } from '../../../convex/_generated/api'
 import { Id } from '../../../convex/_generated/dataModel'
@@ -161,6 +164,10 @@ export default function FinancialPage() {
     }, [transactions, searchTerm, categoryFilter, typeFilter, dateRange])
 
     const totals = useMemo(() => calculateTransactionTotals(filteredTransactions), [filteredTransactions])
+    // Worked out from the transactions' dates; no hint at all when last month
+    // has nothing to compare with, rather than an invented trend.
+    const incomeTrend = useMemo(() => monthOnMonth(transactions, 'income').change, [transactions])
+    const expenseTrend = useMemo(() => monthOnMonth(transactions, 'expense').change, [transactions])
 
     const handleExportData = () => {
         const csvContent = exportTransactionsToCSV(filteredTransactions)
@@ -200,41 +207,31 @@ export default function FinancialPage() {
                     </>}
                 />
 
-                {/* Tactical Stats Grid */}
-                <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-                    <FinancialStatCard
-                        label="Total Income"
+                <StatGrid>
+                    <StatCard
+                        label="Total income"
                         value={formatCurrency(totals.income)}
-                        trend="+12% vs last mo"
-                        icon={<ArrowUpRight className="h-5 w-5 text-emerald-500" />}
-                        iconBg="bg-emerald-500/10"
-                        trendColor="text-emerald-500"
+                        icon={ArrowUpRight}
+                        hint={describeMonthOnMonth(incomeTrend)}
+                        hintTone={incomeTrend === null || incomeTrend === 0 ? 'neutral' : incomeTrend > 0 ? 'positive' : 'negative'}
                     />
-                    <FinancialStatCard
-                        label="Total Expenses"
+                    <StatCard
+                        label="Total expenses"
                         value={formatCurrency(totals.expense)}
-                        trend="-5% vs last mo"
-                        icon={<ArrowDownRight className="h-5 w-5 text-rose-500" />}
-                        iconBg="bg-rose-500/10"
-                        trendColor="text-rose-500"
+                        icon={ArrowDownRight}
+                        hint={describeMonthOnMonth(expenseTrend)}
                     />
-                    <FinancialStatCard
-                        label="Net Remainder"
+                    <StatCard
+                        label="Net remainder"
                         value={formatCurrency(totals.net)}
-                        trend="Fiscal Health: Good"
-                        icon={<BarChart3 className="h-5 w-5 text-blue-500" />}
-                        iconBg="bg-blue-500/10"
-                        trendColor="text-blue-500"
+                        icon={BarChart3}
                     />
-                    <FinancialStatCard
-                        label="Total Transactions"
+                    <StatCard
+                        label="Total transactions"
                         value={filteredTransactions.length.toString()}
-                        trend="Records logged"
-                        icon={<CalendarIcon className="h-5 w-5 text-orange-500" />}
-                        iconBg="bg-orange-500/10"
-                        trendColor="text-orange-500"
+                        icon={CalendarIcon}
                     />
-                </div>
+                </StatGrid>
 
                 <Tabs defaultValue="overview" className="space-y-8">
                     <TabsList className="bg-muted/50 p-1 rounded-xl w-full md:w-auto inline-flex">
@@ -377,7 +374,7 @@ export default function FinancialPage() {
                                                             <Badge variant="destructive" className="text-[10px]" title={transaction.void_reason}>Voided</Badge>
                                                         )}
                                                         {isPending && (
-                                                            <Badge variant="outline" className="text-[10px] text-amber-600 border-amber-600/30">Pending</Badge>
+                                                            <Badge variant="outline" className="text-[10px] text-warning-strong border-warning/30">Pending</Badge>
                                                         )}
                                                         {isFailed && (
                                                             <Badge variant="outline" className="text-[10px] text-muted-foreground">Failed</Badge>
@@ -397,8 +394,8 @@ export default function FinancialPage() {
                                                     className={cn(
                                                         "font-semibold text-xs rounded-md px-2.5 py-0.5 border-0",
                                                         transaction.type === 'income'
-                                                            ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400'
-                                                            : 'bg-rose-500/10 text-rose-600 dark:text-rose-400'
+                                                            ? 'bg-success/10 text-success-strong dark:text-success'
+                                                            : 'bg-destructive/10 text-destructive-strong dark:text-destructive'
                                                     )}
                                                 >
                                                     {transaction.type === 'income' ? '+' : '-'} {formatCurrency(transaction.amount)}
@@ -472,31 +469,6 @@ export default function FinancialPage() {
                 />
             </div>
         </LayoutWrapper>
-    )
-}
-
-function FinancialStatCard({ label, value, trend, icon, iconBg, trendColor }: { label: string, value: string, trend: string, icon: React.ReactNode, iconBg: string, trendColor?: string }) {
-    return (
-        <Card className="rounded-xl shadow-sm border border-border/50 hover:shadow-md transition-all">
-            <CardContent className="p-6">
-                <div className="flex items-center justify-between mb-4">
-                    <div className={`p-2.5 rounded-xl ${iconBg}`}>
-                        {icon}
-                    </div>
-                </div>
-                <div className="space-y-1">
-                    <div className="text-2xl tracking-tight text-foreground">{value}</div>
-                    <div className="flex items-center gap-2">
-                        <span className="text-xs text-muted-foreground tracking-wide">{label}</span>
-                        {trend && (
-                            <span className={`text-[10px] px-1.5 py-0.5 rounded-full bg-muted/50 ${trendColor || 'text-muted-foreground'}`}>
-                                {trend}
-                            </span>
-                        )}
-                    </div>
-                </div>
-            </CardContent>
-        </Card>
     )
 }
 

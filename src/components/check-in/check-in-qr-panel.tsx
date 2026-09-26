@@ -242,7 +242,7 @@ export function CheckInQrPanel({ eventTypes }: { eventTypes: { _id: string; labe
                                 <div key={r.member_id + (r.checked_in_at ?? "")} className="flex items-center justify-between py-2 text-sm">
                                     <span className="font-medium">{r.member_name ?? "Unknown"}</span>
                                     <div className="flex items-center gap-3 text-xs text-muted-foreground">
-                                        {r.is_late && <Badge variant="outline" className="text-amber-600 border-amber-600/30">late</Badge>}
+                                        {r.is_late && <Badge variant="outline" className="text-warning-strong border-warning/30">late</Badge>}
                                         <Badge variant="secondary" className="uppercase">{r.source}</Badge>
                                         {r.checked_in_at && (
                                             <span className="flex items-center gap-1">

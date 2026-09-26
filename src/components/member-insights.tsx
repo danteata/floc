@@ -42,7 +42,8 @@ import {
 } from "lucide-react"
 import { Id } from "../../convex/_generated/dataModel"
 
-const COLORS = ['#5b21b6', '#7c3aed', '#8b5cf6', '#a78bfa', '#c4b5fd']
+// The theme's chart ramp, so the charts follow the brand and both themes.
+const COLORS = ['var(--chart-4)', 'var(--chart-2)', 'var(--chart-1)', 'var(--chart-5)', 'var(--chart-3)']
 
 export function MemberInsights() {
   const { context } = useOrganization()
@@ -105,12 +106,12 @@ export function MemberInsights() {
         <div className="flex items-center gap-2">
           <ScopeBadge scope={insights.scope} />
           {overview.trendingUp ? (
-            <Badge variant="outline" className="bg-emerald-500/10 text-emerald-600 border-emerald-500/20">
+            <Badge variant="outline" className="bg-success/10 text-success-strong border-success/20">
               <TrendingUp className="h-3 w-3 mr-1" />
               Growing
             </Badge>
           ) : (
-            <Badge variant="outline" className="bg-amber-500/10 text-amber-600 border-amber-500/20">
+            <Badge variant="outline" className="bg-warning/10 text-warning-strong border-warning/20">
               <TrendingDown className="h-3 w-3 mr-1" />
               Needs Attention
             </Badge>
@@ -136,7 +137,7 @@ export function MemberInsights() {
         <Card className="border-border/50 rounded-xl">
           <CardContent className="p-4">
             <div className="flex items-center gap-3">
-              <div className="h-10 w-10 bg-emerald-500/10 text-emerald-600 rounded-lg flex items-center justify-center">
+              <div className="h-10 w-10 bg-success/10 text-success-strong rounded-lg flex items-center justify-center">
                 <UserCheck className="h-5 w-5" />
               </div>
               <div>
@@ -150,7 +151,7 @@ export function MemberInsights() {
         <Card className="border-border/50 rounded-xl">
           <CardContent className="p-4">
             <div className="flex items-center gap-3">
-              <div className="h-10 w-10 bg-amber-500/10 text-amber-600 rounded-lg flex items-center justify-center">
+              <div className="h-10 w-10 bg-warning/10 text-warning-strong rounded-lg flex items-center justify-center">
                 <Activity className="h-5 w-5" />
               </div>
               <div>
@@ -164,7 +165,7 @@ export function MemberInsights() {
         <Card className="border-border/50 rounded-xl">
           <CardContent className="p-4">
             <div className="flex items-center gap-3">
-              <div className="h-10 w-10 bg-blue-500/10 text-blue-600 rounded-lg flex items-center justify-center">
+              <div className="h-10 w-10 bg-info/10 text-info-strong rounded-lg flex items-center justify-center">
                 <UserPlus className="h-5 w-5" />
               </div>
               <div>
@@ -194,8 +195,8 @@ export function MemberInsights() {
                   <AreaChart data={chartData.retention}>
                     <defs>
                       <linearGradient id="colorAttendees" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="5%" stopColor="#5b21b6" stopOpacity={0.3} />
-                        <stop offset="95%" stopColor="#5b21b6" stopOpacity={0} />
+                        <stop offset="5%" stopColor="var(--primary)" stopOpacity={0.3} />
+                        <stop offset="95%" stopColor="var(--primary)" stopOpacity={0} />
                       </linearGradient>
                     </defs>
                     <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--border)" />
@@ -223,7 +224,7 @@ export function MemberInsights() {
                       type="monotone"
                       dataKey="attendees"
                       name="Unique Attendees"
-                      stroke="#5b21b6"
+                      stroke="var(--primary)"
                       fillOpacity={1}
                       fill="url(#colorAttendees)"
                     />
@@ -231,7 +232,7 @@ export function MemberInsights() {
                       type="monotone"
                       dataKey="avgAttendance"
                       name="Avg Attendance"
-                      stroke="#8b5cf6"
+                      stroke="var(--chart-1)"
                       strokeWidth={2}
                       dot={false}
                     />
@@ -328,7 +329,7 @@ export function MemberInsights() {
       <Card className="border-border/50 rounded-xl">
         <CardHeader className="pb-2">
           <CardTitle className="text-base flex items-center gap-2">
-            <AlertTriangle className="h-4 w-4 text-amber-600" />
+            <AlertTriangle className="h-4 w-4 text-warning-strong" />
             Inactive Members
           </CardTitle>
           <CardDescription className="text-sm">
@@ -354,7 +355,7 @@ export function MemberInsights() {
                       <p className="text-xs text-muted-foreground">No recent activity</p>
                     </div>
                   </div>
-                  <Badge variant="outline" className="text-amber-600 border-amber-500/30">
+                  <Badge variant="outline" className="text-warning-strong border-warning/30">
                     Inactive
                   </Badge>
                 </div>
@@ -362,7 +363,7 @@ export function MemberInsights() {
             </div>
           ) : (
             <div className="py-8 text-center text-sm text-muted-foreground">
-              <UserCheck className="h-8 w-8 mx-auto mb-2 text-emerald-600" />
+              <UserCheck className="h-8 w-8 mx-auto mb-2 text-success-strong" />
               All members are actively engaged
             </div>
           )}

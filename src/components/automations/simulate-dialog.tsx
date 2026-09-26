@@ -99,7 +99,7 @@ export function SimulateDialog({ open, onOpenChange, rule }: SimulateDialogProps
                                 <div className="flex items-center gap-2 mb-0.5">
                                   <Badge variant="secondary" className="text-[10px] uppercase tracking-wide">{a.channel || a.action_key}</Badge>
                                   {a.missing.length > 0 && (
-                                    <span className="text-[10px] text-amber-600">missing: {a.missing.join(", ")}</span>
+                                    <span className="text-[10px] text-warning-strong">missing: {a.missing.join(", ")}</span>
                                   )}
                                 </div>
                                 <p className="text-muted-foreground">{a.text}</p>

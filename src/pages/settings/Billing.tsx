@@ -88,7 +88,7 @@ export default function BillingPage() {
                         <div className="flex items-center justify-between">
                             <div className="flex items-center gap-2">
                                 {isPro ? (
-                                    <Crown className="h-5 w-5 text-amber-500" />
+                                    <Crown className="h-5 w-5 text-warning-strong" />
                                 ) : (
                                     <Sparkles className="h-5 w-5 text-muted-foreground" />
                                 )}

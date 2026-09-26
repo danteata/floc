@@ -3,7 +3,7 @@
 import { useState } from "react"
 import { Download, Calendar, Users, History, UserMinus, PlusCircle, RefreshCw, TrendingUp, Target, Activity, BarChart3, ChevronDown, QrCode, Lock, Filter } from "lucide-react"
 import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Card, CardContent, CardHeader } from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { AttendanceForm } from "@/components/attendance-form"
@@ -13,6 +13,7 @@ import { ServiceMetadataSummaryDialog } from "@/components/service-metadata-summ
 import { CheckInQrPanel } from "@/components/check-in/check-in-qr-panel"
 import { cn } from "@/lib/utils"
 import { Skeleton } from "@/components/ui/skeleton"
+import { StatCard, StatGrid } from "@/components/ui/stat-card"
 import { useQuery, useMutation } from "convex/react"
 import { api } from "../../convex/_generated/api"
 import type { Id } from "../../convex/_generated/dataModel"
@@ -203,81 +204,24 @@ export function AttendanceContent() {
           ))}
         </div>
       ) : (
-        <div className="order-2 md:order-none grid grid-cols-2 gap-3 md:gap-4 lg:grid-cols-3 xl:grid-cols-6">
-          {/* Total Active Members */}
-          <Card className="border-border/50 rounded-lg">
-            <CardHeader className="flex flex-row items-center justify-between pb-2 pt-4 px-4">
-              <CardTitle className="text-xs text-muted-foreground truncate">
-                {unitName ?? (stats?.scope?.isScoped ? "Your Members" : "Total Members")}
-              </CardTitle>
-              <Users className="h-4 w-4 text-muted-foreground/50" />
-            </CardHeader>
-            <CardContent className="pb-4 px-4">
-              <div className="text-2xl font-semibold text-foreground">{stats?.totalActiveMembers || 0}</div>
-            </CardContent>
-          </Card>
-
-          {/* This Week's Attendance */}
-          <Card className="border-border/50 rounded-lg">
-            <CardHeader className="flex flex-row items-center justify-between pb-2 pt-4 px-4">
-              <CardTitle className="text-xs text-muted-foreground">This Week</CardTitle>
-              <Calendar className="h-4 w-4 text-muted-foreground/50" />
-            </CardHeader>
-            <CardContent className="pb-4 px-4">
-              <div className="text-2xl font-semibold text-foreground">{stats?.thisWeekTotal || 0}</div>
-            </CardContent>
-          </Card>
-
-          {/* Weekly Growth Rate */}
-          <Card className="border-border/50 rounded-lg">
-            <CardHeader className="flex flex-row items-center justify-between pb-2 pt-4 px-4">
-              <CardTitle className="text-xs text-muted-foreground">Growth</CardTitle>
-              <TrendingUp className="h-4 w-4 text-muted-foreground/50" />
-            </CardHeader>
-            <CardContent className="pb-4 px-4">
-              <div className={cn(
-                "text-2xl font-semibold",
-                (stats?.weeklyGrowthRate || 0) >= 0 ? 'text-success' : 'text-destructive'
-              )}>
-                {(stats?.weeklyGrowthRate || 0) > 0 ? "+" : ""}
-                {(stats?.weeklyGrowthRate || 0).toFixed(1)}%
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Attendance Rate */}
-          <Card className="border-border/50 rounded-lg">
-            <CardHeader className="flex flex-row items-center justify-between pb-2 pt-4 px-4">
-              <CardTitle className="text-xs text-muted-foreground">Rate</CardTitle>
-              <Target className="h-4 w-4 text-muted-foreground/50" />
-            </CardHeader>
-            <CardContent className="pb-4 px-4">
-              <div className="text-2xl font-semibold text-foreground">{(stats?.attendanceRate || 0).toFixed(1)}%</div>
-            </CardContent>
-          </Card>
-
-          {/* Recent Activity */}
-          <Card className="border-border/50 rounded-lg">
-            <CardHeader className="flex flex-row items-center justify-between pb-2 pt-4 px-4">
-              <CardTitle className="text-xs text-muted-foreground">Active Days</CardTitle>
-              <Activity className="h-4 w-4 text-muted-foreground/50" />
-            </CardHeader>
-            <CardContent className="pb-4 px-4">
-              <div className="text-2xl font-semibold text-foreground">{stats?.recentActivityDays || 0}</div>
-            </CardContent>
-          </Card>
-
-          {/* Total Records */}
-          <Card className="border-border/50 rounded-lg">
-            <CardHeader className="flex flex-row items-center justify-between pb-2 pt-4 px-4">
-              <CardTitle className="text-xs text-muted-foreground">Records</CardTitle>
-              <BarChart3 className="h-4 w-4 text-muted-foreground/50" />
-            </CardHeader>
-            <CardContent className="pb-4 px-4">
-              <div className="text-2xl font-semibold text-foreground">{stats?.totalRecords || 0}</div>
-            </CardContent>
-          </Card>
-        </div>
+        <StatGrid className="order-2 md:order-none lg:grid-cols-3 xl:grid-cols-6">
+          <StatCard
+            label={unitName ?? (stats?.scope?.isScoped ? "Your members" : "Total members")}
+            value={stats?.totalActiveMembers || 0}
+            icon={Users}
+          />
+          <StatCard label="This week" value={stats?.thisWeekTotal || 0} icon={Calendar} />
+          <StatCard
+            label="Growth"
+            value={`${(stats?.weeklyGrowthRate || 0) > 0 ? "+" : ""}${(stats?.weeklyGrowthRate || 0).toFixed(1)}%`}
+            icon={TrendingUp}
+            hint="Week on week"
+            hintTone={(stats?.weeklyGrowthRate || 0) >= 0 ? "positive" : "negative"}
+          />
+          <StatCard label="Rate" value={`${(stats?.attendanceRate || 0).toFixed(1)}%`} icon={Target} />
+          <StatCard label="Active days" value={stats?.recentActivityDays || 0} icon={Activity} />
+          <StatCard label="Records" value={stats?.totalRecords || 0} icon={BarChart3} />
+        </StatGrid>
       )}
 
       <Tabs defaultValue="record" className="order-1 md:order-none w-full space-y-6">

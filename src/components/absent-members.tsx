@@ -3,7 +3,7 @@
 import { useCallback, useState, useMemo } from "react"
 import { Download, Mail, Phone, CalendarIcon, ArrowUpDown } from "lucide-react"
 
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
+import { MemberAvatar } from "@/components/ui/member-avatar"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -466,15 +466,7 @@ export function AbsentMembers({ unitId, unitName }: AbsentMembersProps = {}) {
                       className="flex items-center gap-3 hover:opacity-80 transition-opacity text-left"
                       onClick={() => setViewingMember(member)}
                     >
-                      <Avatar>
-                        <AvatarImage
-                          src={member.avatar_url ?? member.avatar ?? ""}
-                          alt={member.name}
-                        />
-                        <AvatarFallback>
-                          {member.initials ?? member.name.slice(0, 2).toUpperCase()}
-                        </AvatarFallback>
-                      </Avatar>
+                      <MemberAvatar name={member.name} src={member.avatar_url || member.avatar} />
                       <div className="font-medium">{member.name}</div>
                     </button>
                   </TableCell>
@@ -492,12 +484,12 @@ export function AbsentMembers({ unitId, unitName }: AbsentMembersProps = {}) {
                   </TableCell>
                   <TableCell>
                     {member.status === "active" && (
-                      <Badge className="bg-green-500">Active</Badge>
+                      <Badge className="bg-success">Active</Badge>
                     )}
                     {member.status === "inactive" && (
                       <Badge
                         variant="outline"
-                        className="border-amber-500 text-amber-500"
+                        className="border-warning text-warning-strong"
                       >
                         Inactive
                       </Badge>
@@ -525,7 +517,7 @@ export function AbsentMembers({ unitId, unitName }: AbsentMembersProps = {}) {
                           }
                           className={
                             absences >= 2 && absences < 4
-                              ? "text-amber-500 border-amber-500"
+                              ? "text-warning-strong border-warning"
                               : ""
                           }
                         >

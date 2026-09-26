@@ -293,7 +293,7 @@ export function ServiceFinancialSummaryDialog({
                         <div className="flex items-center justify-between">
                             <div className="space-y-1">
                                 <DialogTitle className="text-2xl flex items-center gap-3">
-                                    <div className="p-3 bg-[#5b21b6] text-white rounded-xl shadow-md">
+                                    <div className="p-3 bg-primary/10 text-primary rounded-xl shadow-md">
                                         <Calculator className="h-6 w-6" />
                                     </div>
                                     {summary ? 'Edit Service Summary' : 'New Service Summary'}
@@ -434,8 +434,8 @@ export function ServiceFinancialSummaryDialog({
                                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
 
                                         {/* Tithes */}
-                                        <section className="space-y-4 rounded-xl border border-blue-200/50 bg-blue-50/30 p-6">
-                                            <div className="flex items-center gap-2 text-blue-700 mb-2">
+                                        <section className="space-y-4 rounded-xl border border-info/50 bg-info/30 p-6">
+                                            <div className="flex items-center gap-2 text-info-strong mb-2">
                                                 <ShieldCheck className="h-4 w-4" />
                                                 <h4 className="font-semibold text-sm tracking-wide">Tithes</h4>
                                             </div>
@@ -479,15 +479,15 @@ export function ServiceFinancialSummaryDialog({
                                                     )}
                                                 />
                                             </div>
-                                            <div className="flex justify-between items-center pt-2 border-t border-blue-200/50">
-                                                <span className="text-xs text-blue-700/70">Total Tithes</span>
-                                                <span className="text-lg text-blue-700">{form.watch('currency')} {tithesTotal.toLocaleString()}</span>
+                                            <div className="flex justify-between items-center pt-2 border-t border-info/50">
+                                                <span className="text-xs text-info-strong">Total Tithes</span>
+                                                <span className="text-lg text-info-strong">{form.watch('currency')} {tithesTotal.toLocaleString()}</span>
                                             </div>
                                         </section>
 
                                         {/* Offerings */}
-                                        <section className="space-y-4 rounded-xl border border-emerald-200/50 bg-emerald-50/30 p-6">
-                                            <div className="flex items-center gap-2 text-emerald-700 mb-2">
+                                        <section className="space-y-4 rounded-xl border border-success/50 bg-success/30 p-6">
+                                            <div className="flex items-center gap-2 text-success-strong mb-2">
                                                 <Info className="h-4 w-4" />
                                                 <h4 className="font-semibold text-sm tracking-wide">Offerings</h4>
                                             </div>
@@ -520,15 +520,15 @@ export function ServiceFinancialSummaryDialog({
                                                     )}
                                                 />
                                             </div>
-                                            <div className="flex justify-between items-center pt-2 border-t border-emerald-200/50">
-                                                <span className="text-xs text-emerald-700/70">Total Offerings</span>
-                                                <span className="text-lg text-emerald-700">{form.watch('currency')} {offeringsTotal.toLocaleString()}</span>
+                                            <div className="flex justify-between items-center pt-2 border-t border-success/50">
+                                                <span className="text-xs text-success-strong">Total Offerings</span>
+                                                <span className="text-lg text-success-strong">{form.watch('currency')} {offeringsTotal.toLocaleString()}</span>
                                             </div>
                                         </section>
 
                                         {/* Special Offerings */}
-                                        <section className="col-span-1 md:col-span-2 space-y-4 rounded-xl border border-amber-200/50 bg-amber-50/30 p-6">
-                                            <div className="flex items-center gap-2 text-amber-700 mb-2">
+                                        <section className="col-span-1 md:col-span-2 space-y-4 rounded-xl border border-warning/50 bg-warning/30 p-6">
+                                            <div className="flex items-center gap-2 text-warning-strong mb-2">
                                                 <Info className="h-4 w-4" />
                                                 <h4 className="font-semibold text-sm tracking-wide">Special Offerings</h4>
                                             </div>
@@ -572,9 +572,9 @@ export function ServiceFinancialSummaryDialog({
                                                     )}
                                                 />
                                             </div>
-                                            <div className="flex justify-between items-center pt-2 border-t border-amber-200/50">
-                                                <span className="text-xs text-amber-700/70">Total Special Offerings</span>
-                                                <span className="text-lg text-amber-700">{form.watch('currency')} {specialOfferingsTotal.toLocaleString()}</span>
+                                            <div className="flex justify-between items-center pt-2 border-t border-warning/50">
+                                                <span className="text-xs text-warning-strong">Total Special Offerings</span>
+                                                <span className="text-lg text-warning-strong">{form.watch('currency')} {specialOfferingsTotal.toLocaleString()}</span>
                                             </div>
                                         </section>
                                     </div>

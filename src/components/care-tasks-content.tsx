@@ -8,7 +8,7 @@ import { api } from "../../convex/_generated/api"
 import { Id } from "../../convex/_generated/dataModel"
 import { useOrganization } from "@/hooks/use-organization"
 import { useUserRole } from "@/hooks/use-user-role"
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
+import { MemberAvatar } from "@/components/ui/member-avatar"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
@@ -77,12 +77,7 @@ function TaskRow({ task }: { task: CareTask }) {
     <div className="flex flex-col gap-3 border-b border-border/60 px-4 py-3 last:border-0">
       <div className="flex items-center justify-between gap-3">
         <div className="flex items-center gap-3">
-          <Avatar className="h-8 w-8">
-            <AvatarImage src={task.member_avatar_url} alt={task.member_name} />
-            <AvatarFallback className="bg-primary/10 text-primary text-xs font-semibold">
-              {task.member_name.slice(0, 2).toUpperCase()}
-            </AvatarFallback>
-          </Avatar>
+          <MemberAvatar name={task.member_name} src={task.member_avatar_url} />
           <div>
             <p className="text-sm font-medium leading-none">{task.member_name}</p>
             <p className="text-xs text-muted-foreground">
@@ -144,7 +139,7 @@ type QueueMember = {
 
 function impactBadgeClass(level: "high" | "medium" | "low") {
   if (level === "high") return "bg-destructive/10 text-destructive border-destructive/30"
-  if (level === "medium") return "bg-amber-500/10 text-amber-600 border-amber-500/30"
+  if (level === "medium") return "bg-warning/10 text-warning-strong border-warning/30"
   return "bg-muted text-muted-foreground border-border/60"
 }
 
@@ -178,7 +173,7 @@ function ImpactStatsBanner({ organizationId }: { organizationId: Id<"organizatio
 
   const tiles = [
     { label: "Recovered", value: stats.recovered, tone: "text-success" },
-    { label: "Improving", value: stats.improving, tone: "text-amber-600" },
+    { label: "Improving", value: stats.improving, tone: "text-warning-strong" },
     { label: "No change yet", value: stats.stillAtRisk, tone: "text-muted-foreground" },
     { label: "Recovery rate", value: `${stats.recoveryRate}%`, tone: "text-foreground" },
   ]
@@ -227,12 +222,7 @@ function QueueRow({
   return (
     <div className="flex flex-col gap-2 border-b border-border/60 px-4 py-3 last:border-0 sm:flex-row sm:items-center sm:justify-between">
       <div className="flex items-start gap-3">
-        <Avatar className="h-8 w-8">
-          <AvatarImage src={member.avatar_url} alt={member.name} />
-          <AvatarFallback className="bg-primary/10 text-primary text-xs font-semibold">
-            {member.name.slice(0, 2).toUpperCase()}
-          </AvatarFallback>
-        </Avatar>
+        <MemberAvatar name={member.name} src={member.avatar_url} />
         <div className="min-w-0">
           <p className="text-sm font-medium leading-none">{member.name}</p>
           <div className="mt-1.5 flex flex-wrap gap-1">

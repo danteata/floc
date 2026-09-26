@@ -27,6 +27,7 @@ import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { EmptyState } from "@/components/ui/empty-state"
 import { PageHeader } from "@/components/ui/page-header"
+import { StatCard, StatGrid } from "@/components/ui/stat-card"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
 import { ShareAbsentLinkDialog } from "@/components/share-absent-link-dialog"
@@ -38,52 +39,6 @@ function eventTypeBadgeVariant(color: string | null | undefined) {
     if (color === "secondary") return "secondary" as const
     if (color === "destructive") return "destructive" as const
     return "outline" as const
-}
-
-function StatCard({
-    icon: Icon,
-    label,
-    value,
-    onClick,
-    tone,
-}: {
-    icon: React.ComponentType<{ className?: string }>
-    label: string
-    value: number
-    onClick?: () => void
-    tone?: "warning" | "danger"
-}) {
-    const content = (
-        <CardContent className="flex items-center gap-3 p-4">
-            <div
-                className={cn(
-                    "rounded-lg p-2",
-                    tone === "danger"
-                        ? "bg-destructive/10 text-destructive"
-                        : tone === "warning"
-                          ? "bg-amber-500/10 text-amber-600"
-                          : "bg-primary/10 text-primary",
-                )}
-            >
-                <Icon className="h-4 w-4" />
-            </div>
-            <div>
-                <div className="text-xl font-semibold leading-none">{value}</div>
-                <div className="text-xs text-muted-foreground mt-1">{label}</div>
-            </div>
-        </CardContent>
-    )
-    if (!onClick) {
-        return <Card className="border-border/50 rounded-lg">{content}</Card>
-    }
-    return (
-        <Card
-            className="border-border/50 rounded-lg cursor-pointer hover:border-primary/40 transition-colors"
-            onClick={onClick}
-        >
-            {content}
-        </Card>
-    )
 }
 
 type StartedSession = {
@@ -158,14 +113,13 @@ export default function CommandCenterPage() {
                     </div>
                 ) : (
                     <>
-                        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                        <StatGrid>
                             <StatCard icon={Users} label="Checked in today" value={summary.totalHeadcount} />
                             <StatCard icon={UserPlus} label="First-timers today" value={summary.firstTimersToday} />
                             <StatCard
                                 icon={Clock}
                                 label="Late arrivals"
                                 value={summary.lateArrivals.count}
-                                tone="warning"
                                 onClick={
                                     summary.lateArrivals.count > 0 ? () => setShowLate((v) => !v) : undefined
                                 }
@@ -174,14 +128,13 @@ export default function CommandCenterPage() {
                                 icon={AlertTriangle}
                                 label="Failed check-ins"
                                 value={summary.recentFailures.length}
-                                tone="danger"
                                 onClick={
                                     summary.recentFailures.length > 0
                                         ? () => setShowFailures((v) => !v)
                                         : undefined
                                 }
                             />
-                        </div>
+                        </StatGrid>
 
                         {summary.lateArrivals.count > 0 && (
                             <Collapsible open={showLate} onOpenChange={setShowLate}>
@@ -205,7 +158,7 @@ export default function CommandCenterPage() {
                                                     <div className="flex items-center gap-2 text-xs text-muted-foreground">
                                                         <span>{l.event_type_label ?? "—"}</span>
                                                         {typeof l.minutes_late === "number" && (
-                                                            <Badge variant="outline" className="text-amber-600 border-amber-600/30">
+                                                            <Badge variant="outline" className="text-warning-strong border-warning/30">
                                                                 {l.minutes_late}m late
                                                             </Badge>
                                                         )}

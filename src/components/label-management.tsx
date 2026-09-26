@@ -173,10 +173,10 @@ export function LabelManagement({ onLabelsChange }: LabelManagementProps) {
 
     if (!isAdmin) {
         return (
-            <div className="text-center py-20 bg-slate-50/50 border border-dashed border-slate-200 rounded-[32px]">
-                <Tag className="mx-auto h-16 w-16 mb-6 text-slate-200" />
+            <div className="text-center py-20 bg-muted/50 border border-dashed border-border rounded-[32px]">
+                <Tag className="mx-auto h-16 w-16 mb-6 text-muted-foreground/40" />
                 <h3 className="text-xl tracking-tight mb-2">Access Denied</h3>
-                <p className="font-medium text-slate-400 text-sm">You need administrator privileges to manage member labels</p>
+                <p className="font-medium text-muted-foreground/70 text-sm">You need administrator privileges to manage member labels</p>
             </div>
         )
     }
@@ -194,7 +194,7 @@ export function LabelManagement({ onLabelsChange }: LabelManagementProps) {
                         }}>
                             <DialogTrigger asChild>
                                 <Button
-                                    className="h-12 px-6 bg-slate-900 text-white hover:bg-slate-800 shadow-soft-xl rounded-xl transition-all"
+                                    className="h-12 px-6 bg-primary text-primary-foreground hover:bg-primary/90 shadow-soft-xl rounded-xl transition-all"
                                 >
                                     <Plus className="w-5 h-5 mr-2 stroke-[3px]" />
                                     Create New Label
@@ -203,30 +203,30 @@ export function LabelManagement({ onLabelsChange }: LabelManagementProps) {
                             <DialogContent className="sm:max-w-[550px] p-0 border border-border/50 shadow-soft-2xl rounded-3xl overflow-hidden">
                                 <DialogHeader className="p-8 pb-4">
                                     <DialogTitle className="text-2xl tracking-tight flex items-center gap-3">
-                                        {editingLabel ? <Edit className="h-6 w-6 text-slate-400" /> : <Plus className="h-6 w-6 text-slate-400" />}
+                                        {editingLabel ? <Edit className="h-6 w-6 text-muted-foreground/70" /> : <Plus className="h-6 w-6 text-muted-foreground/70" />}
                                         {editingLabel ? 'Update Label' : 'New Label Identity'}
                                     </DialogTitle>
-                                    <DialogDescription className="text-slate-500 text-sm">
+                                    <DialogDescription className="text-muted-foreground text-sm">
                                         Configure labels to categorize and track member engagement
                                     </DialogDescription>
                                 </DialogHeader>
                                 <form onSubmit={handleSubmit} className="p-8 pt-4 space-y-6">
                                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                                         <div className="space-y-2">
-                                            <FormLabel className="text-[10px] text-slate-400 tracking-wider pl-1">Label Name</FormLabel>
+                                            <FormLabel className="text-[10px] text-muted-foreground/70 tracking-wider pl-1">Label Name</FormLabel>
                                             <Input
                                                 value={formData.name}
                                                 onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                                                 placeholder="e.g. Core Team"
-                                                className="rounded-xl border-slate-200 h-11"
+                                                className="rounded-xl border-border h-11"
                                                 required
                                             />
                                         </div>
 
                                         <div className="space-y-2">
-                                            <FormLabel className="text-[10px] text-slate-400 tracking-wider pl-1">Category</FormLabel>
+                                            <FormLabel className="text-[10px] text-muted-foreground/70 tracking-wider pl-1">Category</FormLabel>
                                             <Select value={formData.category} onValueChange={(value) => setFormData({ ...formData, category: value })}>
-                                                <SelectTrigger className="rounded-xl border-slate-200 h-11 capitalize">
+                                                <SelectTrigger className="rounded-xl border-border h-11 capitalize">
                                                     <SelectValue placeholder="Select Category" />
                                                 </SelectTrigger>
                                                 <SelectContent className="border border-border/50 shadow-soft rounded-xl">
@@ -241,19 +241,19 @@ export function LabelManagement({ onLabelsChange }: LabelManagementProps) {
                                     </div>
 
                                     <div className="space-y-2">
-                                        <FormLabel className="text-[10px] text-slate-400 tracking-wider pl-1">Description</FormLabel>
+                                        <FormLabel className="text-[10px] text-muted-foreground/70 tracking-wider pl-1">Description</FormLabel>
                                         <Textarea
                                             value={formData.description}
                                             onChange={(e) => setFormData({ ...formData, description: e.target.value })}
                                             placeholder="Briefly explain the criteria for this label"
                                             rows={3}
-                                            className="rounded-xl border-slate-200 text-sm resize-none"
+                                            className="rounded-xl border-border text-sm resize-none"
                                         />
                                     </div>
 
                                     <div className="space-y-4">
-                                        <FormLabel className="text-[10px] text-slate-400 tracking-wider pl-1">Visual Identity</FormLabel>
-                                        <div className="p-4 border border-slate-100 rounded-2xl bg-slate-50/50">
+                                        <FormLabel className="text-[10px] text-muted-foreground/70 tracking-wider pl-1">Visual Identity</FormLabel>
+                                        <div className="p-4 border border-border rounded-2xl bg-muted/50">
                                             <div className="flex flex-wrap gap-2 justify-center">
                                                 {predefinedColors.map(color => (
                                                     <button
@@ -262,7 +262,7 @@ export function LabelManagement({ onLabelsChange }: LabelManagementProps) {
                                                         onClick={() => setFormData({ ...formData, color })}
                                                         className={cn(
                                                             "w-10 h-10 rounded-lg border-4 transition-all",
-                                                            formData.color === color ? "border-slate-900 scale-110 shadow-sm" : "border-transparent hover:border-slate-200"
+                                                            formData.color === color ? "border-foreground scale-110 shadow-sm" : "border-transparent hover:border-border"
                                                         )}
                                                         style={{ backgroundColor: color }}
                                                     />
@@ -287,14 +287,14 @@ export function LabelManagement({ onLabelsChange }: LabelManagementProps) {
                                             type="button"
                                             variant="ghost"
                                             onClick={() => setDialogOpen(false)}
-                                            className="rounded-xl text-slate-500"
+                                            className="rounded-xl text-muted-foreground"
                                         >
                                             Cancel
                                         </Button>
                                         <Button
                                             type="submit"
                                             disabled={loading}
-                                            className="px-8 h-11 bg-slate-900 text-white hover:bg-slate-800 rounded-xl shadow-soft"
+                                            className="px-8 h-11 bg-primary text-primary-foreground hover:bg-primary/90 rounded-xl shadow-soft"
                                         >
                                             {loading ? "Processing..." : editingLabel ? 'Update Label' : 'Save Label'}
                                         </Button>
@@ -307,7 +307,7 @@ export function LabelManagement({ onLabelsChange }: LabelManagementProps) {
             />
 
             <Tabs defaultValue="all" className="w-full space-y-6">
-                <TabsList className="bg-slate-100/50 p-1 rounded-xl h-11">
+                <TabsList className="bg-muted p-1 rounded-xl h-11">
                     <TabsTrigger value="all" className="rounded-lg data-[state=active]:bg-white data-[state=active]:shadow-sm text-xs px-6 capitalize">All Inventory</TabsTrigger>
                     <TabsTrigger value="system" className="rounded-lg data-[state=active]:bg-white data-[state=active]:shadow-sm text-xs px-6 capitalize">System Labels</TabsTrigger>
                     <TabsTrigger value="custom" className="rounded-lg data-[state=active]:bg-white data-[state=active]:shadow-sm text-xs px-6 capitalize">Custom Labels</TabsTrigger>
@@ -315,17 +315,17 @@ export function LabelManagement({ onLabelsChange }: LabelManagementProps) {
 
                 <TabsContent value="all" className="space-y-10 animate-in fade-in duration-500 outline-none">
                     {Object.entries(groupedLabels).length === 0 ? (
-                        <div className="text-center py-24 border border-dashed border-slate-200 rounded-[32px] bg-slate-50/30">
-                            <Info className="mx-auto h-12 w-12 mb-4 text-slate-200" />
-                            <p className="font-bold text-slate-400 text-sm">No labels detected in central registry</p>
+                        <div className="text-center py-24 border border-dashed border-border rounded-[32px] bg-muted/50">
+                            <Info className="mx-auto h-12 w-12 mb-4 text-muted-foreground/40" />
+                            <p className="font-bold text-muted-foreground/70 text-sm">No labels detected in central registry</p>
                         </div>
                     ) : (
                         Object.entries(groupedLabels).map(([category, categoryLabels]) => (
                             <section key={category} className="space-y-4">
                                 <div className="flex items-center gap-3">
-                                    <h3 className="text-lg tracking-tight text-slate-900">{category}</h3>
-                                    <div className="flex-1 h-px bg-slate-100" />
-                                    <Badge variant="secondary" className="bg-slate-100 text-slate-500 border-0 px-2">{categoryLabels.length}</Badge>
+                                    <h3 className="text-lg tracking-tight text-foreground">{category}</h3>
+                                    <div className="flex-1 h-px bg-muted" />
+                                    <Badge variant="secondary" className="bg-muted text-muted-foreground border-0 px-2">{categoryLabels.length}</Badge>
                                 </div>
                                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                                     {categoryLabels.map(label => (
@@ -336,19 +336,19 @@ export function LabelManagement({ onLabelsChange }: LabelManagementProps) {
                                             <CardContent className="p-5 flex items-center justify-between">
                                                 <div className="space-y-1 min-w-0 flex-1">
                                                     <div className="flex items-center gap-2">
-                                                        <span className="font-bold text-sm truncate text-slate-900">{label.name}</span>
-                                                        {label.is_system_label && <ShieldIcon className="h-3 w-3 text-slate-400" />}
+                                                        <span className="font-bold text-sm truncate text-foreground">{label.name}</span>
+                                                        {label.is_system_label && <ShieldIcon className="h-3 w-3 text-muted-foreground/70" />}
                                                     </div>
                                                     {label.description && (
-                                                        <p className="text-[11px] text-slate-500 leading-normal line-clamp-2">
+                                                        <p className="text-[11px] text-muted-foreground leading-normal line-clamp-2">
                                                             {label.description}
                                                         </p>
                                                     )}
                                                     <div className="flex items-center gap-2 pt-2">
-                                                        <div className="flex items-center gap-1.5 text-[10px] text-slate-500 bg-slate-50 px-2 py-0.5 rounded-full border border-slate-100">
+                                                        <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground bg-muted/50 px-2 py-0.5 rounded-full border border-border">
                                                             <Users className="h-2.5 w-2.5" /> {label.usage_count || 0}
                                                         </div>
-                                                        <Badge variant="outline" className="text-[9px] border-slate-100 text-slate-400 tracking-widest bg-transparent px-1.5">{label.category}</Badge>
+                                                        <Badge variant="outline" className="text-[9px] border-border text-muted-foreground/70 tracking-widest bg-transparent px-1.5">{label.category}</Badge>
                                                     </div>
                                                 </div>
                                                 <div className="flex flex-col gap-1 pl-4 opacity-0 group-hover:opacity-100 transition-opacity">
@@ -356,9 +356,9 @@ export function LabelManagement({ onLabelsChange }: LabelManagementProps) {
                                                         variant="ghost"
                                                         size="icon"
                                                         onClick={() => handleEdit(label)}
-                                                        className="h-8 w-8 hover:bg-slate-100 transition-all rounded-lg"
+                                                        className="h-8 w-8 hover:bg-muted transition-all rounded-lg"
                                                     >
-                                                        <Edit className="w-3.5 h-3.5 text-slate-400" />
+                                                        <Edit className="w-3.5 h-3.5 text-muted-foreground/70" />
                                                     </Button>
                                                     {!label.is_system_label && (
                                                         <AlertDialog>
@@ -366,7 +366,7 @@ export function LabelManagement({ onLabelsChange }: LabelManagementProps) {
                                                                 <Button
                                                                     variant="ghost"
                                                                     size="icon"
-                                                                    className="h-8 w-8 hover:bg-red-50 hover:text-red-500 transition-all rounded-lg"
+                                                                    className="h-8 w-8 hover:bg-destructive/10 hover:text-destructive-strong transition-all rounded-lg"
                                                                 >
                                                                     <Trash2 className="w-3.5 h-3.5" />
                                                                 </Button>
@@ -374,16 +374,16 @@ export function LabelManagement({ onLabelsChange }: LabelManagementProps) {
                                                             <AlertDialogContent className="border border-border/50 shadow-soft-2xl rounded-3xl">
                                                                 <AlertDialogHeader>
                                                                     <AlertDialogTitle className="font-black tracking-tight text-xl">Delete Label?</AlertDialogTitle>
-                                                                    <AlertDialogDescription className="font-medium text-slate-500 text-sm">
-                                                                        You are about to delete <span className="font-bold text-slate-900">"{label.name}"</span>.
+                                                                    <AlertDialogDescription className="font-medium text-muted-foreground text-sm">
+                                                                        You are about to delete <span className="font-bold text-foreground">"{label.name}"</span>.
                                                                         This will detach the label from all assigned members. This action cannot be undone.
                                                                     </AlertDialogDescription>
                                                                 </AlertDialogHeader>
                                                                 <AlertDialogFooter className="gap-2">
-                                                                    <AlertDialogCancel className="font-bold rounded-xl border-slate-200">Cancel</AlertDialogCancel>
+                                                                    <AlertDialogCancel className="font-bold rounded-xl border-border">Cancel</AlertDialogCancel>
                                                                     <AlertDialogAction
                                                                         onClick={() => handleDelete(label)}
-                                                                        className="bg-red-500 text-white hover:bg-red-600 rounded-xl shadow-sm px-6 h-10"
+                                                                        className="bg-destructive text-white hover:bg-destructive rounded-xl shadow-sm px-6 h-10"
                                                                     >
                                                                         Delete Permanently
                                                                     </AlertDialogAction>
@@ -411,10 +411,10 @@ export function LabelManagement({ onLabelsChange }: LabelManagementProps) {
                                 <CardContent className="p-5 flex items-center justify-between">
                                     <div className="space-y-1 min-w-0 flex-1">
                                         <div className="flex items-center gap-2">
-                                            <span className="font-bold text-sm truncate text-slate-900">{label.name}</span>
-                                            <ShieldIcon className="h-3 w-3 text-slate-400" />
+                                            <span className="font-bold text-sm truncate text-foreground">{label.name}</span>
+                                            <ShieldIcon className="h-3 w-3 text-muted-foreground/70" />
                                         </div>
-                                        <p className="text-[10px] text-slate-500">System Integrated Protocol</p>
+                                        <p className="text-[10px] text-muted-foreground">System Integrated Protocol</p>
                                     </div>
                                 </CardContent>
                             </Card>
@@ -432,10 +432,10 @@ export function LabelManagement({ onLabelsChange }: LabelManagementProps) {
                                 <CardContent className="p-5 flex items-center justify-between">
                                     <div className="space-y-1 min-w-0 flex-1">
                                         <div className="flex items-center gap-2">
-                                            <span className="font-bold text-sm truncate text-slate-900">{label.name}</span>
+                                            <span className="font-bold text-sm truncate text-foreground">{label.name}</span>
                                         </div>
                                         {label.description && (
-                                            <p className="text-[11px] text-slate-500 leading-normal line-clamp-2">
+                                            <p className="text-[11px] text-muted-foreground leading-normal line-clamp-2">
                                                 {label.description}
                                             </p>
                                         )}
@@ -445,9 +445,9 @@ export function LabelManagement({ onLabelsChange }: LabelManagementProps) {
                                             variant="ghost"
                                             size="icon"
                                             onClick={() => handleEdit(label)}
-                                            className="h-8 w-8 hover:bg-slate-100 transition-all rounded-lg"
+                                            className="h-8 w-8 hover:bg-muted transition-all rounded-lg"
                                         >
-                                            <Edit className="w-3.5 h-3.5 text-slate-400" />
+                                            <Edit className="w-3.5 h-3.5 text-muted-foreground/70" />
                                         </Button>
                                     </div>
                                 </CardContent>

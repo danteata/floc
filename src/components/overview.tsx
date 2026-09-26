@@ -36,14 +36,14 @@ export function Overview({ className, unitId }: OverviewProps) {
         <BarChart data={chartData}>
           <XAxis
             dataKey="name"
-            stroke="#888888"
+            stroke="var(--muted-foreground)"
             fontSize={12}
             tickLine={false}
             axisLine={false}
             tickMargin={10}
           />
           <YAxis
-            stroke="#888888"
+            stroke="var(--muted-foreground)"
             fontSize={12}
             tickLine={false}
             axisLine={false}

@@ -110,7 +110,7 @@ export function MergeUnitDialog({ open, onOpenChange, source, units, onMerge, me
           )}
 
           {targetId && (
-            <div className="flex items-start gap-2 text-[13px] text-amber-600 dark:text-amber-500">
+            <div className="flex items-start gap-2 text-[13px] text-warning-strong dark:text-warning-strong">
               <AlertTriangle className="h-4 w-4 mt-0.5 shrink-0" />
               <span><span className="font-medium">{source?.name}</span> will be permanently deleted. Members and data are preserved on the survivor.</span>
             </div>

@@ -243,7 +243,7 @@ export default function KioskPage() {
                                         : "Checked in."
                                     : "Already checked in."}
                                 {lastCheckIn.is_late && (
-                                    <span className="ml-2 text-amber-600 flex items-center gap-1 inline-flex">
+                                    <span className="ml-2 text-warning-strong flex items-center gap-1 inline-flex">
                                         <Clock className="h-3 w-3" /> late
                                     </span>
                                 )}
@@ -426,7 +426,7 @@ export default function KioskPage() {
                                         </div>
                                         <div className="flex items-center gap-2">
                                             {r.is_late && (
-                                                <Badge variant="outline" className="text-amber-600 border-amber-600/30">late</Badge>
+                                                <Badge variant="outline" className="text-warning-strong border-warning/30">late</Badge>
                                             )}
                                             {r.member_status === "visitor" && (
                                                 <Badge variant="outline">visitor</Badge>

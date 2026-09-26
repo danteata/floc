@@ -1,7 +1,7 @@
 "use client"
 
 import { format } from "date-fns"
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
+import { MemberAvatar } from "@/components/ui/member-avatar"
 import { useQuery } from "convex/react"
 import { api } from "../../convex/_generated/api"
 import { cn } from "@/lib/utils"
@@ -33,12 +33,7 @@ export function RecentMembers() {
     <div className="space-y-2">
       {members.map((member) => (
         <div key={member.id} className="flex items-center transition-all duration-200 hover:bg-accent/50 p-3 rounded-lg group">
-          <Avatar className="h-10 w-10 ring-2 ring-transparent group-hover:ring-primary/20 transition-all">
-            <AvatarImage src={member.avatar_url || "/placeholder.svg?height=36&width=36"} alt={`${member.name}'s avatar`} />
-            <AvatarFallback className="bg-primary/10 text-primary font-semibold">
-              {member.name.split(' ').map((n: string) => n[0]).join('').toUpperCase()}
-            </AvatarFallback>
-          </Avatar>
+          <MemberAvatar name={member.name} src={member.avatar_url} className="ring-2 ring-transparent group-hover:ring-primary/20 transition-all" />
           <div className="ml-4 space-y-1">
             <p className="text-sm font-semibold leading-none">{member.name}</p>
             <p className="text-sm text-muted-foreground">{member.email || 'No email'}</p>

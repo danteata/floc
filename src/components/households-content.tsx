@@ -6,7 +6,7 @@ import { Home, Loader2, Plus, Search, Star, Trash2, UserMinus, UserPlus } from "
 import { api } from "../../convex/_generated/api"
 import { Id } from "../../convex/_generated/dataModel"
 import { useOrganization } from "@/hooks/use-organization"
-import { Avatar, AvatarFallback } from "@/components/ui/avatar"
+import { MemberAvatar } from "@/components/ui/member-avatar"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -382,9 +382,7 @@ function ManageHouseholdDialog({
               {household.members.map((m) => (
                 <div key={m._id} className="flex items-center justify-between p-2.5">
                   <div className="flex items-center gap-2">
-                    <Avatar className="h-7 w-7">
-                      <AvatarFallback className="text-[10px]">{m.name.slice(0, 2).toUpperCase()}</AvatarFallback>
-                    </Avatar>
+                    <MemberAvatar name={m.name} src={m.avatar_url} size="sm" />
                     <span className="text-sm">{m.name}</span>
                     {m._id === household.head_of_household_id && (
                       <Badge variant="outline" className="text-[10px] gap-1">

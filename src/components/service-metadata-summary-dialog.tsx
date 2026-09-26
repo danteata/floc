@@ -268,14 +268,14 @@ export function ServiceMetadataSummaryDialog({
         <Dialog open={open} onOpenChange={onOpenChange}>
             <DialogContent className="sm:max-w-[850px] max-h-[90vh] flex flex-col overflow-hidden p-0 border-0 shadow-soft-xl rounded-2xl bg-background">
                 {/* Header Strip */}
-                <div className="h-1.5 shrink-0 bg-gradient-to-r from-indigo-500 to-purple-500"></div>
+                <div className="h-1.5 shrink-0 bg-gradient-to-r from-primary to-primary"></div>
 
                 <div className="flex flex-col flex-1 min-h-0 overflow-hidden">
                     <DialogHeader className="p-8 pb-4 shrink-0">
                         <div className="flex items-center justify-between">
                             <div className="space-y-1">
                                 <DialogTitle className="text-2xl flex items-center gap-3">
-                                    <div className="p-3 bg-purple-100 dark:bg-purple-900/20 rounded-xl text-purple-600 dark:text-purple-400">
+                                    <div className="p-3 bg-primary/15 dark:bg-primary/20 rounded-xl text-primary dark:text-primary">
                                         <ClipboardCheck className="h-6 w-6" />
                                     </div>
                                     {summary ? 'Edit Service Report' : 'New Service Report'}
@@ -577,7 +577,7 @@ export function ServiceMetadataSummaryDialog({
 
                                         <div className="space-y-6 rounded-xl border border-border/50 bg-muted/20 p-6">
                                             <div className="flex items-center gap-2 mb-2">
-                                                <Plus className="h-4 w-4 text-green-600" />
+                                                <Plus className="h-4 w-4 text-success-strong" />
                                                 <h3 className="font-semibold text-lg">Growth & Metrics</h3>
                                             </div>
 

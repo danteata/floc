@@ -368,17 +368,17 @@ export function OrganizationChart({ organizationId }: OrganizationChartProps) {
   }, [rootNode, fitToView])
 
   const getNodeColor = (node: ChartNode): string => {
-    if (node.type === 'organization') return '#1f2937' // gray-800
+    if (node.type === 'organization') return 'var(--foreground)'
     if (node.type === 'unit') {
       // Use unit type for color coding
       switch (node.unitType) {
-        case 'ministry': return '#10b981' // emerald-500 (green)
-        case 'administrative': return '#3b82f6' // blue-500
-        case 'geographic': return '#8b5cf6' // purple-500
-        default: return '#6b7280' // gray-500
+        case 'ministry': return 'var(--success)'
+        case 'administrative': return 'var(--info)'
+        case 'geographic': return 'var(--primary)'
+        default: return 'var(--muted-foreground)'
       }
     }
-    return '#6b7280' // gray-500 for other types
+    return 'var(--muted-foreground)'
   }
 
   const getNodeTypeLabel = (node: ChartNode): string => {
@@ -525,7 +525,7 @@ export function OrganizationChart({ organizationId }: OrganizationChartProps) {
               <path
                 d={`M${node.x + node.width / 2},${node.y + node.height} C${node.x + node.width / 2},${node.y + node.height + 20} ${child.x + child.width / 2},${child.y - 40} ${child.x + child.width / 2},${child.y}`}
                 fill="none"
-                stroke={isLineDraggedOver ? '#3b82f6' : 'var(--muted-foreground)'}
+                stroke={isLineDraggedOver ? 'var(--primary)' : 'var(--muted-foreground)'}
                 strokeWidth={isLineDraggedOver ? 4 : 2}
                 style={{ opacity: isLineDraggedOver ? 1 : 0.6, transition: 'all 0.2s' }}
               />
@@ -541,7 +541,7 @@ export function OrganizationChart({ organizationId }: OrganizationChartProps) {
           width={node.width}
           height={node.height}
           fill={getNodeColor(node)}
-          stroke={isDraggedOver ? '#3b82f6' : 'white'}
+          stroke={isDraggedOver ? 'var(--primary)' : 'var(--card)'}
           strokeWidth={isDraggedOver ? 4 : 0}
           rx={16}
           filter="url(#shadow)"
@@ -772,7 +772,7 @@ export function OrganizationChart({ organizationId }: OrganizationChartProps) {
                       <path
                         d={`M${nodeMap.get(dragOverNodeId)!.x + nodeMap.get(dragOverNodeId)!.width / 2},${nodeMap.get(dragOverNodeId)!.y + nodeMap.get(dragOverNodeId)!.height} C${nodeMap.get(dragOverNodeId)!.x + nodeMap.get(dragOverNodeId)!.width / 2},${nodeMap.get(dragOverNodeId)!.y + nodeMap.get(dragOverNodeId)!.height + 40} ${mousePos.x},${mousePos.y - 40} ${mousePos.x},${mousePos.y}`}
                         fill="none"
-                        stroke="#3b82f6"
+                        stroke="var(--primary)"
                         strokeWidth={2}
                         strokeDasharray="4 4"
                       />
@@ -811,8 +811,8 @@ export function OrganizationChart({ organizationId }: OrganizationChartProps) {
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2 text-xl">
               <div className={`p-2 rounded-lg ${selectedNode?.type === 'organization' ? 'bg-muted text-muted-foreground' :
-                selectedNode?.type === 'division' ? 'bg-blue-500/10 text-blue-600 dark:text-blue-400' :
-                  'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400'
+                selectedNode?.type === 'division' ? 'bg-info/10 text-info-strong dark:text-info' :
+                  'bg-success/10 text-success-strong dark:text-success'
                 }`}>
                 {selectedNode?.type === 'organization' && <Building2 className="h-5 w-5" />}
                 {selectedNode?.type === 'division' && <MapPin className="h-5 w-5" />}

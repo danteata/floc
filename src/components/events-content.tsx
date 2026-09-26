@@ -22,6 +22,7 @@ import {
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { PageHeader } from "@/components/ui/page-header"
+import { StatCard, StatGrid } from "@/components/ui/stat-card"
 import { Input } from '@/components/ui/input'
 import {
   Select,
@@ -209,32 +210,28 @@ export function EventsContent() {
         </TabsList>
 
         <TabsContent value="overview" className="space-y-8">
-          <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
+          <StatGrid>
             <StatCard
-              label="Total Events"
+              label="Total events"
               value={events.length.toString()}
-              icon={<Calendar className="h-4 w-4" />}
-              iconBg="bg-blue-500/10 text-blue-500"
+              icon={Calendar}
             />
             <StatCard
-              label={unitLabels.plural}
+              label={`${unitLabels.single} events`}
               value={events.filter((e: any) => e.event_type_label?.toLowerCase().includes(terminology.unit_term.toLowerCase())).length.toString()}
-              icon={<Users className="h-4 w-4" />}
-              iconBg="bg-purple-500/10 text-purple-500"
+              icon={Users}
             />
             <StatCard
               label="Services"
               value={events.filter((e: any) => e.event_type_value === 'sunday-service').length.toString()}
-              icon={<Church className="h-4 w-4" />}
-              iconBg="bg-amber-500/10 text-amber-500"
+              icon={Church}
             />
             <StatCard
               label="Active"
               value={events.filter((e: any) => e.active).length.toString()}
-              icon={<Heart className="h-4 w-4" />}
-              iconBg="bg-rose-500/10 text-rose-500"
+              icon={Heart}
             />
-          </div>
+          </StatGrid>
 
           <div className="rounded-xl overflow-hidden shadow-soft border border-border/50 bg-card p-6">
             <UpcomingEvents events={events as any} onEditEvent={handleEditEvent} />
@@ -427,23 +424,5 @@ export function EventsContent() {
         </AlertDialogContent>
       </AlertDialog>
     </div>
-  )
-}
-
-function StatCard({ label, value, icon, iconBg }: { label: string, value: string, icon: React.ReactNode, iconBg: string }) {
-  return (
-    <Card className="rounded-xl shadow-sm border border-border/50 hover:shadow-md transition-all">
-      <CardContent className="p-6">
-        <div className="flex items-center justify-between mb-4">
-          <div className={`p-2.5 rounded-xl ${iconBg}`}>
-            {icon}
-          </div>
-        </div>
-        <div className="space-y-1">
-          <div className="text-2xl tracking-tight text-foreground">{value}</div>
-          <div className="text-xs text-muted-foreground tracking-wide">{label}</div>
-        </div>
-      </CardContent>
-    </Card>
   )
 }

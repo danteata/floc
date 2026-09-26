@@ -159,7 +159,7 @@ export default function AcceptInvitationPage() {
                             <Badge variant="secondary">
                                 {invitation?.intended_role?.replace('_', ' ')}
                             </Badge>
-                            <div className="h-2 w-2 rounded-full bg-green-500 animate-pulse" />
+                            <div className="h-2 w-2 rounded-full bg-success animate-pulse" />
                         </div>
                         <div className="pt-4 flex justify-center">
                             <Loader2 className="h-8 w-8 animate-spin text-primary" />

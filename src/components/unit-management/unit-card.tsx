@@ -55,13 +55,13 @@ export function UnitCard({ unit, viewMode, memberCount, leaderName, onEdit, onCr
   }
 
   const getUnitIcon = (type: string) => {
-    if (type === 'functional' || type === 'ministry') return <Target className="h-4 w-4 text-emerald-600" />
-    return <Briefcase className="h-4 w-4 text-amber-600" />
+    if (type === 'functional' || type === 'ministry') return <Target className="h-4 w-4 text-success-strong" />
+    return <Briefcase className="h-4 w-4 text-warning-strong" />
   }
 
   const getIconBackground = (type: string) => {
-    if (type === 'functional' || type === 'ministry') return "bg-emerald-100 dark:bg-emerald-900/30 text-emerald-600";
-    return "bg-amber-100 dark:bg-amber-900/30 text-amber-600";
+    if (type === 'functional' || type === 'ministry') return "bg-success/15 dark:bg-success/30 text-success-strong";
+    return "bg-warning/15 dark:bg-warning/30 text-warning-strong";
   }
 
   if (viewMode === 'list') {

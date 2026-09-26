@@ -12,7 +12,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
+import { MemberAvatar } from "@/components/ui/member-avatar"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Checkbox } from "@/components/ui/checkbox"
@@ -213,10 +213,10 @@ export function MembersTable({
   const getStatusBadge = (status: string) => {
     switch (status) {
       case "active":
-        return <Badge className="bg-green-500">Active</Badge>;
+        return <Badge className="bg-success">Active</Badge>;
       case "inactive":
         return (
-          <Badge variant="outline" className="text-amber-500 border-amber-500">
+          <Badge variant="outline" className="text-warning-strong border-warning">
             Inactive
           </Badge>
         );
@@ -230,10 +230,10 @@ export function MembersTable({
   const getRiskBadge = (level?: string) => {
     switch (level) {
       case "low":
-        return <Badge className="bg-green-500 text-[10px]">Low</Badge>;
+        return <Badge className="bg-success text-[10px]">Low</Badge>;
       case "medium":
         return (
-          <Badge variant="outline" className="text-amber-500 border-amber-500 text-[10px]">
+          <Badge variant="outline" className="text-warning-strong border-warning text-[10px]">
             Medium
           </Badge>
         );
@@ -252,10 +252,10 @@ export function MembersTable({
       {selectedMembers.length > 0 && (
         <div className="flex items-center justify-between p-4 bg-white dark:bg-card border-4 border-black dark:border-white rounded-lg shadow-brutal">
           <div className="flex items-center gap-3">
-            <div className="p-2 rounded-lg bg-blue-100 dark:bg-blue-900/50">
-              <Users className="w-5 h-5 text-blue-600 dark:text-blue-400" />
+            <div className="p-2 rounded-lg bg-info/15 dark:bg-info/50">
+              <Users className="w-5 h-5 text-info-strong dark:text-info" />
             </div>
-            <span className="text-sm text-blue-900 dark:text-blue-100">
+            <span className="text-sm text-info-strong">
               {selectedMembers.length} member{selectedMembers.length !== 1 ? 's' : ''} selected
             </span>
           </div>
@@ -263,8 +263,8 @@ export function MembersTable({
             <BulkLabelDialog
               selectedMembers={members.filter((m: any) => selectedMembers.includes(m.id || ''))}
               trigger={
-                <Button variant="outline" size="sm" className="gap-2 border-blue-300 hover:bg-blue-100 dark:border-blue-700 dark:hover:bg-blue-900/50">
-                  <Tag className="w-4 h-4 text-blue-600 dark:text-blue-400" />
+                <Button variant="outline" size="sm" className="gap-2 border-info/50 hover:bg-info/15 dark:border-info dark:hover:bg-info/50">
+                  <Tag className="w-4 h-4 text-info-strong dark:text-info" />
                   Manage Labels
                 </Button>
               }
@@ -272,8 +272,8 @@ export function MembersTable({
             <BulkAddToUnitDialog
               selectedMembers={members.filter((m: any) => selectedMembers.includes(m.id || ''))}
               trigger={
-                <Button variant="outline" size="sm" className="gap-2 border-blue-300 hover:bg-blue-100 dark:border-blue-700 dark:hover:bg-blue-900/50">
-                  <Building2 className="w-4 h-4 text-blue-600 dark:text-blue-400" />
+                <Button variant="outline" size="sm" className="gap-2 border-info/50 hover:bg-info/15 dark:border-info dark:hover:bg-info/50">
+                  <Building2 className="w-4 h-4 text-info-strong dark:text-info" />
                   Add to Unit
                 </Button>
               }
@@ -285,8 +285,8 @@ export function MembersTable({
             <BulkAddToHouseholdDialog
               selectedMembers={members.filter((m: any) => selectedMembers.includes(m.id || ''))}
               trigger={
-                <Button variant="outline" size="sm" className="gap-2 border-blue-300 hover:bg-blue-100 dark:border-blue-700 dark:hover:bg-blue-900/50">
-                  <Home className="w-4 h-4 text-blue-600 dark:text-blue-400" />
+                <Button variant="outline" size="sm" className="gap-2 border-info/50 hover:bg-info/15 dark:border-info dark:hover:bg-info/50">
+                  <Home className="w-4 h-4 text-info-strong dark:text-info" />
                   Add to Household
                 </Button>
               }
@@ -298,8 +298,8 @@ export function MembersTable({
             <BulkStatusDialog
               selectedMembers={members.filter((m: any) => selectedMembers.includes(m.id || ''))}
               trigger={
-                <Button variant="outline" size="sm" className="gap-2 border-blue-300 hover:bg-blue-100 dark:border-blue-700 dark:hover:bg-blue-900/50">
-                  <Users className="w-4 h-4 text-blue-600 dark:text-blue-400" />
+                <Button variant="outline" size="sm" className="gap-2 border-info/50 hover:bg-info/15 dark:border-info dark:hover:bg-info/50">
+                  <Users className="w-4 h-4 text-info-strong dark:text-info" />
                   Set Status
                 </Button>
               }
@@ -312,7 +312,7 @@ export function MembersTable({
               variant="ghost"
               size="sm"
               onClick={() => onSelectedMembersChange([])}
-              className="text-gray-600 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-800"
+              className="text-muted-foreground hover:bg-muted dark:text-muted-foreground/70"
             >
               Clear selection
             </Button>
@@ -428,10 +428,7 @@ export function MembersTable({
                 </TableCell>
                 <TableCell>
                   <div className="flex items-center gap-3">
-                    <Avatar className="ring-2 ring-primary/20">
-                      <AvatarImage src={member.avatar_url || member.avatar} alt={member.name} />
-                      <AvatarFallback className="bg-muted text-foreground font-semibold text-sm border border-border/50">{member.initials}</AvatarFallback>
-                    </Avatar>
+                    <MemberAvatar name={member.name} src={member.avatar_url || member.avatar} className="ring-2 ring-primary/20" />
                     <div className="flex flex-col gap-1 min-w-0">
                       <div className="font-bold truncate">{member.name}</div>
                       {/* Phone + status only shown here on mobile — the

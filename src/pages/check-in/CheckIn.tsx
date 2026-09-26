@@ -196,7 +196,7 @@ function CheckInFlow() {
                     description={result.session_display_name}
                 >
                     {result.is_late && (
-                        <p className="text-sm text-amber-600 flex items-center justify-center gap-1 mt-3">
+                        <p className="text-sm text-warning-strong flex items-center justify-center gap-1 mt-3">
                             <Clock className="h-4 w-4" />
                             Checked in {result.minutes_late} min late
                         </p>

@@ -33,9 +33,9 @@ export function BirthdayWidget({ members }: BirthdayWidgetProps) {
     if (loading) {
         return (
             <Card className="shadow-soft hover:shadow-soft-lg transition-all">
-                <CardHeader className="bg-gradient-to-r from-pink-50 to-transparent dark:from-pink-900/10 border-b border-border/50">
+                <CardHeader className="bg-gradient-to-r from-primary/10 to-transparent dark:from-primary/10 border-b border-border/50">
                     <CardTitle className="flex items-center gap-3">
-                        <div className="p-2 bg-pink-100 text-pink-600 dark:bg-pink-900/30 dark:text-pink-400 rounded-lg">
+                        <div className="p-2 bg-primary/15 text-primary dark:bg-primary/30 dark:text-primary rounded-lg">
                             <Cake className="h-5 w-5" />
                         </div>
                         Birthdays
@@ -62,9 +62,9 @@ export function BirthdayWidget({ members }: BirthdayWidgetProps) {
     if (birthdays.length === 0) {
         return (
             <Card className="shadow-soft hover:shadow-soft-lg transition-all overflow-hidden">
-                <CardHeader className="bg-gradient-to-r from-pink-50 to-transparent dark:from-pink-900/10 border-b border-border/50">
+                <CardHeader className="bg-gradient-to-r from-primary/10 to-transparent dark:from-primary/10 border-b border-border/50">
                     <CardTitle className="flex items-center gap-3">
-                        <div className="p-2 bg-pink-100 text-pink-600 dark:bg-pink-900/30 dark:text-pink-400 rounded-lg">
+                        <div className="p-2 bg-primary/15 text-primary dark:bg-primary/30 dark:text-primary rounded-lg">
                             <Cake className="h-5 w-5" />
                         </div>
                         Birthdays
@@ -85,18 +85,18 @@ export function BirthdayWidget({ members }: BirthdayWidgetProps) {
 
     return (
         <Card className="shadow-soft hover:shadow-soft-lg transition-all overflow-hidden border-0">
-            <CardHeader className="bg-gradient-to-r from-pink-50/50 via-purple-50/30 to-transparent dark:from-pink-900/10 dark:via-purple-900/5 border-b border-border/50">
+            <CardHeader className="bg-gradient-to-r from-primary/50 via-primary/30 to-transparent dark:from-primary/10 dark:via-primary/5 border-b border-border/50">
                 <div className="flex items-center justify-between">
                     <div>
                         <CardTitle className="flex items-center gap-3">
-                            <div className="p-2.5 bg-gradient-to-br from-pink-400 to-purple-500 text-white rounded-xl shadow-md">
+                            <div className="p-2.5 bg-gradient-to-br from-primary/70 to-primary text-white rounded-xl shadow-md">
                                 <Cake className="h-5 w-5" />
                             </div>
                             Birthday Celebrations
                         </CardTitle>
                         <CardDescription className="mt-2 flex items-center gap-2 flex-wrap">
                             {todaysBirthdays.length > 0 && (
-                                <Badge variant="default" className="bg-pink-500 hover:bg-pink-600 border-none shadow-sm">
+                                <Badge variant="default" className="bg-primary hover:bg-primary border-none shadow-sm">
                                     🎉 {todaysBirthdays.length} TODAY!
                                 </Badge>
                             )}
@@ -105,7 +105,7 @@ export function BirthdayWidget({ members }: BirthdayWidgetProps) {
                             </span>
                         </CardDescription>
                     </div>
-                    <div className="p-2 bg-pink-100 text-pink-500 dark:bg-pink-900/20 dark:text-pink-400 rounded-lg animate-pulse">
+                    <div className="p-2 bg-primary/15 text-primary dark:bg-primary/20 dark:text-primary rounded-lg animate-pulse">
                         <Heart className="h-5 w-5 fill-current" />
                     </div>
                 </div>
@@ -115,9 +115,9 @@ export function BirthdayWidget({ members }: BirthdayWidgetProps) {
                 {/* Today's Birthdays - Special Highlight */}
                 {todaysBirthdays.length > 0 && (
                     <div className="relative">
-                        <div className="absolute -left-2 top-0 bottom-0 w-1 bg-gradient-to-b from-pink-500 to-purple-500 rounded-full opacity-50"></div>
+                        <div className="absolute -left-2 top-0 bottom-0 w-1 bg-gradient-to-b from-primary to-primary rounded-full opacity-50"></div>
                         <div className="pl-4">
-                            <div className="inline-flex items-center gap-2 mb-4 px-3 py-1 bg-pink-100 dark:bg-pink-900/30 text-pink-700 dark:text-pink-300 rounded-full text-xs font-semibold">
+                            <div className="inline-flex items-center gap-2 mb-4 px-3 py-1 bg-primary/15 dark:bg-primary/30 text-primary dark:text-primary rounded-full text-xs font-semibold">
                                 <Calendar className="h-3.5 w-3.5" />
                                 <span>Today's Celebrations!</span>
                             </div>

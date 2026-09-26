@@ -79,6 +79,38 @@ export function calculateTransactionTotals(transactions: FinancialTransaction[])
     return totals
 }
 
+/**
+ * This calendar month's total of one type against last month's, from the
+ * transactions' own dates. `change` is a whole-number percentage, or null when
+ * last month had nothing to compare against (a percentage of zero is meaningless).
+ */
+export function monthOnMonth(
+    transactions: Array<{ type: string; amount: number; date: string; status?: string }>,
+    type: TransactionType,
+    now: Date = new Date(),
+): { current: number; previous: number; change: number | null } {
+    const thisMonth = now.getFullYear() * 12 + now.getMonth()
+    let current = 0
+    let previous = 0
+    for (const t of transactions) {
+        if (t.type !== type || !isCountedTransaction(t)) continue
+        const d = new Date(t.date)
+        if (Number.isNaN(d.getTime())) continue
+        const month = d.getFullYear() * 12 + d.getMonth()
+        if (month === thisMonth) current += t.amount
+        else if (month === thisMonth - 1) previous += t.amount
+    }
+    const change = previous > 0 ? Math.round(((current - previous) / previous) * 100) : null
+    return { current, previous, change }
+}
+
+/** "12% up on last month", "Level with last month", or null with nothing to compare. */
+export function describeMonthOnMonth(change: number | null): string | null {
+    if (change === null) return null
+    if (change === 0) return 'Level with last month'
+    return `${Math.abs(change)}% ${change > 0 ? 'up' : 'down'} on last month`
+}
+
 export function calculateBudgetVariance(budgets: BudgetCategory[], transactions: FinancialTransaction[]) {
     const variances = budgets.map(budget => {
         const categoryTransactions = transactions.filter(t =>

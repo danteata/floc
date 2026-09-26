@@ -87,7 +87,7 @@ export function LabelSelector({
                         {label.name}
                         <button
                             onClick={() => handleLabelToggle(label)}
-                            className="ml-1 hover:bg-gray-300 rounded-full p-0.5"
+                            className="ml-1 hover:bg-muted rounded-full p-0.5"
                         >
                             <X className="w-3 h-3" />
                         </button>
@@ -128,7 +128,7 @@ export function LabelSelector({
                                                         style={{ backgroundColor: label.color }}
                                                     />
                                                     <span className="flex-1">{label.name}</span>
-                                                    {isSelected && <Check className="w-4 h-4 text-green-600" />}
+                                                    {isSelected && <Check className="w-4 h-4 text-success-strong" />}
                                                 </CommandItem>
                                             )
                                         })}
@@ -157,7 +157,7 @@ export function LabelSelector({
                         {label.name}
                         <button
                             onClick={() => handleLabelToggle(label)}
-                            className="ml-2 hover:bg-gray-300 rounded-full p-0.5"
+                            className="ml-2 hover:bg-muted rounded-full p-0.5"
                         >
                             <X className="w-3 h-3" />
                         </button>
@@ -177,7 +177,7 @@ export function LabelSelector({
                 <div className="max-h-60 overflow-y-auto space-y-3">
                     {Object.entries(groupedLabels).map(([category, labels]: [string, any]) => (
                         <div key={category}>
-                            <h4 className="text-sm text-gray-700 mb-2 capitalize">
+                            <h4 className="text-sm text-foreground mb-2 capitalize">
                                 {category}
                             </h4>
                             <div className="grid grid-cols-1 gap-2">
@@ -188,8 +188,8 @@ export function LabelSelector({
                                             key={label._id}
                                             onClick={() => handleLabelToggle(label)}
                                             className={`flex items-center gap-3 p-3 rounded-lg border text-left transition-colors ${isSelected
-                                                ? 'border-blue-200 bg-blue-50'
-                                                : 'border-gray-200 hover:border-gray-300'
+                                                ? 'border-info/30 bg-info/10'
+                                                : 'border-border hover:border-border'
                                                 }`}
                                         >
                                             <div
@@ -199,12 +199,12 @@ export function LabelSelector({
                                             <div className="flex-1 min-w-0">
                                                 <div className="font-medium text-sm">{label.name}</div>
                                                 {label.description && (
-                                                    <div className="text-xs text-gray-500 truncate">
+                                                    <div className="text-xs text-muted-foreground truncate">
                                                         {label.description}
                                                     </div>
                                                 )}
                                             </div>
-                                            {isSelected && <Check className="w-4 h-4 text-blue-600" />}
+                                            {isSelected && <Check className="w-4 h-4 text-info-strong" />}
                                         </button>
                                     )
                                 })}
@@ -220,7 +220,7 @@ export function LabelSelector({
 // Compact version for use in tables/lists
 export function MemberLabels({ labels }: { labels: LabelType[] }) {
     if (!labels || labels.length === 0) {
-        return <span className="text-gray-400 text-sm">No labels</span>
+        return <span className="text-muted-foreground/70 text-sm">No labels</span>
     }
 
     return (

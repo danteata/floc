@@ -144,7 +144,7 @@ export function FeatureFlagsPanel() {
           <div className="flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
             <span>Owner: {flag.owner}</span>
             {maskedByOrg && (
-              <span className="text-amber-600 dark:text-amber-500">
+              <span className="text-warning-strong dark:text-warning-strong">
                 This org overrides it to {flag.orgValue ? "on" : "off"}
               </span>
             )}

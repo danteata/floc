@@ -333,12 +333,12 @@ export function ServiceSummaryWidget({
 
                 {/* Additional Breakdown */}
                 {(currentTotals.totalDonations > 0 || currentTotals.totalSpecialOfferings > 0) && (
-                    <div className="pt-4 border-t border-border/50 space-y-3 p-4 rounded-xl bg-orange-50/50 dark:bg-orange-900/10 border border-orange-100 dark:border-orange-900/20">
+                    <div className="pt-4 border-t border-border/50 space-y-3 p-4 rounded-xl bg-warning/50 dark:bg-warning/10 border border-warning/25 dark:border-warning/20">
                         <div className="flex items-center gap-2">
-                            <div className="p-1.5 rounded-md bg-orange-100 text-orange-600 dark:bg-orange-900/40 dark:text-orange-400">
+                            <div className="p-1.5 rounded-md bg-warning/15 text-warning-strong dark:bg-warning/40 dark:text-warning">
                                 <Target className="h-3.5 w-3.5" />
                             </div>
-                            <h4 className="text-sm font-semibold text-orange-800 dark:text-orange-200">Additional Income</h4>
+                            <h4 className="text-sm font-semibold text-warning-strong dark:text-warning-strong">Additional Income</h4>
                         </div>
                         <div className="grid grid-cols-2 gap-4 text-sm">
                             {currentTotals.totalDonations > 0 && (

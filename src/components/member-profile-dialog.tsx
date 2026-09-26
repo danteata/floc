@@ -9,7 +9,7 @@ import {
   Dialog,
   DialogContent,
 } from "@/components/ui/dialog"
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
+import { MemberAvatar } from "@/components/ui/member-avatar"
 import { Badge } from "@/components/ui/badge"
 import { Separator } from "@/components/ui/separator"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
@@ -28,12 +28,12 @@ interface MemberProfileDialogProps {
 function StatusBadge({ status }: { status: string }) {
   switch (status) {
     case "active":
-      return <Badge className="bg-green-500 text-white rounded-md text-[10px] py-0 px-2 tracking-wider capitalize">Active</Badge>
+      return <Badge className="bg-success text-white rounded-md text-[10px] py-0 px-2 tracking-wider capitalize">Active</Badge>
     case "visitor":
       return <Badge variant="secondary" className="rounded-md text-[10px] py-0 px-2 tracking-wider capitalize">Visitor</Badge>
     default:
       return (
-        <Badge variant="outline" className="rounded-md text-[10px] py-0 px-2 tracking-wider capitalize text-amber-600 dark:text-amber-400 border-amber-500/30 bg-amber-500/10">
+        <Badge variant="outline" className="rounded-md text-[10px] py-0 px-2 tracking-wider capitalize text-warning-strong dark:text-warning border-warning/30 bg-warning/10">
           {status}
         </Badge>
       )
@@ -43,10 +43,10 @@ function StatusBadge({ status }: { status: string }) {
 function RiskBadge({ level }: { level: string }) {
   switch (level) {
     case "low":
-      return <Badge className="bg-green-500 text-white rounded-md text-[10px] py-0 px-2 tracking-wider">Low risk</Badge>
+      return <Badge className="bg-success text-white rounded-md text-[10px] py-0 px-2 tracking-wider">Low risk</Badge>
     case "medium":
       return (
-        <Badge variant="outline" className="rounded-md text-[10px] py-0 px-2 tracking-wider text-amber-600 dark:text-amber-400 border-amber-500/30 bg-amber-500/10">
+        <Badge variant="outline" className="rounded-md text-[10px] py-0 px-2 tracking-wider text-warning-strong dark:text-warning border-warning/30 bg-warning/10">
           Medium risk
         </Badge>
       )
@@ -188,11 +188,8 @@ export function MemberProfileDialog({
           {/* Header Section */}
           <div className="flex flex-col sm:flex-row items-end sm:items-center gap-4">
             <div className="relative">
-              <Avatar className="h-20 w-20 border-4 border-background shadow-soft">
-                <AvatarImage src={member.avatar_url || member.avatar} alt={member.name} />
-                <AvatarFallback className="text-xl bg-muted text-muted-foreground">{member.initials}</AvatarFallback>
-              </Avatar>
-              <div className="absolute bottom-0.5 right-0.5 h-4 w-4 bg-emerald-500 border-2 border-background rounded-full shadow-sm" />
+              <MemberAvatar name={member.name} src={member.avatar_url || member.avatar} size="lg" className="size-20 text-xl border-4 border-background shadow-soft" />
+              <div className="absolute bottom-0.5 right-0.5 h-4 w-4 bg-success border-2 border-background rounded-full shadow-sm" />
             </div>
 
             <div className="flex-1 min-w-0 pb-1">
@@ -245,16 +242,16 @@ export function MemberProfileDialog({
             </div>
             <div className={`p-4 rounded-xl border ${
               hasAbsenceStreak
-                ? 'bg-amber-500/10 border-amber-500/30'
+                ? 'bg-warning/10 border-warning/30'
                 : 'bg-muted/40 border-border'
             }`}>
               <div className="flex items-center justify-between mb-1">
-                <span className={`text-lg font-semibold ${hasAbsenceStreak ? 'text-amber-600 dark:text-amber-400' : 'text-foreground'}`}>
+                <span className={`text-lg font-semibold ${hasAbsenceStreak ? 'text-warning-strong dark:text-warning' : 'text-foreground'}`}>
                   {loading ? <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" /> : consecutiveAbsences}
                 </span>
-                <AlertTriangle className={`h-4 w-4 ${hasAbsenceStreak ? 'text-amber-600 dark:text-amber-400' : 'text-muted-foreground'}`} />
+                <AlertTriangle className={`h-4 w-4 ${hasAbsenceStreak ? 'text-warning-strong dark:text-warning' : 'text-muted-foreground'}`} />
               </div>
-              <div className={`text-[9px] tracking-widest ${hasAbsenceStreak ? 'text-amber-600/80 dark:text-amber-400/80' : 'text-muted-foreground'}`}>CONSECUTIVE ABSENT</div>
+              <div className={`text-[9px] tracking-widest ${hasAbsenceStreak ? 'text-warning-strong dark:text-warning' : 'text-muted-foreground'}`}>CONSECUTIVE ABSENT</div>
             </div>
           </div>
 
@@ -497,10 +494,10 @@ export function MemberProfileDialog({
                           <div key={index} className="px-4 py-2.5 flex items-center justify-between hover:bg-muted/50 transition-colors">
                             <div className="flex items-center gap-3">
                               <div className={`h-7 w-7 rounded-full flex items-center justify-center ${
-                                isPresent ? 'bg-emerald-500/10' : 'bg-destructive/10'
+                                isPresent ? 'bg-success/10' : 'bg-destructive/10'
                               }`}>
                                 {isPresent ? (
-                                  <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400" />
+                                  <CheckCircle2 className="h-3.5 w-3.5 text-success-strong dark:text-success" />
                                 ) : (
                                   <XCircle className="h-3.5 w-3.5 text-destructive" />
                                 )}
@@ -512,7 +509,7 @@ export function MemberProfileDialog({
                             </div>
                             <Badge
                               variant={isPresent ? "outline" : "destructive"}
-                              className={isPresent ? "text-xs text-emerald-600 dark:text-emerald-400 border-emerald-500/30 bg-emerald-500/10" : "text-xs"}
+                              className={isPresent ? "text-xs text-success-strong dark:text-success border-success/30 bg-success/10" : "text-xs"}
                             >
                               {isPresent ? 'Present' : 'Absent'}
                             </Badge>

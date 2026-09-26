@@ -60,7 +60,7 @@ export function CareImpactWidget() {
 
   const tiles = [
     { label: "Recovered", value: stats.recovered, tone: "text-success" },
-    { label: "Improving", value: stats.improving, tone: "text-amber-600" },
+    { label: "Improving", value: stats.improving, tone: "text-warning-strong" },
     { label: "No change yet", value: stats.stillAtRisk, tone: "text-muted-foreground" },
     { label: "Recovery rate", value: `${stats.recoveryRate}%`, tone: "text-foreground" },
   ]

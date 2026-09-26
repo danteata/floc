@@ -269,7 +269,7 @@ export function AttendanceHistory({ unitId, unitName }: AttendanceHistoryProps) 
                             variant="ghost"
                             size="icon"
                             onClick={() => handleViewAttendees(record)}
-                            className="h-9 w-9 rounded-xl hover:bg-slate-900 hover:text-white transition-all shadow-sm"
+                            className="h-9 w-9 rounded-xl hover:bg-muted hover:text-foreground transition-all shadow-sm"
                           >
                             <Eye className="h-4 w-4" />
                           </Button>

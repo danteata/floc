@@ -11,7 +11,7 @@ import { Label } from "@/components/ui/label"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Checkbox } from "@/components/ui/checkbox"
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
+import { MemberAvatar } from "@/components/ui/member-avatar"
 import { cn } from "@/lib/utils"
 import { format } from "date-fns"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
@@ -420,10 +420,7 @@ export function AttendanceForm({
                             onClick={() => setViewingMember(member)}
                             className="flex items-center gap-3 text-left hover:opacity-80 transition-opacity"
                           >
-                            <Avatar className="h-10 w-10 rounded-xl border-2 border-background shadow-sm">
-                              <AvatarImage src={member.avatar_url || member.avatar} alt={member.name} />
-                              <AvatarFallback className="bg-muted text-muted-foreground text-xs">{member.name.substring(0, 2).toUpperCase()}</AvatarFallback>
-                            </Avatar>
+                            <MemberAvatar name={member.name} src={member.avatar_url || member.avatar} className="rounded-xl border-2 border-background shadow-sm" />
                             <div className="flex flex-col">
                               <span className="flex items-center gap-2">
                                 <span className="font-bold text-foreground underline-offset-2 hover:underline">{member.name}</span>

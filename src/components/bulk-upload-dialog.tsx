@@ -470,8 +470,8 @@ export function BulkUploadDialog({ open, onOpenChange, onSuccess }: BulkUploadDi
             <div className="flex items-center justify-between">
               <p className="text-sm">{fileName}</p>
               <div className="flex gap-2">
-                <Badge variant="outline" className="bg-green-50 text-green-700">{validCount} Valid</Badge>
-                {invalidCount > 0 && <Badge variant="outline" className="bg-red-50 text-red-700">{invalidCount} Invalid</Badge>}
+                <Badge variant="outline" className="bg-success/10 text-success-strong">{validCount} Valid</Badge>
+                {invalidCount > 0 && <Badge variant="outline" className="bg-destructive/10 text-destructive-strong">{invalidCount} Invalid</Badge>}
               </div>
             </div>
 
@@ -515,10 +515,10 @@ export function BulkUploadDialog({ open, onOpenChange, onSuccess }: BulkUploadDi
                 </TableHeader>
                 <TableBody>
                   {previewData.slice(0, 50).map((r, i) => (
-                    <TableRow key={i} className={r.isValid ? "" : "bg-red-50"}>
-                      <TableCell>{r.isValid ? <Check className="h-4 w-4 text-green-600" /> : <X className="h-4 w-4 text-red-600" />}</TableCell>
+                    <TableRow key={i} className={r.isValid ? "" : "bg-destructive/10"}>
+                      <TableCell>{r.isValid ? <Check className="h-4 w-4 text-success-strong" /> : <X className="h-4 w-4 text-destructive-strong" />}</TableCell>
                       <TableCell>
-                        <Badge variant="outline" className={r.matchStatus === "update" ? "bg-amber-50 text-amber-700" : "bg-emerald-50 text-emerald-700"}>
+                        <Badge variant="outline" className={r.matchStatus === "update" ? "bg-warning/10 text-warning-strong" : "bg-success/10 text-success-strong"}>
                           {r.matchStatus === "update" ? "Update" : "Create"}
                         </Badge>
                       </TableCell>
@@ -529,9 +529,9 @@ export function BulkUploadDialog({ open, onOpenChange, onSuccess }: BulkUploadDi
                       <TableCell>{r.phone || "—"}</TableCell>
                       <TableCell>
                         <Badge variant="outline" className={
-                          r.status === "active" ? "bg-green-50 text-green-700" :
-                            r.status === "inactive" ? "bg-gray-50 text-gray-700" :
-                              "bg-blue-50 text-blue-700"
+                          r.status === "active" ? "bg-success/10 text-success-strong" :
+                            r.status === "inactive" ? "bg-muted/50 text-foreground" :
+                              "bg-info/10 text-info-strong"
                         }>
                           {r.status}
                         </Badge>
@@ -545,7 +545,7 @@ export function BulkUploadDialog({ open, onOpenChange, onSuccess }: BulkUploadDi
                       <TableCell>{r.rawUnits.filter(u => u.type === 'functional').map(u => u.name).join(", ") || "—"}</TableCell>
                       <TableCell>
                         {r.errors ? (
-                          <span className="text-red-600" title={r.errors.join(", ")}>⚠️</span>
+                          <span className="text-destructive-strong" title={r.errors.join(", ")}>⚠️</span>
                         ) : "—"}
                       </TableCell>
                     </TableRow>
@@ -559,7 +559,7 @@ export function BulkUploadDialog({ open, onOpenChange, onSuccess }: BulkUploadDi
 
         {uploadStatus === "success" && (
           <div className="py-8 text-center space-y-2">
-            <Check className="h-12 w-12 text-green-600 mx-auto" />
+            <Check className="h-12 w-12 text-success-strong mx-auto" />
             <h3 className="text-lg">Success!</h3>
             <p className="text-sm text-muted-foreground">{errorMessage}</p>
           </div>

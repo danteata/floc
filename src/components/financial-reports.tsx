@@ -14,6 +14,7 @@ import { CalendarIcon, Download, TrendingUp, TrendingDown, DollarSign, PieChart,
 import { TransactionCategory } from '@/types/database'
 import { formatCurrency, TRANSACTION_CATEGORIES } from '@/lib/financial-utils'
 import { cn } from '@/lib/utils'
+import { StatCard, StatGrid } from '@/components/ui/stat-card'
 import { useQuery } from 'convex/react'
 import { api } from '../../convex/_generated/api'
 import { useOrganization } from '@/hooks/use-organization'
@@ -195,7 +196,7 @@ export function FinancialReports() {
                     <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
                         <div>
                             <CardTitle className="flex items-center gap-3 text-2xl tracking-tight">
-                                <div className="p-2.5 bg-[#5b21b6] text-white rounded-xl shadow-md">
+                                <div className="p-2.5 bg-primary/10 text-primary rounded-xl shadow-md">
                                     <FileText className="h-6 w-6" />
                                 </div>
                                 Intelligence Hub
@@ -205,8 +206,8 @@ export function FinancialReports() {
                             </CardDescription>
                         </div>
                         <div className="flex items-center gap-3">
-                            <Badge variant="outline" className="bg-emerald-500/10 text-emerald-600 border-emerald-500/20 px-3 py-1 rounded-full">
-                                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 mr-2 animate-pulse"></span>
+                            <Badge variant="outline" className="bg-success/10 text-success-strong border-success/20 px-3 py-1 rounded-full">
+                                <span className="w-1.5 h-1.5 rounded-full bg-success mr-2 animate-pulse"></span>
                                 System Online
                             </Badge>
                         </div>
@@ -304,45 +305,25 @@ export function FinancialReports() {
                 </TabsList>
 
                 <TabsContent value="income-statement" className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                        <Card className="glass-card shadow-sm border-border/50 rounded-xl overflow-hidden hover:shadow-md transition-all">
-                            <CardHeader className="flex flex-row items-center justify-between p-6 pb-2">
-                                <CardTitle className="text-sm text-muted-foreground tracking-wide">Total Inflow</CardTitle>
-                                <div className="p-2 bg-emerald-500/10 text-emerald-600 rounded-lg">
-                                    <TrendingUp className="h-4 w-4" />
-                                </div>
-                            </CardHeader>
-                            <CardContent className="px-6 pb-6">
-                                <div className="text-3xl tracking-tight text-foreground">{formatCurrency(reportData.totalIncome)}</div>
-                            </CardContent>
-                        </Card>
-
-                        <Card className="glass-card shadow-sm border-border/50 rounded-xl overflow-hidden hover:shadow-md transition-all">
-                            <CardHeader className="flex flex-row items-center justify-between p-6 pb-2">
-                                <CardTitle className="text-sm text-muted-foreground tracking-wide">Total Outflow</CardTitle>
-                                <div className="p-2 bg-rose-500/10 text-rose-600 rounded-lg">
-                                    <TrendingDown className="h-4 w-4" />
-                                </div>
-                            </CardHeader>
-                            <CardContent className="px-6 pb-6">
-                                <div className="text-3xl tracking-tight text-foreground">{formatCurrency(reportData.totalExpenses)}</div>
-                            </CardContent>
-                        </Card>
-
-                        <Card className="glass-card shadow-sm border-border/50 rounded-xl overflow-hidden hover:shadow-md transition-all">
-                            <CardHeader className="flex flex-row items-center justify-between p-6 pb-2">
-                                <CardTitle className="text-sm text-muted-foreground tracking-wide">Net Position</CardTitle>
-                                <div className={cn("p-2 rounded-lg", reportData.netIncome >= 0 ? "bg-emerald-500/10 text-emerald-600" : "bg-rose-500/10 text-rose-600")}>
-                                    <DollarSign className="h-4 w-4" />
-                                </div>
-                            </CardHeader>
-                            <CardContent className="px-6 pb-6">
-                                <div className={cn("text-3xl tracking-tight", reportData.netIncome >= 0 ? "text-emerald-600" : "text-rose-600")}>
-                                    {formatCurrency(reportData.netIncome)}
-                                </div>
-                            </CardContent>
-                        </Card>
-                    </div>
+                    <StatGrid className="lg:grid-cols-3">
+                        <StatCard
+                            label="Total inflow"
+                            value={formatCurrency(reportData.totalIncome)}
+                            icon={TrendingUp}
+                        />
+                        <StatCard
+                            label="Total outflow"
+                            value={formatCurrency(reportData.totalExpenses)}
+                            icon={TrendingDown}
+                        />
+                        <StatCard
+                            label="Net position"
+                            value={formatCurrency(reportData.netIncome)}
+                            icon={DollarSign}
+                            hint={reportData.netIncome >= 0 ? "Surplus" : "Deficit"}
+                            hintTone={reportData.netIncome >= 0 ? "positive" : "negative"}
+                        />
+                    </StatGrid>
 
                     <Card className="glass-card border-border/50 shadow-soft rounded-xl overflow-hidden">
                         <CardHeader className="p-6 border-b border-border/50 bg-muted/20">
@@ -366,13 +347,13 @@ export function FinancialReports() {
                                             <TableRow key={category} className="border-border/50 hover:bg-muted/30 transition-colors">
                                                 <TableCell className="pl-6 py-4">
                                                     <div className="flex items-center gap-3">
-                                                        <div className={cn("w-8 h-8 rounded-lg flex items-center justify-center text-lg", TRANSACTION_CATEGORIES[category as unknown as TransactionCategory]?.color.replace('bg-', 'bg-').replace('500', '100') || "bg-gray-100")}>
+                                                        <div className={cn("w-8 h-8 rounded-lg flex items-center justify-center text-lg", TRANSACTION_CATEGORIES[category as unknown as TransactionCategory]?.color.replace('bg-', 'bg-').replace('500', '100') || "bg-muted")}>
                                                             {TRANSACTION_CATEGORIES[category as unknown as TransactionCategory]?.icon || '💰'}
                                                         </div>
                                                         <span className="font-medium text-foreground">{TRANSACTION_CATEGORIES[category as unknown as TransactionCategory]?.label || category}</span>
                                                     </div>
                                                 </TableCell>
-                                                <TableCell className="text-right text-emerald-600">
+                                                <TableCell className="text-right text-success-strong">
                                                     {formatCurrency(amount)}
                                                 </TableCell>
                                                 <TableCell className="text-right pr-6">
@@ -416,17 +397,17 @@ export function FinancialReports() {
                                             <TableRow key={category} className="border-border/50 hover:bg-muted/30 transition-colors">
                                                 <TableCell className="pl-6 py-4">
                                                     <div className="flex items-center gap-3">
-                                                        <div className={cn("w-8 h-8 rounded-lg flex items-center justify-center text-lg", TRANSACTION_CATEGORIES[category as unknown as TransactionCategory]?.color.replace('bg-', 'bg-').replace('500', '100') || "bg-gray-100")}>
+                                                        <div className={cn("w-8 h-8 rounded-lg flex items-center justify-center text-lg", TRANSACTION_CATEGORIES[category as unknown as TransactionCategory]?.color.replace('bg-', 'bg-').replace('500', '100') || "bg-muted")}>
                                                             {TRANSACTION_CATEGORIES[category as unknown as TransactionCategory]?.icon || '💸'}
                                                         </div>
                                                         <span className="font-medium text-foreground">{TRANSACTION_CATEGORIES[category as unknown as TransactionCategory]?.label || category}</span>
                                                     </div>
                                                 </TableCell>
-                                                <TableCell className="text-right text-rose-600">
+                                                <TableCell className="text-right text-destructive-strong">
                                                     {formatCurrency(amount)}
                                                 </TableCell>
                                                 <TableCell className="text-right pr-6">
-                                                    <Badge variant="secondary" className="font-medium text-rose-600 bg-rose-50/50">
+                                                    <Badge variant="secondary" className="font-medium text-destructive-strong bg-destructive/50">
                                                         {((amount / reportData.totalExpenses) * 100).toFixed(1)}% Share
                                                     </Badge>
                                                 </TableCell>
@@ -480,10 +461,10 @@ export function FinancialReports() {
                                         Object.entries(reportData.monthlyData).map(([month, data]) => (
                                             <TableRow key={month} className="border-border/50 hover:bg-muted/30 transition-colors">
                                                 <TableCell className="pl-6 py-4 text-foreground">{month}</TableCell>
-                                                <TableCell className="text-right text-emerald-600">{formatCurrency(data.income)}</TableCell>
-                                                <TableCell className="text-right text-rose-600">{formatCurrency(data.expenses)}</TableCell>
+                                                <TableCell className="text-right text-success-strong">{formatCurrency(data.income)}</TableCell>
+                                                <TableCell className="text-right text-destructive-strong">{formatCurrency(data.expenses)}</TableCell>
                                                 <TableCell className="text-right pr-6">
-                                                    <Badge variant="outline" className={cn("font-medium border-0", data.net >= 0 ? "bg-emerald-500/10 text-emerald-700" : "bg-rose-500/10 text-rose-700")}>
+                                                    <Badge variant="outline" className={cn("font-medium border-0", data.net >= 0 ? "bg-success/10 text-success-strong" : "bg-destructive/10 text-destructive-strong")}>
                                                         {formatCurrency(data.net)}
                                                     </Badge>
                                                 </TableCell>
@@ -505,15 +486,15 @@ export function FinancialReports() {
             <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
                 <Card className="glass-card border-border/50 shadow-sm p-4 flex flex-col items-center justify-center text-center">
                     <span className="text-xs text-muted-foreground tracking-wide mb-1">Total Income</span>
-                    <span className="text-lg text-emerald-600">{formatCurrency(reportData.totalIncome)}</span>
+                    <span className="text-lg text-success-strong">{formatCurrency(reportData.totalIncome)}</span>
                 </Card>
                 <Card className="glass-card border-border/50 shadow-sm p-4 flex flex-col items-center justify-center text-center">
                     <span className="text-xs text-muted-foreground tracking-wide mb-1">Total Expenses</span>
-                    <span className="text-lg text-rose-600">{formatCurrency(reportData.totalExpenses)}</span>
+                    <span className="text-lg text-destructive-strong">{formatCurrency(reportData.totalExpenses)}</span>
                 </Card>
                 <Card className="glass-card border-border/50 shadow-sm p-4 flex flex-col items-center justify-center text-center">
                     <span className="text-xs text-muted-foreground tracking-wide mb-1">Net Result</span>
-                    <span className={cn("text-lg", reportData.netIncome >= 0 ? "text-primary" : "text-rose-600")}>
+                    <span className={cn("text-lg", reportData.netIncome >= 0 ? "text-primary" : "text-destructive-strong")}>
                         {formatCurrency(reportData.netIncome)}
                     </span>
                 </Card>

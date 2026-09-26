@@ -3,6 +3,7 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Calendar, Church, Users } from "lucide-react"
 import { Skeleton } from "@/components/ui/skeleton"
+import { StatCard, StatGrid } from "@/components/ui/stat-card"
 import { Overview } from "@/components/overview"
 import { RecentMembers } from "@/components/recent-members"
 import { UpcomingEvents } from "@/components/upcoming-events"
@@ -128,132 +129,57 @@ export function DashboardContent() {
   return <>
     <div className="mb-6">{unitPicker}</div>
 
-    <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
-      <Card
-        className="overflow-hidden border-0 hover-lift group relative fade-in-up"
-        style={{ animationDelay: "0ms" }}
-      >
-        <div className="absolute inset-0 bg-gradient-to-br from-primary/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
-        <div className="h-1 bg-gradient-to-r from-primary via-primary to-primary/60"></div>
-        <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0 pt-5">
-          <CardTitle className="text-sm font-semibold text-muted-foreground truncate">
-            {data.unitName ?? "Total Members"}
-          </CardTitle>
-          <div className="p-2.5 bg-primary/15 rounded-xl group-hover:scale-110 transition-transform duration-300">
-            <Users className="h-5 w-5 text-primary" />
-          </div>
-        </CardHeader>
-        <CardContent className="space-y-3 pb-6">
-          <div className="text-4xl text-foreground tabular-nums tracking-tight">{stats.scopedMembersCount}</div>
-          <div className="flex flex-wrap items-center gap-2">
-            <div className="inline-flex items-center gap-1.5 bg-success/15 text-success px-3 py-1.5 rounded-full text-xs font-semibold border border-success/30">
-              <span className="text-base leading-none">+</span>{stats.newMembersThisMonthCount} This Month
-            </div>
-            {isNarrowed && (
-              <span className="text-xs text-muted-foreground">
-                of {stats.totalMembers} church-wide
-              </span>
-            )}
-          </div>
-        </CardContent>
-      </Card>
+    <StatGrid>
+      <StatCard
+        label={data.unitName ?? "Total members"}
+        value={stats.scopedMembersCount}
+        icon={Users}
+        hint={`${stats.newMembersThisMonthCount > 0 ? `${stats.newMembersThisMonthCount} new this month` : "No new members this month"}${isNarrowed ? ` · of ${stats.totalMembers} church-wide` : ""}`}
+        hintTone={stats.newMembersThisMonthCount > 0 ? "positive" : "neutral"}
+      />
 
-      <Card
-        className="overflow-hidden border-0 hover-lift group relative fade-in-up"
-        style={{ animationDelay: "60ms" }}
-      >
-        <div className="absolute inset-0 bg-gradient-to-br from-secondary/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
-        <div className="h-1 bg-gradient-to-r from-secondary via-secondary to-secondary/60"></div>
-        <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0 pt-5">
-          <CardTitle className="text-sm font-semibold text-muted-foreground">Attendance</CardTitle>
-          <div className="p-2.5 bg-secondary/30 rounded-xl group-hover:scale-110 transition-transform duration-300">
-            <Church className="h-5 w-5 text-secondary-foreground" />
-          </div>
-        </CardHeader>
-        <CardContent className="space-y-3 pb-6">
-          <div className="text-4xl text-foreground tabular-nums tracking-tight">{stats.weeklyAttendance}</div>
-          <div className="flex flex-wrap items-center gap-2">
-            <div className={`inline-flex items-center gap-1 px-3 py-1.5 rounded-full text-xs font-semibold border ${stats.attendanceChange >= 0
-              ? 'bg-success/15 text-success border-success/30'
-              : 'bg-destructive/15 text-destructive border-destructive/30'
-              }`}>
-              {stats.attendanceChange >= 0 ? '↗' : '↘'} {Math.abs(stats.attendanceChange)}% vs Last Week
-            </div>
-            {stats.orgWeeklyAttendance !== stats.weeklyAttendance && (
-              <span className="text-xs text-muted-foreground">
-                of {stats.orgWeeklyAttendance} church-wide
-              </span>
-            )}
-          </div>
-        </CardContent>
-      </Card>
+      <StatCard
+        label="Attendance"
+        value={stats.weeklyAttendance}
+        icon={Church}
+        hint={`${stats.attendanceChange >= 0 ? "+" : "-"}${Math.abs(stats.attendanceChange)}% vs last week${stats.orgWeeklyAttendance !== stats.weeklyAttendance ? ` · of ${stats.orgWeeklyAttendance} church-wide` : ""}`}
+        hintTone={stats.attendanceChange >= 0 ? "positive" : "negative"}
+      />
 
-      <Card
-        className="overflow-hidden border-0 hover-lift group relative fade-in-up"
-        style={{ animationDelay: "120ms" }}
-      >
-        <div className="absolute inset-0 bg-gradient-to-br from-accent/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
-        <div className="h-1 bg-gradient-to-r from-accent via-accent to-accent/60"></div>
-        <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0 pt-5">
-          <CardTitle className="text-sm font-semibold text-muted-foreground">
-            {stats.unitsScope === 'sub-units'
-              ? "Sub-units"
-              : stats.unitsScope === 'led'
-                ? "My Units"
-                : isAdmin
-                  ? "Active Groups"
-                  : "Members"
-            }
-          </CardTitle>
-          <div className="p-2.5 bg-accent/20 rounded-xl group-hover:scale-110 transition-transform duration-300">
-            <Users className="h-5 w-5 text-accent" />
-          </div>
-        </CardHeader>
-        <CardContent className="space-y-3 pb-6">
-          <div className="text-4xl text-foreground tabular-nums tracking-tight">
-            {stats.unitsScope === 'organization' && !isAdmin
-              ? stats.scopedMembersCount
-              : stats.activeUnitsCount
-            }
-          </div>
-          <p className="text-xs text-muted-foreground truncate">
-            {stats.unitsScope === 'sub-units'
-              ? `Beneath ${data.unitName}`
-              : stats.unitsScope === 'led'
-                ? "Units you lead"
-                : isAdmin
-                  ? "Organization Units"
-                  : `${stats.totalMembers > 0 ? Math.round((stats.scopedMembersCount / stats.totalMembers) * 100) : 0}% of Total`
-            }
-          </p>
-        </CardContent>
-      </Card>
+      <StatCard
+        label={
+          stats.unitsScope === 'sub-units'
+            ? "Sub-units"
+            : stats.unitsScope === 'led'
+              ? "My units"
+              : isAdmin
+                ? "Active groups"
+                : "Members"
+        }
+        value={
+          stats.unitsScope === 'organization' && !isAdmin
+            ? stats.scopedMembersCount
+            : stats.activeUnitsCount
+        }
+        icon={Users}
+        hint={
+          stats.unitsScope === 'sub-units'
+            ? `Beneath ${data.unitName}`
+            : stats.unitsScope === 'led'
+              ? "Units you lead"
+              : isAdmin
+                ? "Organization units"
+                : `${stats.totalMembers > 0 ? Math.round((stats.scopedMembersCount / stats.totalMembers) * 100) : 0}% of total`
+        }
+      />
 
-      <Card
-        className="overflow-hidden border-0 hover-lift group relative fade-in-up"
-        style={{ animationDelay: "180ms" }}
-      >
-        <div className="absolute inset-0 bg-gradient-to-br from-primary/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
-        <div className="h-1 bg-gradient-to-r from-primary via-primary/80 to-primary/60"></div>
-        <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0 pt-5">
-          <CardTitle className="text-sm font-semibold text-muted-foreground">Events</CardTitle>
-          <div className="p-2.5 bg-primary/15 rounded-xl group-hover:scale-110 transition-transform duration-300">
-            <Calendar className="h-5 w-5 text-primary" />
-          </div>
-        </CardHeader>
-        <CardContent className="space-y-3 pb-6">
-          <div className="text-4xl text-foreground tabular-nums tracking-tight">{stats.upcomingEventsCount}</div>
-          <p className="text-xs text-muted-foreground truncate">
-            Next: {stats.nextEventName}
-          </p>
-          {stats.orgUpcomingEventsCount !== stats.upcomingEventsCount && (
-            <p className="text-xs text-muted-foreground">
-              of {stats.orgUpcomingEventsCount} church-wide
-            </p>
-          )}
-        </CardContent>
-      </Card>
-    </div>
+      <StatCard
+        label="Events"
+        value={stats.upcomingEventsCount}
+        icon={Calendar}
+        hint={`Next: ${stats.nextEventName}${stats.orgUpcomingEventsCount !== stats.upcomingEventsCount ? ` · of ${stats.orgUpcomingEventsCount} church-wide` : ""}`}
+      />
+    </StatGrid>
     <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-7 mt-6">
       <Card className="col-span-4 overflow-hidden fade-in-up" style={{ animationDelay: "240ms" }}>
         <CardHeader className="border-b border-border/30 bg-muted/10">

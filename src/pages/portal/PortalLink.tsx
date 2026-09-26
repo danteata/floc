@@ -95,8 +95,8 @@ export default function PortalLink() {
                         We'll look up a member record matching this email in your church's database.
                     </p>
                 </div>
-                <div className="rounded-md border border-amber-500/30 bg-amber-500/5 p-3 text-sm flex gap-2">
-                    <AlertCircle className="h-4 w-4 text-amber-600 shrink-0 mt-0.5" />
+                <div className="rounded-md border border-warning/30 bg-warning/5 p-3 text-sm flex gap-2">
+                    <AlertCircle className="h-4 w-4 text-warning-strong shrink-0 mt-0.5" />
                     <div>
                         <p className="font-medium">If linking fails</p>
                         <p className="text-xs text-muted-foreground mt-1">

@@ -23,13 +23,13 @@ export function WelcomeBanner() {
             <Church className="h-6 w-6 text-primary animate-pulse" />
           </div>
           <div className="flex-1 space-y-2">
-            <div className="h-6 bg-gray-200 rounded w-3/4"></div>
-            <div className="h-4 bg-gray-200 rounded w-1/2"></div>
+            <div className="h-6 bg-muted rounded w-3/4"></div>
+            <div className="h-4 bg-muted rounded w-1/2"></div>
           </div>
         </div>
         <div className="mt-4 flex gap-3">
-          <div className="h-10 bg-gray-200 rounded w-32"></div>
-          <div className="h-10 bg-gray-200 rounded w-32"></div>
+          <div className="h-10 bg-muted rounded w-32"></div>
+          <div className="h-10 bg-muted rounded w-32"></div>
         </div>
       </div>
     )

@@ -199,7 +199,7 @@ export function BrandingPanel() {
       </div>
 
       {adjustments.length > 0 && (
-        <div className="rounded-lg border border-amber-500/40 bg-amber-500/5 p-3 space-y-1">
+        <div className="rounded-lg border border-warning/40 bg-warning/5 p-3 space-y-1">
           <p className="text-sm font-medium">Adjusted to stay readable</p>
           {adjustments.map((a, i) => (
             <p key={i} className="text-xs text-muted-foreground">
