@@ -148,7 +148,12 @@ phone layout, dark mode, then before/after screenshots.
 
 ## Verification
 
-Each phase ends with `npm run check` green, before/after contact sheets reviewed
+Baseline on `main` (26 Sep 2026): typecheck clean, 109 tests passing, and
+`eslint .` already failing with 413 errors (369 `no-explicit-any`, 131 unused
+variables among them). This pass does not take on that debt, but it must never
+add to it: the lint error count may only go down.
+
+Each phase ends with typecheck and tests green, the lint count at or below the baseline, before/after contact sheets reviewed
 by eye, and a commit. The last step is a full capture of every route in both themes
 and widths.
 
