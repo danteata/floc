@@ -1,153 +1,114 @@
-import { useState } from "react"
-import {
-    Calendar,
-    Home,
-    Mail,
-    UserIcon as Male,
-    MapPin,
-    Settings,
-} from "lucide-react"
-import { Input } from "@/components/ui/input"
-import { Button } from "@/components/ui/button"
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
+import { Link } from "react-router-dom"
+import { Building2, ChevronRight, Monitor, Moon, Sun, UserRound } from "lucide-react"
 import { LayoutWrapper } from "@/components/layout-wrapper"
 import { PageHeader } from "@/components/ui/page-header"
+import { Button } from "@/components/ui/button"
+import { MemberAvatar } from "@/components/ui/member-avatar"
+import { useTheme } from "@/components/theme-provider"
+import { useUserRole } from "@/hooks/use-user-role"
+import { cn } from "@/lib/utils"
+
+/**
+ * Personal settings. This page used to be a design template: fixed sample
+ * values ("Zurich, Switzerland", someone else's email address), social fields,
+ * a Save button wired to nothing, and four "Coming Soon" tabs. Everything here
+ * now does what it says: the account is Clerk's, the theme is the app's, and the
+ * church's own settings live where an administrator manages them.
+ */
+
+const THEMES = [
+    { value: "light", label: "Light", icon: Sun },
+    { value: "dark", label: "Dark", icon: Moon },
+    { value: "system", label: "Match my device", icon: Monitor },
+] as const
+
+function Section({ title, description, children }: { title: string; description: string; children: React.ReactNode }) {
+    return (
+        <section className="grid gap-4 border-t border-border py-8 first:border-t-0 first:pt-0 md:grid-cols-[16rem_1fr] md:gap-10">
+            <div className="space-y-1">
+                <h2 className="text-sm font-semibold text-foreground">{title}</h2>
+                <p className="text-sm text-muted-foreground">{description}</p>
+            </div>
+            <div>{children}</div>
+        </section>
+    )
+}
 
 export default function SettingsPage() {
-    const [activeTab, setActiveTab] = useState("Profile")
-
-    const tabs = ["My details", "Profile", "Password", "Email", "Notification"]
+    const { theme, setTheme } = useTheme()
+    const { user, isAdmin } = useUserRole()
 
     return (
         <LayoutWrapper>
-            <div className="max-w-4xl mx-auto space-y-6">
+            <div className="mx-auto flex max-w-4xl flex-col gap-8">
                 <PageHeader title="Settings" description="Your account and preferences." />
 
-                <div className="glass-card border-border/50 shadow-soft rounded-xl overflow-hidden p-6 md:p-8">
-                    {/* Tabs */}
-                    <div className="flex overflow-x-auto pb-4 mb-6 gap-2 no-scrollbar border-b border-border/40">
-                        {tabs.map((tab) => (
-                            <button
-                                key={tab}
-                                className={`px-4 py-2 text-sm rounded-full transition-all whitespace-nowrap ${activeTab === tab
-                                    ? "bg-primary text-primary-foreground shadow-sm"
-                                    : "text-muted-foreground hover:bg-muted hover:text-foreground"
-                                    }`}
-                                onClick={() => setActiveTab(tab)}
-                            >
-                                {tab}
-                            </button>
-                        ))}
-                    </div>
-
-                    {/* Profile Content */}
-                    {activeTab === "Profile" && (
-                        <div className="space-y-8 animate-in fade-in slide-in-from-bottom-2 duration-300">
-                            <div>
-                                <h2 className="text-xl font-semibold tracking-tight mb-1">Profile</h2>
-                                <p className="text-sm text-muted-foreground">Update your photo and personal details here.</p>
-                            </div>
-
-                            <div className="flex flex-col sm:flex-row items-center gap-6 p-6 bg-muted/30 rounded-xl border border-border/40">
-                                <Avatar className="h-24 w-24 border-4 border-background shadow-soft">
-                                    <AvatarImage src="/placeholder.svg?height=96&width=96" alt="Profile" />
-                                    <AvatarFallback className="text-2xl bg-primary/10 text-primary">U</AvatarFallback>
-                                </Avatar>
-                                <div className="space-y-3 text-center sm:text-left">
-                                    <div>
-                                        <h3 className="font-medium">Your Photo</h3>
-                                        <p className="text-xs text-muted-foreground">This will be displayed on your profile.</p>
-                                    </div>
-                                    <div className="flex gap-3 justify-center sm:justify-start">
-                                        <Button variant="outline" size="sm" className="h-9 shadow-sm">
-                                            Delete
-                                        </Button>
-                                        <Button size="sm" className="h-9 shadow-sm">
-                                            Update
-                                        </Button>
-                                    </div>
+                <div className="rounded-xl bg-card p-6 ring-1 ring-foreground/10 md:p-8">
+                    <Section title="Account" description="Your name, email and how you sign in.">
+                        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                            <div className="flex min-w-0 items-center gap-3">
+                                <MemberAvatar name={user?.name} size="lg" />
+                                <div className="min-w-0">
+                                    <p className="truncate text-sm font-medium text-foreground">{user?.name ?? "…"}</p>
+                                    <p className="truncate text-sm text-muted-foreground">{user?.email || "No email on your account"}</p>
                                 </div>
                             </div>
-
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                <div className="space-y-2">
-                                    <label className="text-xs font-semibold text-muted-foreground tracking-wider">Live in</label>
-                                    <div className="relative">
-                                        <MapPin className="absolute left-3 top-3 text-muted-foreground h-4 w-4" />
-                                        <Input className="pl-10 bg-background/50 border-input-border focus:ring-primary/20 transition-all" defaultValue="Zurich, Switzerland" />
-                                    </div>
-                                </div>
-
-                                <div className="space-y-2">
-                                    <label className="text-xs font-semibold text-muted-foreground tracking-wider">Street Address</label>
-                                    <div className="relative">
-                                        <Home className="absolute left-3 top-3 text-muted-foreground h-4 w-4" />
-                                        <Input className="pl-10 bg-background/50 border-input-border focus:ring-primary/20 transition-all" defaultValue="2445 Crosswind Drive" />
-                                    </div>
-                                </div>
-
-                                <div className="space-y-2">
-                                    <label className="text-xs font-semibold text-muted-foreground tracking-wider">Email Address</label>
-                                    <div className="relative">
-                                        <Mail className="absolute left-3 top-3 text-muted-foreground h-4 w-4" />
-                                        <Input className="pl-10 bg-background/50 border-input-border focus:ring-primary/20 transition-all" defaultValue="uihutofficial@gmail.com" />
-                                    </div>
-                                </div>
-
-                                <div className="hidden md:block"></div>
-
-                                <div className="space-y-2">
-                                    <label className="text-xs font-semibold text-muted-foreground tracking-wider">Date Of Birth</label>
-                                    <div className="relative">
-                                        <Calendar className="absolute left-3 top-3 text-muted-foreground h-4 w-4" />
-                                        <Input className="pl-10 bg-background/50 border-input-border focus:ring-primary/20 transition-all" defaultValue="07.12.1995" />
-                                    </div>
-                                </div>
-
-                                <div className="space-y-2">
-                                    <label className="text-xs font-semibold text-muted-foreground tracking-wider">Gender</label>
-                                    <div className="relative">
-                                        <Male className="absolute left-3 top-3 text-muted-foreground h-4 w-4" />
-                                        <Input className="pl-10 bg-background/50 border-input-border focus:ring-primary/20 transition-all" defaultValue="Male" />
-                                    </div>
-                                </div>
-                            </div>
-
-                            <div className="pt-6 border-t border-border/40">
-                                <h3 className="text-lg font-semibold mb-4">Social Profiles</h3>
-                                <div className="space-y-4">
-                                    <div className="space-y-2">
-                                        <label className="text-xs font-semibold text-muted-foreground tracking-wider">Facebook</label>
-                                        <div className="flex shadow-sm rounded-md">
-                                            <span className="inline-flex items-center px-3 rounded-l-md border border-r-0 border-input-border bg-muted/50 text-muted-foreground text-sm">facebook.com/</span>
-                                            <Input className="rounded-l-none bg-background/50 border-input-border focus:ring-primary/20 transition-all" placeholder="username" />
-                                        </div>
-                                    </div>
-                                    <div className="space-y-2">
-                                        <label className="text-xs font-semibold text-muted-foreground tracking-wider">Twitter</label>
-                                        <div className="flex shadow-sm rounded-md">
-                                            <span className="inline-flex items-center px-3 rounded-l-md border border-r-0 border-input-border bg-muted/50 text-muted-foreground text-sm">twitter.com/</span>
-                                            <Input className="rounded-l-none bg-background/50 border-input-border focus:ring-primary/20 transition-all" placeholder="username" />
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-
-                            <div className="flex justify-end gap-3 pt-4">
-                                <Button variant="ghost">Cancel</Button>
-                                <Button className="shadow-lg shadow-primary/20">Save Changes</Button>
-                            </div>
+                            <Button asChild variant="outline" size="sm">
+                                <Link to="/profile">
+                                    <UserRound className="h-4 w-4" aria-hidden="true" />
+                                    Manage account
+                                </Link>
+                            </Button>
                         </div>
-                    )}
+                    </Section>
 
-                    {activeTab !== "Profile" && (
-                        <div className="py-20 text-center text-muted-foreground animate-in fade-in zoom-in-95 duration-300">
-                            <div className="p-4 bg-muted/30 rounded-full w-fit mx-auto mb-4">
-                                <Settings className="h-8 w-8 opacity-50" />
-                            </div>
-                            <h3 className="text-lg mb-1">Coming Soon</h3>
-                            <p className="text-sm">The {activeTab} settings are currently under development.</p>
+                    <Section title="Appearance" description="How Floc looks on this device.">
+                        <div role="radiogroup" aria-label="Theme" className="grid gap-2 sm:grid-cols-3">
+                            {THEMES.map(({ value, label, icon: Icon }) => (
+                                <button
+                                    key={value}
+                                    type="button"
+                                    role="radio"
+                                    aria-checked={theme === value}
+                                    onClick={() => setTheme(value)}
+                                    className={cn(
+                                        "flex items-center gap-2 rounded-lg border px-3 py-2.5 text-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+                                        theme === value
+                                            ? "border-primary bg-primary/5 font-medium text-foreground"
+                                            : "border-border text-muted-foreground hover:bg-muted hover:text-foreground",
+                                    )}
+                                >
+                                    <Icon className="h-4 w-4" aria-hidden="true" />
+                                    {label}
+                                </button>
+                            ))}
                         </div>
+                    </Section>
+
+                    {isAdmin && (
+                        <Section title="Your church" description="Structure, terminology, branding and features, for administrators.">
+                            <div className="divide-y divide-border rounded-lg border border-border">
+                                {[
+                                    { to: "/organization", label: "Organization", hint: "Units, leaders and event types" },
+                                    { to: "/admin", label: "Administration", hint: "Operations, branding and features" },
+                                ].map((item) => (
+                                    <Link
+                                        key={item.to}
+                                        to={item.to}
+                                        className="flex items-center justify-between gap-3 px-4 py-3 text-sm transition-colors hover:bg-muted"
+                                    >
+                                        <span className="flex items-center gap-3">
+                                            <Building2 className="h-4 w-4 text-muted-foreground" aria-hidden="true" />
+                                            <span>
+                                                <span className="block font-medium text-foreground">{item.label}</span>
+                                                <span className="block text-muted-foreground">{item.hint}</span>
+                                            </span>
+                                        </span>
+                                        <ChevronRight className="h-4 w-4 text-muted-foreground" aria-hidden="true" />
+                                    </Link>
+                                ))}
+                            </div>
+                        </Section>
                     )}
                 </div>
             </div>

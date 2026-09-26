@@ -25,6 +25,16 @@ function formatDate(iso: string | null): string {
     })
 }
 
+/** Paystack's subscription states, as a church treasurer would say them. */
+const STATUS_LABEL: Record<string, string> = {
+    active: "Active",
+    "non-renewing": "Won't renew",
+    attention: "Needs attention",
+    past_due: "Payment overdue",
+    cancelled: "Cancelled",
+    none: "No subscription",
+}
+
 export default function BillingPage() {
     const { isPro, status, currentPeriodEnd, loading, startCheckout, manageSubscription } =
         useSubscription()
@@ -92,7 +102,7 @@ export default function BillingPage() {
                                 ) : (
                                     <Sparkles className="h-5 w-5 text-muted-foreground" />
                                 )}
-                                <CardTitle>Current Plan</CardTitle>
+                                <CardTitle>Current plan</CardTitle>
                             </div>
                             <Badge
                                 variant={isPro ? "default" : "secondary"}
@@ -103,8 +113,8 @@ export default function BillingPage() {
                         </div>
                         <CardDescription>
                             {isPro
-                                ? "Your organization has full access to sotf."
-                                : "Your organization is on the Free plan."}
+                                ? "Your church has every Floc feature."
+                                : "Your church is on the Free plan."}
                         </CardDescription>
                     </CardHeader>
                     <CardContent className="space-y-4">
@@ -114,13 +124,19 @@ export default function BillingPage() {
                             </div>
                         ) : (
                             <>
+                                {(status === 'past_due' || status === 'attention') && (
+                                    <div role="alert" className="rounded-lg border border-warning/40 bg-warning/10 px-4 py-3 text-sm text-foreground">
+                                        <p className="font-medium">Your last payment didn't go through.</p>
+                                        <p className="text-muted-foreground">Update your card under Manage subscription to keep Pro features.</p>
+                                    </div>
+                                )}
                                 <div className="flex flex-wrap gap-x-8 gap-y-2 text-sm">
                                     <div>
                                         <p className="text-muted-foreground">Status</p>
-                                        <p className="font-medium capitalize">{status}</p>
+                                        <p className="font-medium">{STATUS_LABEL[status] ?? status}</p>
                                     </div>
                                     <div>
-                                        <p className="text-muted-foreground">Renews / ends</p>
+                                        <p className="text-muted-foreground">{status === 'non-renewing' || status === 'cancelled' ? 'Ends' : 'Renews'}</p>
                                         <p className="font-medium">{formatDate(currentPeriodEnd)}</p>
                                     </div>
                                 </div>
@@ -160,7 +176,7 @@ export default function BillingPage() {
                         </CardHeader>
                         <CardContent>
                             <p className="text-2xl font-semibold">
-                                ₵0<span className="text-sm font-normal text-muted-foreground">/mo</span>
+                                GH₵0<span className="text-sm font-normal text-muted-foreground">/mo</span>
                             </p>
                             <ul className="mt-4 space-y-2 text-sm text-muted-foreground">
                                 <li className="flex gap-2">
@@ -192,7 +208,7 @@ export default function BillingPage() {
                         </CardHeader>
                         <CardContent>
                             <p className="text-2xl font-semibold">
-                                ₵150<span className="text-sm font-normal text-muted-foreground">/mo</span>
+                                GH₵150<span className="text-sm font-normal text-muted-foreground">/mo</span>
                             </p>
                             <ul className="mt-4 space-y-2 text-sm text-muted-foreground">
                                 {PRO_FEATURES.map((f) => (
@@ -206,7 +222,7 @@ export default function BillingPage() {
                                     {actionLoading && (
                                         <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                                     )}
-                                    Choose Pro
+                                    Upgrade to Pro
                                 </Button>
                             )}
                         </CardContent>
@@ -214,8 +230,8 @@ export default function BillingPage() {
                 </div>
 
                 <p className="text-xs text-muted-foreground">
-                    Payments are processed securely by Paystack. You'll be redirected to complete
-                    payment; your plan updates automatically via webhook.
+                    Payments are handled by Paystack. You'll finish paying on their page, and your plan
+                    changes here as soon as the payment goes through.
                 </p>
             </div>
         </LayoutWrapper>
