@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { useQuery, useMutation } from "convex/react";
+import { useConvex, useQuery } from "convex/react";
 import { api } from "../../../convex/_generated/api";
 import { useAnalytics } from "@/hooks/useAnalytics";
 import { AnalyticsEventType } from "@/services/analytics/types";
@@ -11,12 +11,16 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { LayoutWrapper } from "@/components/layout-wrapper";
 import { PageHeader } from "@/components/ui/page-header";
+import { NoAccess } from "@/components/ui/no-access";
+import { LoadingState } from "@/components/ui/loading-state";
+import { useUserRole } from "@/hooks/use-user-role";
+import { hasCapability } from "@/lib/permissions";
+import { toast } from "sonner";
 import {
     Shield,
-    Search,
     Filter,
     Calendar,
     User,
@@ -173,25 +177,32 @@ export default function AuditTrail() {
     const [showFilters, setShowFilters] = useState(false);
 
     const limit = 20;
+    const convex = useConvex();
+    const { role, isLoading: roleLoading } = useUserRole();
+    const canView = !roleLoading && hasCapability(role, "audit_trail");
+    const [isExporting, setIsExporting] = useState(false);
 
     useEffect(() => {
         trackEvent(AnalyticsEventType.AUDIT_TRAIL_VIEWED, {});
     }, [trackEvent]);
 
     // Fetch audit logs
-    const auditData = useQuery(api.audit.getAuditLogs, {
+    const filterArgs = {
         action: filters.action || undefined,
         entity_type: filters.entity_type || undefined,
-        performed_by: filters.performed_by || undefined,
+        // "Changed by" is a typed name, so match on the recorded name.
+        performed_by_name: filters.performed_by.trim() || undefined,
         start_date: filters.start_date || undefined,
         end_date: filters.end_date || undefined,
-        limit,
-        offset: page * limit,
-    });
+    };
+    const auditData = useQuery(
+        api.audit.getAuditLogs,
+        canView ? { ...filterArgs, limit, offset: page * limit } : "skip",
+    );
 
     // Fetch action types and entity types for filters
-    const actionTypes = useQuery(api.audit.getActionTypes);
-    const entityTypes = useQuery(api.audit.getEntityTypes);
+    const actionTypes = useQuery(api.audit.getActionTypes, canView ? {} : "skip");
+    const entityTypes = useQuery(api.audit.getEntityTypes, canView ? {} : "skip");
 
     const handleFilterChange = (key: string, value: string) => {
         setFilters(prev => ({ ...prev, [key]: value }));
@@ -234,21 +245,41 @@ export default function AuditTrail() {
         });
     };
 
-    const exportToCSV = () => {
-        if (!auditData?.logs) return;
+    const exportToCSV = async () => {
+        if (!auditData?.total) return;
 
-        const headers = ["Timestamp", "Action", "Entity Type", "Entity Name", "Performed By", "Role", "IP Address"];
+        // Export every change that matches the filters, not just this page.
+        setIsExporting(true);
+        let logs: AuditLog[];
+        try {
+            const all = await convex.query(api.audit.getAuditLogs, {
+                ...filterArgs,
+                limit: auditData.total,
+                offset: 0,
+            });
+            logs = all.logs as AuditLog[];
+        } catch (error) {
+            toast.error("Couldn't export the audit trail", {
+                description: error instanceof Error ? error.message : undefined,
+            });
+            return;
+        } finally {
+            setIsExporting(false);
+        }
+
+        const csvCell = (value: string) => `"${value.replace(/"/g, '""')}"`;
+        const headers = ["When", "Action", "Record type", "Name", "Changed by", "Role", "IP address"];
         const csvContent = [
-            headers.join(","),
-            ...auditData.logs.map((log: AuditLog) => [
-                log.timestamp,
-                log.action,
-                log.entity_type,
+            headers.map(csvCell).join(","),
+            ...logs.map((log) => [
+                formatDate(log.timestamp),
+                actionLabel(log.action),
+                entityLabel(log.entity_type),
                 log.entity_name || "",
                 log.performed_by_name,
-                log.performed_by_role,
+                roleLabel(log.performed_by_role),
                 log.ip_address || "",
-            ].map(cell => `"${cell}"`).join(","))
+            ].map(csvCell).join(","))
         ].join("\n");
 
         const blob = new Blob([csvContent], { type: "text/csv" });
@@ -260,19 +291,32 @@ export default function AuditTrail() {
 
         trackEvent(AnalyticsEventType.REPORT_EXPORTED, {
             report: 'audit_trail',
-            row_count: auditData.logs.length,
+            row_count: logs.length,
         });
     };
+
+    if (roleLoading) {
+        return <LayoutWrapper><LoadingState message="Checking your access…" /></LayoutWrapper>;
+    }
+    if (!canView) {
+        return (
+            <LayoutWrapper>
+                <div className="container py-10">
+                    <NoAccess what="view the audit trail" who="church administrators" />
+                </div>
+            </LayoutWrapper>
+        );
+    }
 
     return (
         <LayoutWrapper>
             <div className="container mx-auto py-6 space-y-6">
                 <PageHeader
                     title="Audit trail"
-                    description="Every change made in Floc: who made it, and when."
+                    description="Key changes to members, accounts, roles, money, events, labels and links between churches: who made them, and when. Not every setting change is recorded yet."
                     actions={
                         <>
-                            <Button variant="outline" onClick={exportToCSV} disabled={!auditData?.logs?.length}>
+                            <Button variant="outline" onClick={exportToCSV} disabled={!auditData?.total || isExporting}>
                                 <Download className="h-4 w-4 mr-2" />
                                 Export CSV
                             </Button>
@@ -348,7 +392,7 @@ export default function AuditTrail() {
                             <div className="space-y-2">
                                 <Label>Changed by</Label>
                                 <Input
-                                    placeholder="Name"
+                                    placeholder="Part of a name"
                                     value={filters.performed_by}
                                     onChange={(e) => handleFilterChange("performed_by", e.target.value)}
                                 />

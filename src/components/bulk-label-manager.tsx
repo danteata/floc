@@ -26,7 +26,8 @@ interface BulkLabelManagerProps {
 }
 
 export function BulkLabelManager({ selectedMembers, onComplete, onCancel }: BulkLabelManagerProps) {
-    const { user } = useUserRole()
+    // Only administrators can create labels; leaders apply existing ones.
+    const { user, isAdmin } = useUserRole()
     const { context } = useOrganization()
     const { toast } = useToast()
 
@@ -153,7 +154,7 @@ export function BulkLabelManager({ selectedMembers, onComplete, onCancel }: Bulk
                         )
                     })
                 )}
-                {normalizedSearch.length > 0 && !hasExactMatch && (
+                {isAdmin && normalizedSearch.length > 0 && !hasExactMatch && (
                     <button
                         onClick={async () => {
                             setCreatingLabel(true)

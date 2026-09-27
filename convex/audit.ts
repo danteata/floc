@@ -1,6 +1,7 @@
 import { v } from "convex/values";
-import { internalMutation, mutation, query } from "./_generated/server";
-import { requireUser, resolveOrgId } from "./auth";
+import { Id } from "./_generated/dataModel";
+import { internalMutation, query, QueryCtx } from "./_generated/server";
+import { isSuperAdmin, requireOrgAdmin, resolveOrgId } from "./auth";
 import { requireFeature } from "./entitlements";
 
 // Log an audit event. Internal-only: writes must go through ctx.runMutation
@@ -43,35 +44,64 @@ export const logEvent = internalMutation({
     },
 });
 
+// The org whose audit trail the caller may read. Org admins (and super
+// admins) only: the audit trail records who changed what across the whole
+// church, so ordinary members and unit leaders must not see it. Returns null
+// only for a super admin with no org selected (they read across orgs).
+async function requireAuditReader(
+    ctx: QueryCtx,
+    organizationId?: Id<"organizations">,
+) {
+    const user = await requireOrgAdmin(ctx);
+    const orgId = await resolveOrgId(ctx, organizationId);
+    return { user, orgId };
+}
+
+// Newest-first audit rows for one org (or every org for a super admin with no
+// org selected).
+function orgLogsQuery(ctx: QueryCtx, orgId: Id<"organizations"> | null) {
+    return orgId
+        ? ctx.db
+              .query("audit_logs")
+              .withIndex("by_org", (q) => q.eq("organization_id", orgId))
+              .order("desc")
+        : ctx.db.query("audit_logs").order("desc");
+}
+
+/** "2026-09-30" -> "2026-10-01" (the day after a yyyy-mm-dd date). */
+function nextDay(date: string): string {
+    const d = new Date(`${date.slice(0, 10)}T00:00:00Z`);
+    if (Number.isNaN(d.getTime())) return date;
+    d.setUTCDate(d.getUTCDate() + 1);
+    return d.toISOString().slice(0, 10);
+}
+
 // Get audit logs with pagination and filtering
 export const getAuditLogs = query({
     args: {
         organization_id: v.optional(v.id("organizations")),
         action: v.optional(v.string()),
         entity_type: v.optional(v.string()),
+        // Exact clerk id of the person who made the change.
         performed_by: v.optional(v.string()),
+        // Part of the name of the person who made the change (any case).
+        performed_by_name: v.optional(v.string()),
         start_date: v.optional(v.string()),
+        // Inclusive: a yyyy-mm-dd date keeps the whole of that day.
         end_date: v.optional(v.string()),
         limit: v.optional(v.number()),
         offset: v.optional(v.number()),
     },
     handler: async (ctx, args) => {
-        // Scope to the caller's org. resolveOrgId throws for non-super-admins
-        // without an org, and ignores any client-supplied org except for
-        // super_admins (who may pass one, or omit it to read across orgs).
-        await requireUser(ctx);
-        const resolvedOrgId = await resolveOrgId(ctx, args.organization_id);
+        // Org admins only, scoped to the caller's org. resolveOrgId throws for
+        // non-super-admins without an org, and ignores any client-supplied org
+        // except for super_admins (who may pass one, or omit it to read across
+        // orgs).
+        const { orgId: resolvedOrgId } = await requireAuditReader(ctx, args.organization_id);
         // Full audit trail is a Pro feature (super_admins always pass).
         await requireFeature(ctx, "audit_trail", resolvedOrgId);
 
-        // Start with ordered query
-        let query = ctx.db.query("audit_logs").order("desc");
-
-        // Apply filters
-        if (resolvedOrgId) {
-            const orgId = resolvedOrgId;
-            query = query.filter((q) => q.eq(q.field("organization_id"), orgId));
-        }
+        let query = orgLogsQuery(ctx, resolvedOrgId);
 
         if (args.action) {
             const action = args.action;
@@ -94,15 +124,25 @@ export const getAuditLogs = query({
         }
 
         if (args.end_date) {
-            const endDate = args.end_date;
-            query = query.filter((q) => q.lte(q.field("timestamp"), endDate));
+            // Timestamps are full ISO strings, so "<= 2026-09-30" would drop
+            // everything after midnight on the 30th. Compare against the start
+            // of the next day instead.
+            const beforeDate = nextDay(args.end_date);
+            query = query.filter((q) => q.lt(q.field("timestamp"), beforeDate));
+        }
+
+        let allLogs = await query.collect();
+
+        const nameNeedle = args.performed_by_name?.trim().toLowerCase();
+        if (nameNeedle) {
+            allLogs = allLogs.filter((log) =>
+                (log.performed_by_name ?? "").toLowerCase().includes(nameNeedle),
+            );
         }
 
         // Apply pagination
         const limit = args.limit || 50;
         const offset = args.offset || 0;
-
-        const allLogs = await query.collect();
         const paginatedLogs = allLogs.slice(offset, offset + limit);
 
         return {
@@ -117,8 +157,16 @@ export const getAuditLogs = query({
 export const getAuditLogById = query({
     args: { id: v.id("audit_logs") },
     handler: async (ctx, args) => {
-        await requireUser(ctx);
-        return await ctx.db.get(args.id);
+        const { user, orgId } = await requireAuditReader(ctx);
+        const log = await ctx.db.get(args.id);
+        if (!log) return null;
+        if (isSuperAdmin(user) && !orgId) return log;
+        if (!log.organization_id) return null;
+        if (log.organization_id !== orgId) {
+            // Org admins may also read their descendant orgs' trails.
+            await resolveOrgId(ctx, log.organization_id);
+        }
+        return log;
     },
 });
 
@@ -130,18 +178,20 @@ export const getEntityAuditLogs = query({
         limit: v.optional(v.number()),
     },
     handler: async (ctx, args) => {
-        await requireUser(ctx);
+        const { orgId } = await requireAuditReader(ctx);
         const limit = args.limit || 20;
 
-        const logs = await ctx.db
+        let query = ctx.db
             .query("audit_logs")
             .withIndex("by_entity", (q) =>
                 q.eq("entity_type", args.entity_type).eq("entity_id", args.entity_id)
             )
-            .order("desc")
-            .take(limit);
+            .order("desc");
+        if (orgId) {
+            query = query.filter((q) => q.eq(q.field("organization_id"), orgId));
+        }
 
-        return logs;
+        return await query.take(limit);
     },
 });
 
@@ -152,52 +202,44 @@ export const getRecentAuditLogs = query({
         limit: v.optional(v.number()),
     },
     handler: async (ctx, args) => {
-        await requireUser(ctx);
-        const resolvedOrgId = await resolveOrgId(ctx, args.organization_id);
+        const { orgId } = await requireAuditReader(ctx, args.organization_id);
         const limit = args.limit || 10;
-
-        let query = ctx.db.query("audit_logs").order("desc");
-
-        if (resolvedOrgId) {
-            query = query.filter((q) => q.eq(q.field("organization_id"), resolvedOrgId));
-        }
-
-        const logs = await query.take(limit);
-        return logs;
+        return await orgLogsQuery(ctx, orgId).take(limit);
     },
 });
 
-// Get distinct action types for filtering
+// Get distinct action types for filtering (the caller's org only)
 export const getActionTypes = query({
-    args: {},
-    handler: async (ctx) => {
-        await requireUser(ctx);
-        const logs = await ctx.db.query("audit_logs").collect();
+    args: { organization_id: v.optional(v.id("organizations")) },
+    handler: async (ctx, args) => {
+        const { orgId } = await requireAuditReader(ctx, args.organization_id);
+        const logs = await orgLogsQuery(ctx, orgId).collect();
         const actionTypes = [...new Set(logs.map((log) => log.action))];
         return actionTypes.sort();
     },
 });
 
-// Get distinct entity types for filtering
+// Get distinct entity types for filtering (the caller's org only)
 export const getEntityTypes = query({
-    args: {},
-    handler: async (ctx) => {
-        await requireUser(ctx);
-        const logs = await ctx.db.query("audit_logs").collect();
+    args: { organization_id: v.optional(v.id("organizations")) },
+    handler: async (ctx, args) => {
+        const { orgId } = await requireAuditReader(ctx, args.organization_id);
+        const logs = await orgLogsQuery(ctx, orgId).collect();
         const entityTypes = [...new Set(logs.map((log) => log.entity_type))];
         return entityTypes.sort();
     },
 });
 
-// Delete old audit logs (for cleanup/maintenance)
-export const deleteOldAuditLogs = mutation({
+// Delete old audit logs (for cleanup/maintenance). Internal only: a public
+// mutation here let anyone, signed in or not, wipe every church's audit trail.
+export const deleteOldAuditLogs = internalMutation({
     args: {
         older_than: v.string(), // ISO timestamp
     },
     handler: async (ctx, args) => {
         const oldLogs = await ctx.db
             .query("audit_logs")
-            .filter((q) => q.lt(q.field("timestamp"), args.older_than))
+            .withIndex("by_timestamp", (q) => q.lt("timestamp", args.older_than))
             .collect();
 
         for (const log of oldLogs) {
