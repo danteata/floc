@@ -189,11 +189,16 @@ export function FinancialTransactionDialog({
 
         setIsLoading(true)
         try {
+            // Optional pickers hold "" when nothing is chosen; the server wants the field left out.
+            const optional = Object.fromEntries(
+                Object.entries(data).filter(([, value]) => value !== ''),
+            )
             const transactionPayload: any = {
-                ...data,
+                ...optional,
                 recorded_by: user.id,
                 recorded_by_name: user.fullName || user.primaryEmailAddress?.emailAddress || 'Unknown User',
-                date: data.date.toISOString().split('T')[0],
+                // The calendar day the user picked, not the UTC day (which differs east of Greenwich).
+                date: format(data.date, 'yyyy-MM-dd'),
                 organization_id: organization._id,
             }
 
