@@ -8,6 +8,7 @@ import { PageHeader } from "@/components/ui/page-header"
 import { useSubscription } from "@/providers/SubscriptionProvider"
 import { useUserRole } from "@/hooks/use-user-role"
 import { toast } from "sonner"
+import { FREE_MEMBER_LIMIT, PRO_PRICE_GHS } from "@/lib/plans"
 
 const PRO_FEATURES = [
     "Unlimited members & units",
@@ -180,7 +181,7 @@ export default function BillingPage() {
                             </p>
                             <ul className="mt-4 space-y-2 text-sm text-muted-foreground">
                                 <li className="flex gap-2">
-                                    <Check className="h-4 w-4 text-primary mt-0.5" /> Members & units
+                                    <Check className="h-4 w-4 text-primary mt-0.5" /> Up to {FREE_MEMBER_LIMIT} members
                                 </li>
                                 <li className="flex gap-2">
                                     <Check className="h-4 w-4 text-primary mt-0.5" /> Attendance tracking
@@ -208,7 +209,7 @@ export default function BillingPage() {
                         </CardHeader>
                         <CardContent>
                             <p className="text-2xl font-semibold">
-                                GH₵150<span className="text-sm font-normal text-muted-foreground">/mo</span>
+                                GH₵{PRO_PRICE_GHS}<span className="text-sm font-normal text-muted-foreground">/mo</span>
                             </p>
                             <ul className="mt-4 space-y-2 text-sm text-muted-foreground">
                                 {PRO_FEATURES.map((f) => (

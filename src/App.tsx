@@ -46,6 +46,7 @@ const PortalLink = lazy(() => import("@/pages/portal/PortalLink"));
 const PortalGiving = lazy(() => import("@/pages/portal/PortalGiving"));
 
 import { Church } from "lucide-react";
+import { PrivacyPage, TermsPage } from './pages/legal/Legal'
 
 function PageLoader() {
   return (
@@ -150,6 +151,8 @@ export default function App() {
       <Routes>
         {/* Public Routes */}
         <Route path="/" element={<HomePage />} />
+        <Route path="/privacy" element={<PrivacyPage />} />
+        <Route path="/terms" element={<TermsPage />} />
 
         {/* Auth Routes */}
         <Route path="/sign-in/*" element={<SignInPage />} />
