@@ -101,7 +101,7 @@ export function ShareAbsentLinkDialog({
           </Button>
         )}
       </DialogTrigger>
-      <DialogContent>
+      <DialogContent className="sm:max-w-lg">
         <DialogHeader>
           <DialogTitle>Share the absent list</DialogTitle>
           <DialogDescription>

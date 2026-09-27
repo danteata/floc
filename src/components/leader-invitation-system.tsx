@@ -699,7 +699,7 @@ export function LeaderInvitationSystem() {
         open={isInviteLinkDialogOpen}
         onOpenChange={setIsInviteLinkDialogOpen}
       >
-        <DialogContent>
+        <DialogContent className="sm:max-w-lg">
           <DialogHeader>
             <DialogTitle>Invite link ready</DialogTitle>
             <DialogDescription>

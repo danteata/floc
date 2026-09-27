@@ -38,7 +38,7 @@ export function AttendeesDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent>
+      <DialogContent className="sm:max-w-lg">
         <DialogHeader>
           <DialogTitle>Who was there{loading ? "" : ` (${attendees.length})`}</DialogTitle>
           <DialogDescription>

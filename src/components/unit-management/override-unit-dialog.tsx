@@ -73,7 +73,7 @@ export function OverrideUnitDialog({
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogContent>
+      <DialogContent className="sm:max-w-lg">
         <DialogHeader>
           <DialogTitle>Change this unit</DialogTitle>
           <DialogDescription>
