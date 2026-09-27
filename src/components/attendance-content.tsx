@@ -1,7 +1,8 @@
 'use client'
 
 import { useState } from "react"
-import { Download, Calendar, Users, History, UserMinus, PlusCircle, RefreshCw, TrendingUp, Target, Activity, BarChart3, ChevronDown, QrCode, Lock, Filter } from "lucide-react"
+import { Download, Calendar, Users, History, UserMinus, PlusCircle, TrendingUp, Target, Activity, BarChart3, ChevronDown, QrCode, Lock, Filter, Pencil } from "lucide-react"
+import { format } from "date-fns"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader } from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
@@ -16,7 +17,9 @@ import { titleCase, formatDay } from "@/lib/display"
 import { EmptyState } from "@/components/ui/empty-state"
 import { Skeleton } from "@/components/ui/skeleton"
 import { StatCard, StatGrid } from "@/components/ui/stat-card"
-import { useQuery, useMutation } from "convex/react"
+import { useQuery } from "convex/react"
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
+import type { ServiceMetadataSummary } from "@/types/database"
 import { api } from "../../convex/_generated/api"
 import type { Id } from "../../convex/_generated/dataModel"
 import { useAnalytics } from "@/hooks/useAnalytics"
@@ -49,24 +52,23 @@ export function AttendanceContent() {
   const unitId = unitFilter === "all" ? undefined : (unitFilter as Id<"units">)
   const unitName = ministries.find((u) => String(u.id) === unitFilter)?.name
 
-  const stats = useQuery(api.attendance.getStats, unitId ? { unit_id: unitId } : {});
+  // The viewer's own calendar day, so "this week" is their Sunday to today.
+  const today = format(new Date(), "yyyy-MM-dd")
+  const stats = useQuery(api.attendance.getStats, { today, ...(unitId ? { unit_id: unitId } : {}) });
   const attendanceRecords = useQuery(api.attendance.listWithDetails, unitId ? { unit_id: unitId } : {});
   const eventTypes = useQuery(api.event_types.getAll, {});
+  const summaries = useQuery(api.financial.listMetadataSummaries, {});
   const loading = stats === undefined || filtersLoading || membersLoading;
-  const [isRefreshing, setIsRefreshing] = useState(false)
 
   // Service metadata dialog state
   const [showMetadataDialog, setShowMetadataDialog] = useState(false)
-  const [editingMetadata, setEditingMetadata] = useState<any>(null)
+  const [editingMetadata, setEditingMetadata] = useState<ServiceMetadataSummary | null>(null)
 
-  // Mutations
-  const recordMetadata = useMutation(api.attendance.recordFullAttendance); // Placeholder if we merge
-
-  const refreshStats = async () => {
-    setIsRefreshing(true)
-    // Convex automatically refreshes, but we can simulate a delay or trigger a background task if needed
-    setTimeout(() => setIsRefreshing(false), 500);
-  }
+  // A summary's service as people read it: its own name, else the event
+  // type's label, else the stored type.
+  const serviceLabel = (summary: { service_name?: string; service_type: string }) =>
+    summary.service_name ||
+    titleCase(eventTypes?.find((t) => t.value === summary.service_type)?.label ?? summary.service_type)
 
   const handleExportAttendance = async (attendanceId: string) => {
     try {
@@ -119,16 +121,6 @@ export function AttendanceContent() {
         actions={
           <>
             <ScopeBadge scope={stats?.scope} />
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={refreshStats}
-              disabled={isRefreshing}
-              className="h-8"
-            >
-              <RefreshCw className={`mr-2 h-3.5 w-3.5 ${isRefreshing ? 'animate-spin' : ''}`} />
-              {isRefreshing ? 'Refreshing…' : 'Refresh'}
-            </Button>
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button variant="outline" size="sm" className="h-8">
@@ -212,19 +204,60 @@ export function AttendanceContent() {
             value={stats?.totalActiveMembers || 0}
             icon={Users}
           />
-          <StatCard label="This week" value={stats?.thisWeekTotal || 0} icon={Calendar} />
+          {/* "This week" is Sunday to today, every service in it (see
+              convex/lib/weeks.ts); the same week the dashboard and Reports use. */}
+          <StatCard
+            label="This week"
+            value={stats?.thisWeekTotal || 0}
+            icon={Calendar}
+            hint={stats?.weekStart ? `Every service since Sunday ${formatDay(stats.weekStart)}` : undefined}
+          />
           {/* With nothing recorded yet this week the change is always -100%,
-              which reads as a collapse rather than "not taken yet". */}
+              which reads as a collapse rather than "not taken yet"; with
+              nothing last week there is nothing to compare against. */}
           <StatCard
             label="Change on last week"
-            value={(stats?.thisWeekTotal || 0) === 0 ? "No data yet" : `${(stats?.weeklyGrowthRate || 0) > 0 ? "+" : ""}${(stats?.weeklyGrowthRate || 0).toFixed(1)}%`}
+            value={
+              (stats?.thisWeekTotal || 0) === 0 || stats?.weeklyGrowthRate == null
+                ? "No data yet"
+                : `${stats.weeklyGrowthRate > 0 ? "+" : ""}${stats.weeklyGrowthRate.toFixed(1)}%`
+            }
             icon={TrendingUp}
-            hint={(stats?.thisWeekTotal || 0) === 0 ? "No attendance recorded this week yet" : "Week on week"}
-            hintTone={(stats?.thisWeekTotal || 0) === 0 ? "neutral" : (stats?.weeklyGrowthRate || 0) >= 0 ? "positive" : "negative"}
+            hint={
+              (stats?.thisWeekTotal || 0) === 0
+                ? "No attendance recorded this week yet"
+                : stats?.weeklyGrowthRate == null
+                  ? "Nothing recorded last week to compare"
+                  : "Against last week up to the same day"
+            }
+            hintTone={
+              (stats?.thisWeekTotal || 0) === 0 || stats?.weeklyGrowthRate == null
+                ? "neutral"
+                : stats.weeklyGrowthRate >= 0 ? "positive" : "negative"
+            }
           />
-          <StatCard label="Attendance rate" value={`${(stats?.attendanceRate || 0).toFixed(1)}%`} icon={Target} />
-          <StatCard label="Active days" value={stats?.recentActivityDays || 0} icon={Activity} />
-          <StatCard label="Services recorded" value={stats?.totalRecords || 0} icon={BarChart3} />
+          <StatCard
+            label="Attendance rate"
+            value={`${(stats?.attendanceRate || 0).toFixed(1)}%`}
+            icon={Target}
+            hint={`${stats?.membersPresentThisWeek || 0} of ${stats?.totalActiveMembers || 0} active members at a service this week`}
+          />
+          <StatCard
+            label="Active days"
+            value={stats?.recentActivityDays || 0}
+            icon={Activity}
+            hint="Days with a service in the last 30"
+          />
+          <StatCard
+            label="Services recorded"
+            value={stats?.totalRecords || 0}
+            icon={BarChart3}
+            hint={
+              unitName || stats?.scope?.isScoped
+                ? `Services where ${unitName ?? "your members"} were marked present`
+                : "Every service on record"
+            }
+          />
         </StatGrid>
       )}
 
@@ -336,15 +369,73 @@ export function AttendanceContent() {
               </Button>
             </div>
 
-            <Card>
-              <CardContent>
-                <EmptyState
-                  icon={BarChart3}
-                  title="No service summaries yet"
-                  description="Add one after a service to keep its details alongside the attendance."
-                />
-              </CardContent>
-            </Card>
+            {summaries === undefined ? (
+              <Card>
+                <CardContent className="space-y-3">
+                  {[...Array(3)].map((_, i) => (
+                    <Skeleton key={i} className="h-10 w-full" />
+                  ))}
+                </CardContent>
+              </Card>
+            ) : summaries.length === 0 ? (
+              <Card>
+                <CardContent>
+                  <EmptyState
+                    icon={BarChart3}
+                    title="No service summaries yet"
+                    description="Add one after a service to keep its details alongside the attendance."
+                  />
+                </CardContent>
+              </Card>
+            ) : (
+              <div className="rounded-xl border border-border overflow-x-auto bg-card">
+                <Table>
+                  <TableHeader className="bg-muted/50">
+                    <TableRow className="hover:bg-transparent border-border">
+                      <TableHead className="text-xs text-muted-foreground pl-6 py-3">Date</TableHead>
+                      <TableHead className="text-xs text-muted-foreground py-3">Service</TableHead>
+                      <TableHead className="text-xs text-muted-foreground py-3">Message</TableHead>
+                      <TableHead className="text-xs text-muted-foreground py-3 text-right">Attendance</TableHead>
+                      <TableHead className="text-xs text-muted-foreground py-3 text-right">First-timers</TableHead>
+                      <TableHead className="py-3 pr-6"><span className="sr-only">Edit</span></TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {summaries.map((summary) => (
+                      <TableRow key={summary._id} className="border-border last:border-0">
+                        <TableCell className="pl-6 py-3 whitespace-nowrap font-medium text-foreground">
+                          {formatDay(summary.service_date)}
+                        </TableCell>
+                        <TableCell className="py-3 text-foreground">{serviceLabel(summary)}</TableCell>
+                        <TableCell className="py-3">
+                          <div className="text-sm text-foreground">{summary.message_title || "No title"}</div>
+                          {summary.preacher_name && (
+                            <div className="text-xs text-muted-foreground">{summary.preacher_name}</div>
+                          )}
+                        </TableCell>
+                        <TableCell className="py-3 text-right tabular-nums">{summary.attendance_total}</TableCell>
+                        <TableCell className="py-3 text-right tabular-nums">{summary.first_timers}</TableCell>
+                        <TableCell className="py-3 pr-6 text-right">
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-9 w-9"
+                            aria-label="Edit summary"
+                            title="Edit summary"
+                            onClick={() => {
+                              setEditingMetadata(summary as unknown as ServiceMetadataSummary)
+                              setShowMetadataDialog(true)
+                            }}
+                          >
+                            <Pencil className="h-4 w-4" />
+                          </Button>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+            )}
           </TabsContent>
         </div>
       </Tabs>
@@ -356,11 +447,6 @@ export function AttendanceContent() {
           if (!open) setEditingMetadata(null)
         }}
         summary={editingMetadata}
-        onSave={async (_summaryData: unknown) => {
-          setShowMetadataDialog(false);
-        }}
-        events={[]}
-        members={members.map(m => ({ id: m.id, name: m.name, units: m.unit_names || [] }))}
       />
     </div>
   )

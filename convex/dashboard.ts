@@ -9,6 +9,9 @@ import {
     resolveCountingScope,
 } from "./scope";
 import { getUnitIdsAdministeredBy } from "./unit_admins";
+import { eventTypeIdsForValue } from "./event_types";
+import { tenureStart } from "./lib/tenure";
+import { dayLabel, percentChange, recentWeekStarts, resolveToday, weekStart } from "./lib/weeks";
 
 export const getDashboardData = query({
     args: {
@@ -16,6 +19,9 @@ export const getDashboardData = query({
         // "everything I oversee" — which for an org admin is the whole church
         // and for a unit admin is already their own slice.
         unit_id: v.optional(v.id("units")),
+        // The viewer's local day ("yyyy-MM-dd"), so "upcoming" and "last
+        // Sunday" follow their calendar rather than the server's UTC one.
+        today: v.optional(v.string()),
     },
     handler: async (ctx, args) => {
         const user = await getUserSafe(ctx);
@@ -34,7 +40,9 @@ export const getDashboardData = query({
                     newMembersThisMonthCount: 0,
                     weeklyAttendance: 0,
                     orgWeeklyAttendance: 0,
-                    attendanceChange: 0,
+                    lastServiceDate: null as string | null,
+                    previousServiceCount: null as number | null,
+                    attendanceChange: null as number | null,
                     activeUnitsCount: 0,
                     unitsScope: 'organization' as const,
                     upcomingEventsCount: 0,
@@ -52,7 +60,7 @@ export const getDashboardData = query({
         const orgId = isSuperAdmin(user) ? null : userOrg;
 
         const now = new Date();
-        const todayStr = now.toISOString().split('T')[0];
+        const todayStr = resolveToday(args.today, now);
 
         // 1. Members
         const allMembers = (orgId
@@ -65,29 +73,42 @@ export const getDashboardData = query({
             ? activeMembers.filter((m) => countedIds.has(m._id))
             : activeMembers;
 
-        const firstDayOfMonth = new Date(now.getFullYear(), now.getMonth(), 1).getTime();
-        const newMembersThisMonthCount = scopedMembers.filter((m: any) => m._creationTime >= firstDayOfMonth).length;
+        // New this month by when they joined (joined_date, else created_at,
+        // else when the record was made), the same rule Insights uses, so a
+        // bulk import of long-standing members doesn't make them all "new".
+        const thisMonth = todayStr.slice(0, 7);
+        const newMembersThisMonthCount = scopedMembers.filter(
+            (m) => tenureStart(m)?.slice(0, 7) === thisMonth,
+        ).length;
 
-        // 2. Attendance. `orgWeeklyAttendance` is the same service counted
-        //    church-wide, so a scoped headline can still be read against the
-        //    whole without a second trip or a mode switch.
-        const sundayType = await ctx.db.query("event_types").withIndex("by_value", q => q.eq("value", "sunday-service")).unique();
+        // 2. Attendance: the most recent Sunday service on record (on or
+        //    before today) against the one before it. The card says so and
+        //    shows its date, since the latest service may not be this week's.
+        //    `orgWeeklyAttendance` is the same service counted church-wide,
+        //    so a scoped headline can still be read against the whole.
+        //    The church's Sunday service may be filed under the shared type
+        //    or its own copy; both count, and another church's copy never does.
+        const sundayIds = Array.from(await eventTypeIdsForValue(ctx, orgId, "sunday-service"));
         let weeklyAttendance = 0;
         let orgWeeklyAttendance = 0;
-        let attendanceChange = 0;
+        let lastServiceDate: string | null = null;
+        let previousServiceCount: number | null = null;
 
-        if (sundayType) {
-            let attendanceQuery = ctx.db
-                .query("attendance")
-                .withIndex("by_date")
-                .filter(q => q.eq(q.field("event_type_id"), sundayType._id));
-            if (orgId) {
-                attendanceQuery = attendanceQuery.filter(q => q.eq(q.field("organization_id"), orgId));
-            }
-            const attendanceRecords = await attendanceQuery.order("desc").take(2);
+        if (sundayIds.length > 0) {
+            const attendanceRecords = await (orgId
+                ? ctx.db
+                    .query("attendance")
+                    .withIndex("by_org_and_date", q => q.eq("organization_id", orgId).lte("date", todayStr))
+                : ctx.db
+                    .query("attendance")
+                    .withIndex("by_date", q => q.lte("date", todayStr)))
+                .filter(q => q.or(...sundayIds.map(id => q.eq(q.field("event_type_id"), id))))
+                .order("desc")
+                .take(2);
 
             if (attendanceRecords.length > 0) {
                 orgWeeklyAttendance = attendanceRecords[0].count;
+                lastServiceDate = attendanceRecords[0].date;
 
                 const countForRecord = async (aid: Id<"attendance">, orgCount: number) => {
                     if (!countedIds) return orgCount;
@@ -99,22 +120,28 @@ export const getDashboardData = query({
 
                 weeklyAttendance = await countForRecord(attendanceRecords[0]._id, attendanceRecords[0].count);
                 if (attendanceRecords.length > 1) {
-                    const prevCount = await countForRecord(attendanceRecords[1]._id, attendanceRecords[1].count);
-                    if (prevCount > 0) {
-                        attendanceChange = ((weeklyAttendance - prevCount) / prevCount) * 100;
-                    }
+                    previousServiceCount = await countForRecord(attendanceRecords[1]._id, attendanceRecords[1].count);
                 }
             }
         }
+        // Null when there's no earlier service (or nobody in scope at it), so
+        // the card can say so instead of showing a green "+0%".
+        const attendanceChange = percentChange(weeklyAttendance, previousServiceCount);
 
-        // 3. Events
-        let eventsQuery = ctx.db
-            .query("events")
-            .withIndex("by_date", q => q.gte("date", todayStr));
-        if (orgId) {
-            eventsQuery = eventsQuery.filter(q => q.eq(q.field("organization_id"), orgId));
-        }
-        const upcomingEventsRecords = await eventsQuery.order("asc").take(10);
+        // 3. Events. Every upcoming active event is collected and filtered
+        //    first, so the counts are true totals; only the list is trimmed.
+        const upcomingEventsRecords = (orgId
+            ? await ctx.db
+                .query("events")
+                .withIndex("by_org", q => q.eq("organization_id", orgId))
+                .filter(q => q.gte(q.field("date"), todayStr))
+                .collect()
+            : await ctx.db
+                .query("events")
+                .withIndex("by_date", q => q.gte("date", todayStr))
+                .collect())
+            .filter(e => e.active !== false)
+            .sort((a, b) => a.date.localeCompare(b.date) || (a.time ?? "").localeCompare(b.time ?? ""));
 
         const allUpcomingEvents = await Promise.all(upcomingEventsRecords.map(async (e) => {
             const type = e.event_type_id ? await ctx.db.get(e.event_type_id) : null;
@@ -130,11 +157,12 @@ export const getDashboardData = query({
         // Events carry no unit of their own; their event type does. Under a
         // unit filter, keep the ones that actually apply to that unit — an
         // event type restricted to other units is not this unit's diary.
-        const upcomingEvents = args.unit_id
+        const unitUpcomingEvents = args.unit_id
             ? allUpcomingEvents.filter(e =>
                 e.event_type_unit_ids.length === 0 ||
                 e.event_type_unit_ids.some(id => id === args.unit_id))
             : allUpcomingEvents;
+        const upcomingEvents = unitUpcomingEvents.slice(0, 10);
 
         // 4. Active Units
         let unitsQuery = ctx.db.query("units").filter(q => q.eq(q.field("active"), true));
@@ -196,10 +224,12 @@ export const getDashboardData = query({
                 newMembersThisMonthCount,
                 weeklyAttendance,
                 orgWeeklyAttendance,
-                attendanceChange: Math.round(attendanceChange * 10) / 10,
+                lastServiceDate,
+                previousServiceCount,
+                attendanceChange,
                 activeUnitsCount: unitsCount,
                 unitsScope,
-                upcomingEventsCount: upcomingEvents.length,
+                upcomingEventsCount: unitUpcomingEvents.length,
                 orgUpcomingEventsCount: allUpcomingEvents.length,
                 nextEventName: upcomingEvents.length > 0 ? upcomingEvents[0].title : 'No upcoming events',
             },
@@ -226,6 +256,8 @@ export const getAttendanceTrends = query({
         // Same unit filter as getDashboardData, so the chart under the cards
         // is plotting the slice the cards are counting.
         unit_id: v.optional(v.id("units")),
+        // The viewer's local day ("yyyy-MM-dd"); see getDashboardData.
+        today: v.optional(v.string()),
     },
     handler: async (ctx, args) => {
         const user = await getUserSafe(ctx);
@@ -234,52 +266,42 @@ export const getAttendanceTrends = query({
             return []; // User has no organization yet
         }
 
-        const weeks = args.weeks ?? 12;
-        const { countedIds } = await resolveCountingScope(ctx, args.unit_id);
+        const weeks = Math.min(Math.max(Math.round(args.weeks ?? 12), 1), 52);
+        const { presenceCounts } = await resolveCountingScope(ctx, args.unit_id);
         const orgId = isSuperAdmin(user) ? null : normalizeOrgId(ctx, user.organization_id);
 
-        const endDate = new Date();
-        const startDate = new Date();
-        startDate.setDate(endDate.getDate() - (weeks * 7));
-        const startDateStr = startDate.toISOString().split('T')[0];
+        // Whole Sunday-to-Saturday weeks (lib/weeks.ts), the last one being
+        // the current week with today in it. Every week is returned, zero
+        // when nothing was recorded, so a quiet week shows as a gap in the
+        // bars rather than vanishing from the axis.
+        const today = resolveToday(args.today);
+        const weekStarts = recentWeekStarts(today, weeks);
+        const startDateStr = weekStarts[0];
 
-        let attendanceRecordsQuery = ctx.db
-            .query("attendance")
-            .withIndex("by_date", q => q.gte("date", startDateStr));
-        if (orgId) {
-            attendanceRecordsQuery = attendanceRecordsQuery.filter(q => q.eq(q.field("organization_id"), orgId));
-        }
-        const attendanceRecords = await attendanceRecordsQuery.collect();
+        const attendanceRecords = orgId
+            ? await ctx.db
+                .query("attendance")
+                .withIndex("by_org_and_date", q => q.eq("organization_id", orgId).gte("date", startDateStr).lte("date", today))
+                .collect()
+            : await ctx.db
+                .query("attendance")
+                .withIndex("by_date", q => q.gte("date", startDateStr).lte("date", today))
+                .collect();
 
-        // Group by week
-        const weeklyData: { [key: string]: number } = {};
-
+        // Every service counts: this is attendance across the whole week, not
+        // only Sunday's.
+        const weeklyData = new Map<string, number>(weekStarts.map((w) => [w, 0]));
         for (const record of attendanceRecords) {
-            const d = new Date(record.date);
-            const day = d.getDay();
-            const diff = d.getDate() - day + (day === 0 ? 0 : 0); // Start of week (Sunday)
-            const weekStart = new Date(d.setDate(diff));
-            const weekKey = weekStart.toISOString().split('T')[0];
-
-            let count = record.count;
-            if (countedIds) {
-                const relations = await ctx.db.query("member_attendance")
-                    .withIndex("by_attendance", q => q.eq("attendance_id", record._id))
-                    .collect();
-                count = relations.filter((r) => countedIds.has(r.member_id)).length;
-            }
-
-            weeklyData[weekKey] = (weeklyData[weekKey] || 0) + count;
+            const key = weekStart(record.date);
+            if (!weeklyData.has(key)) continue;
+            const count = presenceCounts ? (presenceCounts.get(record._id) ?? 0) : record.count;
+            weeklyData.set(key, (weeklyData.get(key) ?? 0) + count);
         }
 
-        return Object.entries(weeklyData)
-            .sort(([a], [b]) => a.localeCompare(b))
-            .map(([date, total]) => {
-                const d = new Date(date);
-                return {
-                    name: d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
-                    total
-                };
-            });
+        return weekStarts.map((date) => ({
+            name: dayLabel(date),
+            date,
+            total: weeklyData.get(date) ?? 0,
+        }));
     }
 });

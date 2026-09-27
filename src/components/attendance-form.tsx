@@ -106,14 +106,21 @@ export function AttendanceForm({
     }
   }, [eventTypes, eventTypesLoading, attendanceType]);
 
-  // Sync selected members with existing attendance
-  useEffect(() => {
-    if (existingMembers) {
-      setSelectedMembers(existingMembers.map((m: any) => m._id));
-    } else if (existingAttendance === null) {
-      setSelectedMembers([]);
-    }
-  }, [existingMembers, existingAttendance]);
+  // Load the ticks and notes of the service being edited, once per service.
+  // Keyed by which record this is (date, type, id), not by every reactive
+  // update of it: a QR check-in arriving while you tick names must not wipe
+  // the ticks you haven't saved yet. Done during render, React's pattern for
+  // resetting state when an input changes.
+  const dateKey = date ? format(date, "yyyy-MM-dd") : ""
+  const recordKey = `${dateKey}|${eventTypeId ?? ""}|${existingAttendance?._id ?? "new"}`
+  const recordReady =
+    existingAttendance === null || (existingAttendance !== undefined && existingMembers !== undefined)
+  const [loadedRecordKey, setLoadedRecordKey] = useState<string | null>(null)
+  if (recordReady && loadedRecordKey !== recordKey) {
+    setLoadedRecordKey(recordKey)
+    setSelectedMembers(existingAttendance ? (existingMembers ?? []).map((m: any) => m._id) : [])
+    setNotes(existingAttendance?.notes ?? "")
+  }
 
   // Reset selected event when date or type changes
   useEffect(() => {

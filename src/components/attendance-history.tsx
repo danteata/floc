@@ -134,8 +134,11 @@ export function AttendanceHistory({ unitId, unitName }: AttendanceHistoryProps) 
       <CardHeader className="p-4 pb-2 md:p-6 md:pb-2">
         <CardTitle className="text-lg font-semibold text-foreground">Attendance history</CardTitle>
         <CardDescription className="text-sm text-muted-foreground">
-          Every service you have recorded
-          {unitName && ` for ${unitName}`}.
+          {unitName
+            ? `Every service at which at least one ${unitName} member was marked present.`
+            : hasScopedCounts
+              ? "Every service at which at least one of your members was marked present."
+              : "Every service you have recorded."}
           {hasScopedCounts && " Headcounts show your members, then the whole church."}
         </CardDescription>
       </CardHeader>
@@ -290,6 +293,7 @@ export function AttendanceHistory({ unitId, unitName }: AttendanceHistoryProps) 
         open={viewDialogOpen}
         onOpenChange={setViewDialogOpen}
         record={viewingRecord}
+        unitId={unitId}
       />
     </Card>
   )

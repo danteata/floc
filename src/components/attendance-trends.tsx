@@ -31,6 +31,8 @@ import { ScopeBadge } from "@/components/scope-badge"
 import { scopeSubtitle } from "@/lib/report-scope"
 import { Info, Calendar, BarChart3, PieChartIcon, Filter } from "lucide-react"
 import { titleCase } from "@/lib/display"
+import { format } from "date-fns"
+import { weekOnWeekChanges } from "../../convex/lib/weeks"
 
 // Crimson-family palette (from the theme's --chart tokens) for multi-series
 // charts. Use an explicit per-event-type color only when it's a valid hex;
@@ -65,8 +67,12 @@ export function AttendanceTrends() {
 
   // The unit filter is applied server-side: every series is re-summed over that
   // unit's members, so the charts describe the unit rather than the whole org.
+  // The viewer's own day, so the last week plotted is their current week,
+  // today's service included.
+  const today = format(new Date(), "yyyy-MM-dd")
   const trendsData = useQuery(api.attendance.getTrends, {
     organization_id: context?.organization?._id as Id<"organizations">,
+    today,
     ...(unitFilter === "all" ? {} : { unit_id: unitFilter as Id<"units"> }),
   })
 
@@ -104,9 +110,16 @@ export function AttendanceTrends() {
   }
 
   const { weeklyData, monthlyData, eventComparisonData, activeEventTypes } = trendsData
-  const hasWeeklyData = Array.isArray(weeklyData) && weeklyData.length > 0
-  const hasMonthlyData = Array.isArray(monthlyData) && monthlyData.length > 0
-  const hasComparisonData = Array.isArray(eventComparisonData) && eventComparisonData.length > 0
+  // Every week and month is returned, so "has data" means something was
+  // actually counted, not that the array is non-empty.
+  const hasWeeklyData = weeklyData.some((w) => w.count > 0)
+  const hasMonthlyData = monthlyData.some((m) => m.services > 0)
+  const hasComparisonData = eventComparisonData.some((month) =>
+    activeEventTypes.some((et) => Number(month[et.value] || 0) > 0),
+  )
+  // Week-on-week change, skipping any week with no Sunday service recorded
+  // (and the week after it), so a gap never plots as 0% or -100%.
+  const weeklyGrowth = weekOnWeekChanges(weeklyData)
 
   return (
     <div className="space-y-6">
@@ -139,7 +152,7 @@ export function AttendanceTrends() {
                 <Calendar className="mt-1 h-4 w-4 shrink-0 text-muted-foreground" />
                 <div>
                   <CardTitle className="text-base font-semibold">Weekly attendance</CardTitle>
-                  <CardDescription className="text-sm">The last 11 weeks</CardDescription>
+                  <CardDescription className="text-sm">Sunday service attendance, week by week, for the last 11 weeks</CardDescription>
                 </div>
               </div>
             </CardHeader>
@@ -184,7 +197,7 @@ export function AttendanceTrends() {
                 </div>
               ) : (
                 <div className="h-[300px] flex items-center justify-center text-sm text-muted-foreground bg-muted/30 rounded-lg border border-dashed border-border">
-                  No attendance recorded in the last 11 weeks
+                  No Sunday service attendance in the last 11 weeks
                 </div>
               )}
             </CardContent>
@@ -194,19 +207,13 @@ export function AttendanceTrends() {
             <Card>
               <CardHeader className="pb-2">
                 <CardTitle className="text-base font-semibold">Change from the week before</CardTitle>
-                <CardDescription className="text-sm">Percentage up or down on the previous week</CardDescription>
+                <CardDescription className="text-sm">Sunday service attendance up or down on the week before. Weeks with no service recorded are left out.</CardDescription>
               </CardHeader>
               <CardContent className="pb-4">
-                {hasWeeklyData ? (
+                {weeklyGrowth.length > 0 ? (
                   <div className="h-[300px]">
                     <ResponsiveContainer width="100%" height="100%">
-                      <BarChart
-                        data={weeklyData.slice(1).map((week, index) => ({
-                          name: week.name,
-                          growth: weeklyData[index].count > 0 ?
-                            parseFloat((((week.count - weeklyData[index].count) / weeklyData[index].count) * 100).toFixed(1)) : 0
-                        }))}
-                      >
+                      <BarChart data={weeklyGrowth}>
                         <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--border)" />
                         <XAxis
                           dataKey="name"
@@ -224,7 +231,7 @@ export function AttendanceTrends() {
                           cursor={{ fill: 'var(--muted)' }}
                           contentStyle={TOOLTIP_STYLE}
                           separator=""
-                          formatter={(value) => [`${value}% growth`, ""]}
+                          formatter={(value) => [`${Number(value) > 0 ? "+" : ""}${value}%`, ""]}
                         />
                         <Bar
                           dataKey="growth"
@@ -238,7 +245,7 @@ export function AttendanceTrends() {
                   </div>
                 ) : (
                   <div className="h-[300px] flex items-center justify-center text-sm text-muted-foreground bg-muted/30 rounded-lg border border-dashed border-border">
-                    Record two weeks of attendance to see the change
+                    Record Sunday services in two weeks running to see the change
                   </div>
                 )}
               </CardContent>
@@ -252,8 +259,8 @@ export function AttendanceTrends() {
               <div className="flex items-start gap-2">
                 <BarChart3 className="mt-1 h-4 w-4 shrink-0 text-muted-foreground" />
                 <div>
-                  <CardTitle className="text-base font-semibold">Monthly attendance</CardTitle>
-                  <CardDescription className="text-sm">Attendance over the last 12 months</CardDescription>
+                  <CardTitle className="text-base font-semibold">Average Sunday attendance</CardTitle>
+                  <CardDescription className="text-sm">The average headcount per Sunday service, month by month, over the last 12 months</CardDescription>
                 </div>
               </div>
             </CardHeader>
@@ -287,7 +294,7 @@ export function AttendanceTrends() {
                       <Area
                         type="monotone"
                         dataKey="count"
-                        name="Attendance"
+                        name="Average per service"
                         stroke="var(--primary)"
                         strokeWidth={2}
                         fillOpacity={1}
@@ -298,7 +305,7 @@ export function AttendanceTrends() {
                 </div>
               ) : (
                 <div className="h-[300px] flex items-center justify-center text-sm text-muted-foreground bg-muted/30 rounded-lg border border-dashed border-border">
-                  No attendance recorded in the last 12 months
+                  No Sunday service recorded in the last 12 months
                 </div>
               )}
             </CardContent>
@@ -346,7 +353,7 @@ export function AttendanceTrends() {
                       {activeEventTypes.map((eventType, index) => (
                         <Bar
                           key={eventType.id}
-                          dataKey={eventType.label}
+                          dataKey={eventType.value}
                           name={titleCase(eventType.label)}
                           fill={seriesColor(eventType.color, index)}
                           radius={[6, 6, 0, 0]}
@@ -381,7 +388,7 @@ export function AttendanceTrends() {
                         <Pie
                           data={activeEventTypes.map((et) => ({
                             name: titleCase(et.label),
-                            value: eventComparisonData[eventComparisonData.length - 1][et.label] || 0
+                            value: Number(eventComparisonData[eventComparisonData.length - 1][et.value] || 0)
                           }))}
                           cx="50%"
                           cy="50%"

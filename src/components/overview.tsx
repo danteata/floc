@@ -12,11 +12,14 @@ interface OverviewProps {
   className?: string
   /** Page-level unit filter, so the chart matches the cards above it. */
   unitId?: Id<"units">
+  /** The viewer's local day ("yyyy-MM-dd"), so the last bar is their current week. */
+  today?: string
 }
 
-export function Overview({ className, unitId }: OverviewProps) {
+export function Overview({ className, unitId, today }: OverviewProps) {
   const data = useQuery(api.dashboard.getAttendanceTrends, {
     weeks: 12,
+    ...(today ? { today } : {}),
     ...(unitId ? { unit_id: unitId } : {}),
   });
 
@@ -30,7 +33,9 @@ export function Overview({ className, unitId }: OverviewProps) {
     )
   }
 
-  if (data.length === 0) {
+  // Every week is returned (zero when nothing was recorded), so "empty" means
+  // no attendance in any of them.
+  if (!data.some((week) => week.total > 0)) {
     return (
       <EmptyState
         icon={BarChart3}

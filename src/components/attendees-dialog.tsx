@@ -17,18 +17,23 @@ interface AttendeesDialogProps {
   open: boolean
   onOpenChange: (open: boolean) => void
   record: any | null
+  /** The page's unit filter, so the list matches the headcount it was opened from. */
+  unitId?: Id<"units">
 }
 
 export function AttendeesDialog({
   open,
   onOpenChange,
   record,
+  unitId,
 }: AttendeesDialogProps) {
   const attendanceId = record?.attendance_id || record?._id || record?.id;
 
   const rawAttendees = useQuery(
     api.attendance.getAttendeesWithDetails,
-    open && attendanceId ? { attendanceId: attendanceId as Id<"attendance"> } : "skip"
+    open && attendanceId
+      ? { attendanceId: attendanceId as Id<"attendance">, ...(unitId ? { unit_id: unitId } : {}) }
+      : "skip"
   );
 
   const loading = open && rawAttendees === undefined;
