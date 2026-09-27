@@ -245,6 +245,17 @@ export const create = mutation({
             }
         }
 
+        // One open follow-up per member per assignee: assigning the same
+        // person again returns the task that is already open.
+        const existingTasks = await ctx.db
+            .query("care_tasks")
+            .withIndex("by_member", (q) => q.eq("member_id", args.member_id))
+            .collect();
+        const openTask = existingTasks.find(
+            (t) => t.assigned_to === args.assigned_to && t.status !== "resolved",
+        );
+        if (openTask) return { taskId: openTask._id, created: false };
+
         const now = new Date().toISOString();
         const taskId = await ctx.db.insert("care_tasks", {
             organization_id: member.organization_id,
@@ -276,7 +287,7 @@ export const create = mutation({
             body: `You've been asked to follow up with ${member.name}.${args.note ? ` "${args.note}"` : ""}`,
         });
 
-        return taskId;
+        return { taskId, created: true };
     },
 });
 

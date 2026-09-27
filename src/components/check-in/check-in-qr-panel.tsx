@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useMemo } from "react"
+import { format } from "date-fns"
 import { Link } from "react-router-dom"
 import { QrCode, RefreshCw, Lock, Unlock, Loader2, Users, Clock, Monitor } from "lucide-react"
 import { useQuery, useMutation } from "convex/react"
@@ -44,7 +45,7 @@ type SessionState = {
 
 export function CheckInQrPanel({ eventTypes }: { eventTypes: { _id: string; label: string; value: string }[] }) {
     const [selectedEventTypeId, setSelectedEventTypeId] = useState<string>("")
-    const [date, setDate] = useState<string>(() => new Date().toISOString().split("T")[0])
+    const [date, setDate] = useState<string>(() => format(new Date(), "yyyy-MM-dd"))
     const [displayName, setDisplayName] = useState<string>("")
     const [closesAt, setClosesAt] = useState<string>("")
     const [session, setSession] = useState<SessionState>({

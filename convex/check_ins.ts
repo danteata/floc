@@ -1,3 +1,4 @@
+import { eventTypeIdsForValue } from "./event_types";
 import { v } from "convex/values";
 import { publicBrandHex } from "./lib/theme/publicBrand";
 import { mutation, query, internalMutation, QueryCtx, MutationCtx } from "./_generated/server";
@@ -14,6 +15,7 @@ import {
     requireWriteAccess,
     resolveManagedMemberIds,
     memberIdInScope,
+    isOrgWideScope,
 } from "./scope";
 import { requireFeature } from "./entitlements";
 import {
@@ -111,16 +113,68 @@ function haversineMeters(
     return R * c;
 }
 
-/** Compute whether a check-in is late relative to event_type.default_time + grace. */
+/**
+ * The UTC instant of a wall-clock time (`date` "YYYY-MM-DD", `time` "HH:mm") in
+ * an IANA time zone. Returns NaN when the inputs don't parse. An unknown zone
+ * falls back to UTC.
+ */
+function zonedTimeToUtcMs(date: string, time: string, timeZone: string): number {
+    const naiveMs = Date.parse(`${date}T${time}:00Z`);
+    if (Number.isNaN(naiveMs) || timeZone === "UTC") return naiveMs;
+    let dtf: Intl.DateTimeFormat;
+    try {
+        dtf = new Intl.DateTimeFormat("en-US", {
+            timeZone,
+            hourCycle: "h23",
+            year: "numeric",
+            month: "2-digit",
+            day: "2-digit",
+            hour: "2-digit",
+            minute: "2-digit",
+            second: "2-digit",
+        });
+    } catch {
+        return naiveMs;
+    }
+    // Offset of the zone at a given instant, in ms (zone wall clock - UTC).
+    const offsetAt = (ms: number) => {
+        const parts: Record<string, number> = {};
+        for (const p of dtf.formatToParts(new Date(ms))) {
+            if (p.type !== "literal") parts[p.type] = Number(p.value);
+        }
+        const asUtc = Date.UTC(
+            parts.year,
+            parts.month - 1,
+            parts.day,
+            parts.hour,
+            parts.minute,
+            parts.second,
+        );
+        return asUtc - ms;
+    };
+    // Two passes settle the offset across a DST change.
+    let utcMs = naiveMs - offsetAt(naiveMs);
+    utcMs = naiveMs - offsetAt(utcMs);
+    return utcMs;
+}
+
+/**
+ * Compute whether a check-in is late relative to event_type.default_time + grace.
+ *
+ * `default_time` is the church's local wall-clock time on the session's
+ * `date`. It is read in the organization's `timezone` when one is set;
+ * otherwise the church is assumed to keep UTC (true for Ghana, the default
+ * market), which is how this was always computed.
+ */
 function computeLate(
     eventType: Doc<"event_types"> | null,
     date: string,
     checkedInAt: string,
+    timeZone?: string | null,
 ): { isLate: boolean; minutesLate: number } {
     if (!eventType?.default_time) return { isLate: false, minutesLate: 0 };
     // date is "YYYY-MM-DD", default_time is "HH:mm"
-    const startIso = `${date}T${eventType.default_time}:00Z`;
-    const startMs = Date.parse(startIso);
+    const startMs = zonedTimeToUtcMs(date, eventType.default_time, timeZone || "UTC");
     if (Number.isNaN(startMs)) return { isLate: false, minutesLate: 0 };
     const graceMs = (eventType.grace_minutes ?? 0) * 60 * 1000;
     const deadlineMs = startMs + graceMs;
@@ -129,6 +183,33 @@ function computeLate(
     if (checkInMs <= deadlineMs) return { isLate: false, minutesLate: 0 };
     const minutesLate = Math.round((checkInMs - deadlineMs) / 60000);
     return { isLate: true, minutesLate };
+}
+
+/** The IANA time zone a session's organization keeps, if it has set one. */
+async function orgTimeZone(
+    ctx: QueryCtx | MutationCtx,
+    orgId: Id<"organizations">,
+): Promise<string | undefined> {
+    const org = await ctx.db.get(orgId);
+    return org?.timezone || undefined;
+}
+
+/** The calendar day ("YYYY-MM-DD") of an instant in an IANA time zone (UTC by default). */
+function localDayIn(now: Date, timeZone?: string): string {
+    if (timeZone) {
+        try {
+            // en-CA formats as YYYY-MM-DD.
+            return new Intl.DateTimeFormat("en-CA", {
+                timeZone,
+                year: "numeric",
+                month: "2-digit",
+                day: "2-digit",
+            }).format(now);
+        } catch {
+            // Unknown zone: fall through to UTC.
+        }
+    }
+    return now.toISOString().slice(0, 10);
 }
 
 // ---------------------------------------------------------------------------
@@ -248,13 +329,19 @@ export const createOrOpenSession = mutation({
             await requireFeature(ctx, "geofenced_check_in", orgId);
         }
 
-        // Idempotent open: reuse an existing open session for (org, event_type, date).
+        // Idempotent open: reuse an existing open session for (org, event_type, date),
+        // matching the shared default and the church's own copy of the type.
+        const openedType = await ctx.db.get(args.event_type_id);
+        const sameService = openedType
+            ? await eventTypeIdsForValue(ctx, orgId as Id<"organizations">, openedType.value)
+            : new Set<Id<"event_types">>();
+        sameService.add(args.event_type_id);
         const existing = await ctx.db
             .query("check_in_sessions")
             .withIndex("by_org_and_date", (q) =>
                 q.eq("organization_id", orgId as Id<"organizations">).eq("date", args.date),
             )
-            .filter((q) => q.eq(q.field("event_type_id"), args.event_type_id))
+            .filter((q) => q.or(...[...sameService].map((id) => q.eq(q.field("event_type_id"), id))))
             .filter((q) => q.eq(q.field("status"), "open"))
             .first();
 
@@ -469,9 +556,39 @@ export const getCommandCenterSummary = query({
                 totalHeadcount: 0,
                 firstTimersToday: 0,
                 lateArrivals: { count: 0, list: [] },
+                failedCount: 0,
                 recentFailures: [],
                 openableEventTypes: [],
             };
+        }
+
+        // A unit admin sees only their own members in every figure and list;
+        // org-wide callers (org admins, super admins) see the whole church.
+        const memberScope = await resolveManagedMemberIds(ctx);
+        const scopedIds = isOrgWideScope(memberScope) ? null : memberScope;
+        const inScope = (memberId: Id<"members"> | undefined) =>
+            scopedIds === null ? true : !!memberId && scopedIds.has(memberId);
+
+        // Today's attendance rows and who is on each (manual marks included).
+        const attendanceRecords = await ctx.db
+            .query("attendance")
+            .withIndex("by_org_and_date", (q) =>
+                q.eq("organization_id", orgId).eq("date", args.date),
+            )
+            .collect();
+        const relationsByRecord = new Map<
+            Id<"attendance">,
+            Doc<"member_attendance">[]
+        >();
+        for (const record of attendanceRecords) {
+            const relations = await ctx.db
+                .query("member_attendance")
+                .withIndex("by_attendance", (q) => q.eq("attendance_id", record._id))
+                .collect();
+            relationsByRecord.set(
+                record._id,
+                relations.filter((r) => inScope(r.member_id)),
+            );
         }
 
         // Today's sessions, enriched with event type label/color, open-first.
@@ -485,8 +602,18 @@ export const getCommandCenterSummary = query({
         const sessions = await Promise.all(
             rawSessions.map(async (s) => {
                 const eventType = await ctx.db.get(s.event_type_id);
+                // A scoped caller's per-session count covers only their members.
+                const checkInCount =
+                    scopedIds === null
+                        ? s.check_in_count
+                        : s.attendance_id
+                          ? (relationsByRecord.get(s.attendance_id) ?? []).filter(
+                                (r) => r.check_in_session_id === s._id,
+                            ).length
+                          : 0;
                 return {
                     ...s,
+                    check_in_count: checkInCount,
                     event_type_label: eventType?.label ?? null,
                     event_type_value: eventType?.value ?? null,
                     event_type_color: eventType?.color ?? null,
@@ -499,10 +626,14 @@ export const getCommandCenterSummary = query({
             return 0;
         });
 
-        const totalHeadcount = sessions.reduce(
-            (sum, s) => sum + (s.check_in_count ?? 0),
-            0,
-        );
+        // Distinct members present today across every service, however they
+        // were marked (QR, kiosk, portal or by hand). Someone at two services
+        // counts once.
+        const presentToday = new Set<Id<"members">>();
+        for (const relations of relationsByRecord.values()) {
+            for (const r of relations) presentToday.add(r.member_id);
+        }
+        const totalHeadcount = presentToday.size;
 
         // First-timers: visitors created today (UTC day boundaries, matching
         // the date-string convention used across the app).
@@ -518,16 +649,11 @@ export const getCommandCenterSummary = query({
                 !m.archived_at &&
                 m.created_at &&
                 m.created_at >= dayStart &&
-                m.created_at <= dayEnd,
+                m.created_at <= dayEnd &&
+                inScope(m._id),
         ).length;
 
         // Late arrivals across today's attendance records for this org.
-        const attendanceRecords = await ctx.db
-            .query("attendance")
-            .withIndex("by_org_and_date", (q) =>
-                q.eq("organization_id", orgId).eq("date", args.date),
-            )
-            .collect();
         const lateList: Array<{
             member_id: Id<"members">;
             member_name: string | null;
@@ -535,10 +661,7 @@ export const getCommandCenterSummary = query({
             minutes_late: number | undefined;
         }> = [];
         for (const record of attendanceRecords) {
-            const relations = await ctx.db
-                .query("member_attendance")
-                .withIndex("by_attendance", (q) => q.eq("attendance_id", record._id))
-                .collect();
+            const relations = relationsByRecord.get(record._id) ?? [];
             const eventType = record.event_type_id
                 ? await ctx.db.get(record.event_type_id)
                 : null;
@@ -554,7 +677,9 @@ export const getCommandCenterSummary = query({
             }
         }
 
-        // Recent check-in failures today, via the org+timestamp index.
+        // Check-in failures today, via the org+timestamp index. `failedCount`
+        // is the full count; `recentFailures` is the latest 20 for the list.
+        // A scoped caller only sees attempts by their own members.
         const auditRows = await ctx.db
             .query("check_in_audit")
             .withIndex("by_org_timestamp", (q) =>
@@ -565,8 +690,11 @@ export const getCommandCenterSummary = query({
             )
             .order("desc")
             .collect();
-        const recentFailures = auditRows
-            .filter((a) => !BENIGN_AUDIT_OUTCOMES.has(a.outcome))
+        const failures = auditRows.filter(
+            (a) => !BENIGN_AUDIT_OUTCOMES.has(a.outcome) && inScope(a.member_id),
+        );
+        const failedCount = failures.length;
+        const recentFailures = failures
             .slice(0, 20)
             .map((a) => ({
                 member_name: a.member_name ?? null,
@@ -601,6 +729,7 @@ export const getCommandCenterSummary = query({
             totalHeadcount,
             firstTimersToday,
             lateArrivals: { count: lateList.length, list: lateList },
+            failedCount,
             recentFailures,
             openableEventTypes,
         };
@@ -842,7 +971,12 @@ export const kioskCheckIn = mutation({
 
         const eventType = await ctx.db.get(session.event_type_id);
         const nowIso = new Date().toISOString();
-        const late = computeLate(eventType, session.date, nowIso);
+        const late = computeLate(
+            eventType,
+            session.date,
+            nowIso,
+            await orgTimeZone(ctx, session.organization_id),
+        );
 
         const result = await markMemberPresent(ctx, {
             attendanceId: session.attendance_id,
@@ -999,7 +1133,12 @@ export const kioskCheckInVisitor = mutation({
         }
 
         const eventType = await ctx.db.get(session.event_type_id);
-        const late = computeLate(eventType, session.date, nowIso);
+        const late = computeLate(
+            eventType,
+            session.date,
+            nowIso,
+            await orgTimeZone(ctx, session.organization_id),
+        );
 
         const result = await markMemberPresent(ctx, {
             attendanceId: session.attendance_id,
@@ -1308,7 +1447,12 @@ async function performTokenCheckIn(
 
     // Idempotent check-in.
     const eventType = await ctx.db.get(session.event_type_id);
-    const late = computeLate(eventType, session.date, nowIso);
+    const late = computeLate(
+        eventType,
+        session.date,
+        nowIso,
+        await orgTimeZone(ctx, session.organization_id),
+    );
 
     if (!session.attendance_id) {
         // Defensive: ensure attendance exists.
@@ -1566,39 +1710,114 @@ export const getMyAttendanceHistory = query({
     },
 });
 
+/**
+ * The member's "Coming up" list: check-in sessions still to happen or open now
+ * (draft/open, today onward) plus the church's scheduled events (active, today
+ * onward, and for the member when the event type is limited to certain units),
+ * soonest first. An event that already has a listed session isn't repeated.
+ */
 export const getMyUpcomingSessions = query({
     args: { limit: v.optional(v.number()) },
     handler: async (ctx, args) => {
         const member = await resolveLinkedMember(ctx);
         if (!member?.organization_id) return [];
+        const orgId = member.organization_id;
 
         const limit = Math.min(args.limit ?? 10, 50);
-        const today = new Date().toISOString().split("T")[0];
-        const sessions = await ctx.db
-            .query("check_in_sessions")
-            .withIndex("by_org_and_date", (q) =>
-                q
-                    .eq("organization_id", member.organization_id!)
-                    .gte("date", today),
-            )
-            .take(limit);
+        // Today in the church's own time zone (UTC when it hasn't set one).
+        const today = localDayIn(new Date(), await orgTimeZone(ctx, orgId));
 
-        return await Promise.all(
+        const sessions = (
+            await ctx.db
+                .query("check_in_sessions")
+                .withIndex("by_org_and_date", (q) =>
+                    q.eq("organization_id", orgId).gte("date", today),
+                )
+                .collect()
+        ).filter((s) => s.status === "draft" || s.status === "open");
+
+        const eventTypeCache = new Map<string, Doc<"event_types"> | null>();
+        const getEventType = async (id: Id<"event_types">) => {
+            if (!eventTypeCache.has(id)) eventTypeCache.set(id, await ctx.db.get(id));
+            return eventTypeCache.get(id) ?? null;
+        };
+
+        const sessionItems = await Promise.all(
             sessions.map(async (s) => {
                 const eventType = s.event_type_id
-                    ? await ctx.db.get(s.event_type_id)
+                    ? await getEventType(s.event_type_id)
                     : null;
                 return {
-                    sessionId: s._id,
-                    display_name: s.display_name,
+                    kind: "session" as const,
+                    key: s._id as string,
+                    sessionId: s._id as Id<"check_in_sessions"> | null,
+                    display_name: s.display_name ?? null,
                     date: s.date,
+                    time: null as string | null,
                     event_type_label: eventType?.label ?? null,
-                    status: s.status,
-                    opens_at: s.opens_at,
-                    closes_at: s.closes_at,
+                    status: s.status as string | null,
+                    opens_at: s.opens_at as string | null,
+                    closes_at: s.closes_at as string | null,
                 };
             }),
         );
+
+        const sessionEventIds = new Set(
+            sessions.filter((s) => s.event_id).map((s) => s.event_id as string),
+        );
+        const sessionTypeDays = new Set(
+            sessions.map((s) => `${s.event_type_id}|${s.date}`),
+        );
+
+        const events = (
+            await ctx.db
+                .query("events")
+                .withIndex("by_org", (q) => q.eq("organization_id", orgId))
+                .collect()
+        ).filter(
+            (e) =>
+                e.active &&
+                e.date >= today &&
+                !sessionEventIds.has(e._id) &&
+                !(e.event_type_id && sessionTypeDays.has(`${e.event_type_id}|${e.date}`)),
+        );
+
+        const eventItems = [];
+        for (const e of events) {
+            const eventType = e.event_type_id ? await getEventType(e.event_type_id) : null;
+            if (
+                e.event_type_id &&
+                !(await assertEventAppliesToMember(ctx, {
+                    member,
+                    eventTypeId: e.event_type_id,
+                }))
+            ) {
+                continue;
+            }
+            eventItems.push({
+                kind: "event" as const,
+                key: e._id as string,
+                sessionId: null as Id<"check_in_sessions"> | null,
+                display_name: e.title as string | null,
+                date: e.date,
+                time: e.time ?? eventType?.default_time ?? null,
+                event_type_label: eventType?.label ?? null,
+                status: null as string | null,
+                opens_at: null as string | null,
+                closes_at: null as string | null,
+            });
+        }
+
+        return [...sessionItems, ...eventItems]
+            // Soonest day first; on a day, its check-in sessions lead, then
+            // events by start time.
+            .sort(
+                (a, b) =>
+                    a.date.localeCompare(b.date) ||
+                    (a.kind === b.kind ? 0 : a.kind === "session" ? -1 : 1) ||
+                    (a.time ?? "").localeCompare(b.time ?? ""),
+            )
+            .slice(0, limit);
     },
 });
 
@@ -1641,6 +1860,8 @@ export const getMyProfile = query({
             joined_date: member.joined_date,
             organization_id: member.organization_id ?? null,
             organization_name: org?.name ?? null,
+            // The church's book currency (unset reads as GHS in formatMoney).
+            organization_currency: org?.currency ?? null,
             unit_names: unitNames,
         };
     },

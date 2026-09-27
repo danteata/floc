@@ -28,6 +28,8 @@ export function MyCareTasksWidget() {
 
   const pending = tasks.filter((t) => t.status !== "resolved")
   if (pending.length === 0) return null
+  // One member can have more than one open task; the headline counts people.
+  const pendingMembers = new Set(pending.map((t) => t.member_id)).size
 
   return (
     <Card>
@@ -37,7 +39,7 @@ export function MyCareTasksWidget() {
           Your care tasks
         </CardTitle>
         <CardDescription>
-          {pending.length} {pending.length === 1 ? "member needs" : "members need"} your attention
+          {pendingMembers} {pendingMembers === 1 ? "member needs" : "members need"} your attention
         </CardDescription>
         <CardAction>
           <Button asChild size="sm" variant="ghost">

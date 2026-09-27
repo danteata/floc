@@ -102,7 +102,9 @@ export function AssignFollowUpDialog({
     try {
       const membersById = new Map(members.map((m) => [m.id, m]))
       const handledHouseholds = new Set<string>()
-      const calls: Promise<unknown>[] = []
+      // Each call resolves to how many follow-ups it created and how many
+      // members already had one open with this person.
+      const calls: Promise<{ created: number; skipped: number }>[] = []
 
       for (const memberId of selected) {
         const member = membersById.get(memberId)
@@ -124,15 +126,20 @@ export function AssignFollowUpDialog({
               member_id: memberId as Id<"members">,
               assigned_to: assignedTo as Id<"members">,
               note: note || undefined,
-            }),
+            }).then((r) => ({ created: r.created ? 1 : 0, skipped: r.created ? 0 : 1 })),
           )
         }
       }
 
-      await Promise.all(calls)
+      const results = await Promise.all(calls)
+      const created = results.reduce((sum, r) => sum + r.created, 0)
+      const skipped = results.reduce((sum, r) => sum + r.skipped, 0)
+      const parts: string[] = []
+      if (created > 0) parts.push(`${created} follow-up${created === 1 ? "" : "s"} created`)
+      if (skipped > 0) parts.push(`${skipped} already open`)
       toast({
-        title: "Follow-up assigned",
-        description: `${selected.size} member${selected.size === 1 ? "" : "s"} assigned for follow-up.${
+        title: created > 0 ? "Follow-up assigned" : "Follow-up already open",
+        description: `${parts.join(", ")}.${
           includeHousehold && handledHouseholds.size > 0 ? " Household members included." : ""
         }`,
       })

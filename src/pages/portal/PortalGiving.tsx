@@ -71,7 +71,7 @@ export default function PortalGiving() {
                             {history.map((h) => (
                                 <div key={h._id} className="flex items-center justify-between gap-3 py-3">
                                     <div className="min-w-0">
-                                        <p className="text-sm font-medium tabular-nums">{formatMoney(h.amount, "GHS")}</p>
+                                        <p className="text-sm font-medium tabular-nums">{formatMoney(h.amount, profile.organization_currency ?? undefined)}</p>
                                         <p className="text-xs text-muted-foreground">{formatDay(h.date)}</p>
                                     </div>
                                     <Badge variant="outline">
