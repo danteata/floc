@@ -1,10 +1,27 @@
 import { v } from "convex/values";
-import { mutation, query } from "./_generated/server";
+import { mutation, query, type QueryCtx } from "./_generated/server";
 import { Id } from "./_generated/dataModel";
 import { requireOrgAdmin, requireOrgAccess, resolveOrgId } from "./auth";
 import { publicBrandHex } from "./lib/theme/publicBrand";
 
 const DEFAULT_EXPIRY_DAYS = 30;
+
+/** The attendance screens' default: inactive members are absent from every service by definition. */
+const DEFAULT_STATUSES = ["active", "visitor"];
+
+/** The church's own event type first, then a shared default with the same value. */
+async function findEventType(ctx: QueryCtx, orgId: Id<"organizations">, value: string) {
+    const own = await ctx.db
+        .query("event_types")
+        .withIndex("by_org_and_value", (q) => q.eq("organization_id", orgId).eq("value", value))
+        .first();
+    if (own) return own;
+    const shared = await ctx.db
+        .query("event_types")
+        .withIndex("by_value", (q) => q.eq("value", value))
+        .collect();
+    return shared.find((t) => !t.organization_id) ?? null;
+}
 
 export const create = mutation({
     args: {
@@ -12,11 +29,18 @@ export const create = mutation({
         event_type: v.string(),
         date: v.string(),
         expires_in_days: v.optional(v.number()),
+        unit_id: v.optional(v.id("units")),
+        statuses: v.optional(v.array(v.string())),
+        min_consecutive: v.optional(v.number()),
     },
     handler: async (ctx, args) => {
         const admin = await requireOrgAdmin(ctx);
         const orgId = await resolveOrgId(ctx, args.organization_id);
         if (!orgId) throw new Error("Organization context required");
+        if (args.unit_id) {
+            const unit = await ctx.db.get(args.unit_id);
+            if (!unit || unit.organization_id !== orgId) throw new Error("Unit not found");
+        }
 
         const bytes = crypto.getRandomValues(new Uint8Array(32));
         const token = Array.from(bytes, (b) => b.toString(16).padStart(2, "0")).join("");
@@ -31,6 +55,9 @@ export const create = mutation({
             created_by: admin.clerk_user_id,
             expires_at: expiresInDays > 0 ? Date.now() + expiresInDays * 24 * 60 * 60 * 1000 : undefined,
             revoked: false,
+            unit_id: args.unit_id,
+            statuses: args.statuses && args.statuses.length > 0 ? args.statuses : undefined,
+            min_consecutive: args.min_consecutive && args.min_consecutive > 0 ? args.min_consecutive : undefined,
         });
 
         return { shareId, token };
@@ -56,7 +83,14 @@ export const listActive = query({
             .collect();
 
         const now = Date.now();
-        return shares.filter((s) => !s.revoked && (!s.expires_at || s.expires_at > now));
+        const active = shares.filter((s) => !s.revoked && (!s.expires_at || s.expires_at > now));
+        return Promise.all(
+            active.map(async (share) => ({
+                ...share,
+                unit_name: share.unit_id ? (await ctx.db.get(share.unit_id))?.name ?? null : null,
+                statuses: share.statuses ?? DEFAULT_STATUSES,
+            })),
+        );
     },
 });
 
@@ -84,10 +118,14 @@ export const getByToken = query({
         if (share.expires_at && share.expires_at < Date.now()) return null;
 
         const organization = await ctx.db.get(share.organization_id);
-        const eventType = await ctx.db
-            .query("event_types")
-            .withIndex("by_value", (q) => q.eq("value", share.event_type_value))
-            .unique();
+        const eventType = await findEventType(ctx, share.organization_id, share.event_type_value);
+        const statuses = share.statuses ?? DEFAULT_STATUSES;
+        const unit = share.unit_id ? await ctx.db.get(share.unit_id) : null;
+        const scope = {
+            unit_name: unit?.name ?? null,
+            statuses,
+            min_consecutive: share.min_consecutive ?? null,
+        };
 
         const orgAttendance = await ctx.db
             .query("attendance")
@@ -104,6 +142,8 @@ export const getByToken = query({
                 brand_hex: await publicBrandHex(ctx, share.organization_id, organization),
                 event_type_label: eventType?.label ?? share.event_type_value,
                 date: share.date,
+                scope,
+                attendance_taken: false,
                 units: [],
                 members: [],
             };
@@ -166,15 +206,28 @@ export const getByToken = query({
             .withIndex("by_org", (q) => q.eq("organization_id", share.organization_id))
             .collect();
 
+        // The same rules as the Absent tab: members the event applies to (its
+        // unit scope), in the chosen unit, with the chosen statuses.
+        const eventUnitIds = new Set((eventType?.unit_ids ?? []).map(String));
         const unitSet = new Set<string>();
-        const members = await Promise.all(
+        const candidates = await Promise.all(
             orgMembers
-                .filter((member) => !attendedMemberIds.has(member._id) && !member.archived_at)
+                .filter(
+                    (member) =>
+                        !attendedMemberIds.has(member._id) &&
+                        !member.archived_at &&
+                        statuses.includes(member.status),
+                )
                 .map(async (member) => {
                     const memberUnits = await ctx.db
                         .query("member_units")
                         .withIndex("by_member", (q) => q.eq("member_id", member._id))
                         .collect();
+                    const unitIds = memberUnits.map((mu) => String(mu.unit_id));
+                    if (eventUnitIds.size > 0 && !unitIds.some((id) => eventUnitIds.has(id))) return null;
+                    if (share.unit_id && !unitIds.includes(String(share.unit_id))) return null;
+                    const consecutive = calculateConsecutiveAbsences(member._id);
+                    if (share.min_consecutive && consecutive < share.min_consecutive) return null;
 
                     const unitNames = (
                         await Promise.all(memberUnits.map((mu) => ctx.db.get(mu.unit_id)))
@@ -189,16 +242,22 @@ export const getByToken = query({
                         name: member.name,
                         phone: member.phone ?? "",
                         unit_names: unitNames,
-                        consecutive_absences: calculateConsecutiveAbsences(member._id),
+                        consecutive_absences: consecutive,
                     };
                 })
         );
+        // Longest absence first: the people to call before anyone else.
+        const members = candidates
+            .filter((m): m is NonNullable<typeof m> => m !== null)
+            .sort((a, b) => b.consecutive_absences - a.consecutive_absences || a.name.localeCompare(b.name));
 
         return {
             organization_name: organization?.name ?? "",
             brand_hex: await publicBrandHex(ctx, share.organization_id, organization),
             event_type_label: eventType?.label ?? share.event_type_value,
             date: share.date,
+            scope,
+            attendance_taken: true,
             units: Array.from(unitSet).sort(),
             members,
         };

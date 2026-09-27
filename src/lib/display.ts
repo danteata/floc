@@ -80,3 +80,15 @@ export function formatMonth(value: string | number | Date): string {
 export function sessionName(value: string | null | undefined): string {
     return titleCase((value ?? "").replace(/\s*[-—–]\s*\d{4}-\d{2}-\d{2}\s*$/, ""))
 }
+
+/** A member-status filter in words: ["active", "visitor"] → "Active members and visitors". */
+export function describeStatuses(statuses: readonly string[] | null | undefined): string {
+    const set = new Set(statuses ?? [])
+    if (set.size === 0 || (set.has("active") && set.has("visitor") && set.has("inactive"))) return "All members"
+    const parts: string[] = []
+    if (set.has("active")) parts.push("active members")
+    if (set.has("inactive")) parts.push("inactive members")
+    if (set.has("visitor")) parts.push("visitors")
+    const text = parts.length > 1 ? `${parts.slice(0, -1).join(", ")} and ${parts[parts.length - 1]}` : parts[0] ?? "Members"
+    return text.charAt(0).toUpperCase() + text.slice(1)
+}

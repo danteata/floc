@@ -17,14 +17,31 @@ import {
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { useToast } from "@/hooks/use-toast"
-import { titleCase } from "@/lib/display"
+import { describeStatuses, titleCase } from "@/lib/display"
 
 interface ShareAbsentLinkDialogProps {
   organizationId: Id<"organizations">
   eventType: string
   eventTypeLabel: string
   date: Date
+  /** The filters on screen; the link shows the same list. */
+  unitId?: Id<"units">
+  unitName?: string
+  statuses?: string[]
+  minConsecutive?: number
+  /** How many people the list on screen has, when the caller knows. */
+  count?: number
   trigger?: React.ReactNode
+}
+
+const DEFAULT_STATUSES = ["active", "visitor"]
+
+function describeScope(unitName: string | null | undefined, statuses: string[] | undefined, minConsecutive: number | null | undefined) {
+  return [
+    unitName ?? "All units",
+    describeStatuses(statuses ?? DEFAULT_STATUSES),
+    minConsecutive ? `missed ${minConsecutive} or more in a row` : null,
+  ].filter(Boolean).join(" · ")
 }
 
 export function ShareAbsentLinkDialog({
@@ -32,6 +49,11 @@ export function ShareAbsentLinkDialog({
   eventType,
   eventTypeLabel,
   date,
+  unitId,
+  unitName,
+  statuses,
+  minConsecutive,
+  count,
   trigger,
 }: ShareAbsentLinkDialogProps) {
   const [open, setOpen] = useState(false)
@@ -56,6 +78,9 @@ export function ShareAbsentLinkDialog({
         organization_id: organizationId,
         event_type: eventType,
         date: dateStr,
+        unit_id: unitId,
+        statuses: statuses ?? DEFAULT_STATUSES,
+        min_consecutive: minConsecutive,
       })
       await navigator.clipboard.writeText(buildUrl(token))
       toast({
@@ -111,6 +136,18 @@ export function ShareAbsentLinkDialog({
           </DialogDescription>
         </DialogHeader>
 
+        <div className="rounded-lg border border-border bg-muted/40 p-3 text-sm">
+          <p className="font-medium text-foreground">
+            {count === undefined
+              ? "The link will show"
+              : `The link will show these ${count} ${count === 1 ? "person" : "people"}`}
+          </p>
+          <p className="mt-0.5 text-muted-foreground">{describeScope(unitName, statuses, minConsecutive)}</p>
+          <p className="mt-1.5 text-xs text-muted-foreground">
+            It stays up to date: anyone marked present later drops off the list.
+          </p>
+        </div>
+
         <Button onClick={handleCreate} disabled={isCreating} className="w-full">
           {isCreating ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Link2 className="mr-2 h-4 w-4" />}
           Create a new link
@@ -120,7 +157,9 @@ export function ShareAbsentLinkDialog({
           <div className="space-y-2">
             <p className="text-sm text-muted-foreground">Links already shared for this service</p>
             {activeShares.map((share) => (
-              <div key={share._id} className="flex min-w-0 items-center gap-2">
+              <div key={share._id} className="space-y-1">
+              <p className="text-xs text-muted-foreground">{describeScope(share.unit_name, share.statuses, share.min_consecutive)}</p>
+              <div className="flex min-w-0 items-center gap-2">
                 <Input readOnly value={buildUrl(share.token)} className="text-xs" />
                 <Button variant="outline" size="icon" onClick={() => handleCopy(share.token)} aria-label="Copy link" title="Copy link">
                   <Copy className="h-4 w-4" />
@@ -128,6 +167,7 @@ export function ShareAbsentLinkDialog({
                 <Button variant="outline" size="icon" onClick={() => handleRevoke(share._id)} aria-label="Turn off link" title="Turn off link">
                   <Trash2 className="h-4 w-4 text-destructive" />
                 </Button>
+              </div>
               </div>
             ))}
           </div>
