@@ -32,7 +32,7 @@ const RISK: Record<string, { label: string; tone: string }> = {
 export function AtRiskWidget({ unitId }: { unitId?: Id<"units"> } = {}) {
   const { organization } = useOrganization()
   const result = useQuery(
-    api.engagement.queries.listAtRisk,
+    api.engagement.queries.listAtRiskSummary,
     organization
       ? { organization_id: organization._id, limit: MAX_SHOWN, ...(unitId ? { unit_id: unitId } : {}) }
       : "skip",

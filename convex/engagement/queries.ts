@@ -6,7 +6,7 @@
 // =============================================================================
 
 import { v } from "convex/values";
-import { query } from "../_generated/server";
+import { query, type QueryCtx } from "../_generated/server";
 import { Doc, Id } from "../_generated/dataModel";
 import { isSuperAdmin, requireUser, resolveOrgId } from "../auth";
 import {
@@ -37,14 +37,30 @@ const AT_RISK_BELOW = 70;
  * `total` is every at-risk member in scope; `members` is the first `limit`
  * of them, so the widget can say "12 members at risk, showing 5".
  */
+const atRiskArgs = {
+    organization_id: v.optional(v.id("organizations")),
+    limit: v.optional(v.number()),
+    // The dashboard's unit filter: only this unit's members.
+    unit_id: v.optional(v.id("units")),
+};
+
+/** Members at medium or high risk, with the true total before the list is cut short. */
+export const listAtRiskSummary = query({
+    args: atRiskArgs,
+    handler: (ctx, args) => atRiskSummary(ctx, args),
+});
+
+/** The list alone, for clients built before listAtRiskSummary. Remove once they're gone. */
 export const listAtRisk = query({
-    args: {
-        organization_id: v.optional(v.id("organizations")),
-        limit: v.optional(v.number()),
-        // The dashboard's unit filter: only this unit's members.
-        unit_id: v.optional(v.id("units")),
-    },
-    handler: async (ctx, args) => {
+    args: atRiskArgs,
+    handler: async (ctx, args) => (await atRiskSummary(ctx, args)).members,
+});
+
+async function atRiskSummary(
+    ctx: QueryCtx,
+    args: { organization_id?: Id<"organizations">; limit?: number; unit_id?: Id<"units"> },
+) {
+    {
         const empty = { total: 0, members: [] };
         const user = await requireUser(ctx);
         const orgId = isSuperAdmin(user)
@@ -89,8 +105,8 @@ export const listAtRisk = query({
                 household_id: m.household_id,
             })),
         };
-    },
-});
+    }
+}
 
 // Statuses that mean a member is already being followed up on (so they should
 // not resurface in the "who to call next" queue).
