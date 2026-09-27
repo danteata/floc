@@ -28,6 +28,7 @@ import { api } from "../../convex/_generated/api"
 import { useOrganization } from "@/hooks/use-organization"
 import { ScopeBadge } from "@/components/scope-badge"
 import { scopeSubtitle } from "@/lib/report-scope"
+import { formatDay } from "@/lib/display"
 import {
   Users,
   UserCheck,
@@ -92,7 +93,7 @@ export function MemberInsights() {
     )
   }
 
-  const { overview, potentiallyInactive } = insights
+  const { overview, potentiallyInactive, potentiallyInactiveCount } = insights
 
   return (
     <div className="space-y-6">
@@ -105,12 +106,15 @@ export function MemberInsights() {
         </div>
         <div className="flex items-center gap-2">
           <ScopeBadge scope={insights.scope} />
-          {overview.trendingUp ? (
+          {/* Last complete month against three months before it; nothing
+              when there isn't attendance in both to compare. */}
+          {overview.trend === "up" && (
             <Badge className="bg-success/15 text-success-strong">
               <TrendingUp className="h-3 w-3 mr-1" />
               Growing
             </Badge>
-          ) : (
+          )}
+          {overview.trend === "down" && (
             <Badge className="bg-warning/15 text-warning-strong">
               <TrendingDown className="h-3 w-3 mr-1" />
               Needs attention
@@ -120,7 +124,12 @@ export function MemberInsights() {
       </div>
 
       <StatGrid>
-        <StatCard label="Members" value={overview.totalMembers.toLocaleString()} icon={Users} />
+        <StatCard
+          label="People on the roll"
+          value={overview.totalMembers.toLocaleString()}
+          icon={Users}
+          hint="Everyone not archived, including inactive members and visitors"
+        />
         <StatCard label="Active" value={overview.activeMembers.toLocaleString()} icon={UserCheck} />
         <StatCard label="Engagement" value={`${overview.engagementRate}%`} icon={Activity} />
         <StatCard label="New this month" value={`+${overview.newMembersThisMonth}`} icon={UserPlus} />
@@ -282,7 +291,9 @@ export function MemberInsights() {
             Not seen recently
           </CardTitle>
           <CardDescription className="text-sm">
-            Members who haven't attended in the last 60 days
+            Active members who haven't attended in the last 60 days
+            {potentiallyInactiveCount > potentiallyInactive.length &&
+              ` (${potentiallyInactive.length} of ${potentiallyInactiveCount.toLocaleString()} shown)`}
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -297,11 +308,17 @@ export function MemberInsights() {
                     <MemberAvatar name={member.name} size="sm" />
                     <div>
                       <p className="text-sm font-medium text-foreground">{member.name}</p>
-                      <p className="text-xs text-muted-foreground">Not seen in 60 days</p>
+                      <p className="text-xs text-muted-foreground">
+                        {member.lastSeen
+                          ? `Last seen ${formatDay(member.lastSeen)}`
+                          : member.everAttended
+                            ? "Not seen in the last 12 months"
+                            : "Never recorded"}
+                      </p>
                     </div>
                   </div>
                   <Badge className="bg-warning/15 text-warning-strong">
-                    Inactive
+                    Not seen
                   </Badge>
                 </div>
               ))}

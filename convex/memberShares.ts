@@ -37,6 +37,20 @@ type ShareColumn = (typeof MEMBER_SHARE_COLUMNS)[number];
 const isShareColumn = (value: string): value is ShareColumn =>
     (MEMBER_SHARE_COLUMNS as readonly string[]).includes(value);
 
+/**
+ * Whether a member frozen into a share link should still be on it. Members
+ * archived after the link was made drop off, so the public page and the
+ * link's count stop showing someone the church has taken off its lists. A
+ * link made from the Archived view still shows the members who were already
+ * archived when it was created.
+ */
+function stillShared(member: Doc<"members"> | null, share: Doc<"member_list_shares">): member is Doc<"members"> {
+    if (!member) return false;
+    if (!member.archived_at) return true;
+    const archivedAt = Date.parse(member.archived_at);
+    return Number.isFinite(archivedAt) && archivedAt <= share._creationTime;
+}
+
 export const create = mutation({
     args: {
         ...memberFilterArgs,
@@ -137,15 +151,35 @@ export const listActive = query({
 
         const now = Date.now();
         const seesAll = isOrgAdmin(user);
-        return shares
+        const live = shares
             .filter((s) => !s.revoked && (!s.expires_at || s.expires_at > now))
-            .filter((s) => seesAll || s.created_by === user.clerk_user_id)
-            .map((s) => ({
+            .filter((s) => seesAll || s.created_by === user.clerk_user_id);
+
+        // Count only the members the public page would still show. Links
+        // usually overlap heavily, so each member is read once.
+        const memberCache = new Map<Id<"members">, Promise<Doc<"members"> | null>>();
+        const getMember = (id: Id<"members">) => {
+            let pending = memberCache.get(id);
+            if (!pending) {
+                pending = ctx.db.get(id);
+                memberCache.set(id, pending);
+            }
+            return pending;
+        };
+        const counts = await Promise.all(
+            live.map(async (s) => {
+                const docs = await Promise.all(s.member_ids.map(getMember));
+                return docs.filter((m) => stillShared(m, s)).length;
+            }),
+        );
+
+        return live
+            .map((s, i) => ({
                 _id: s._id,
                 token: s.token,
                 title: s.title,
                 description: s.description,
-                member_count: s.member_ids.length,
+                member_count: counts[i],
                 created_by_name: s.created_by_name,
                 expires_at: s.expires_at,
                 created_at: s._creationTime,
@@ -204,7 +238,7 @@ export const getByToken = query({
         const organization = await ctx.db.get(share.organization_id);
         const docs = (
             await Promise.all(share.member_ids.map((id) => ctx.db.get(id)))
-        ).filter((m): m is Doc<"members"> => m !== null);
+        ).filter((m): m is Doc<"members"> => stillShared(m, share));
 
         const unitSet = new Set<string>();
         const members = await Promise.all(

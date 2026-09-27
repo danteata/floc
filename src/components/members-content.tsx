@@ -13,7 +13,7 @@ import type { Id } from "../../convex/_generated/dataModel"
 import { Button } from "@/components/ui/button"
 import { PageHeader } from "@/components/ui/page-header"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { MembersTable } from "@/components/members-table"
+import { MembersTable, type MemberSort } from "@/components/members-table"
 import { MemberDialog } from "@/components/member-dialog"
 import { BulkUploadDialog } from "@/components/bulk-upload-dialog"
 import { ShareMembersLinkDialog } from "@/components/share-members-link-dialog"
@@ -65,6 +65,10 @@ export function MembersContent({ view = 'active', onViewChange }: MembersContent
   const [filtersOpen, setFiltersOpen] = useState(false)
   const search = useDebouncedValue(searchInput.trim(), 250)
   const [loadedCount, setLoadedCount] = useState(PAGE_SIZE)
+  // Sorted server-side across the whole filtered list, so the order is right
+  // before every page is loaded. Not part of filterKey: re-sorting keeps the
+  // loaded count and the selection.
+  const [sort, setSort] = useState<MemberSort>({ column: "name", direction: "asc" })
 
   const { organization } = useOrganization()
   const convex = useConvex()
@@ -122,6 +126,8 @@ export function MembersContent({ view = 'active', onViewChange }: MembersContent
           household_ids: householdIds.length ? (householdIds as Id<"households">[]) : undefined,
           no_household: noHousehold || undefined,
           risk_levels: riskFilters.length ? riskFilters : undefined,
+          sort: sort.column,
+          sort_dir: sort.direction,
         }
       : "skip",
   )
@@ -140,6 +146,7 @@ export function MembersContent({ view = 'active', onViewChange }: MembersContent
   const isLoadingMore = page === undefined && shownPage !== undefined
   const isDone = shownPage?.isDone ?? true
   const totalCount = shownPage?.totalCount
+  const activeCount = shownPage?.activeCount
   const filteredMembers = useMemo(() => (shownPage?.page ?? []) as unknown as Member[], [shownPage])
 
   // Filter helpers
@@ -167,7 +174,7 @@ export function MembersContent({ view = 'active', onViewChange }: MembersContent
   // Sentence describing the current filters, stored on a share link so the
   // public page can say what the list is ("Active · Unit: Youth").
   const filterSummary = useMemo(() => {
-    const parts: string[] = [view === 'archived' ? "Archived" : "Active"]
+    const parts: string[] = [view === 'archived' ? "Archived" : "Current"]
     if (search) parts.push(`Search: "${search}"`)
     if (statusFilters.length) parts.push(`Status: ${statusFilters.map(statusLabel).join(", ")}`)
     if (unitFilters.length) parts.push(`Unit: ${unitFilters.map(unitName).join(", ")}`)
@@ -180,11 +187,14 @@ export function MembersContent({ view = 'active', onViewChange }: MembersContent
 
   // Export the whole filtered result, not just the rows "Load more" happens to
   // have pulled in. The CSV silently stopped at the loaded page before, so a
-  // filtered directory of 300 exported as 50 with no indication.
+  // filtered directory of 300 exported as 50 with no indication. With rows
+  // checked, export exactly those (as Share list does), still in list order.
   const handleExport = async () => {
     if (!organization?._id) return
     const exportLimit = 2000 // listPage's server-side cap
-    let rowsToExport = filteredMembers
+    const selected = selectedMemberIds.length > 0 ? new Set(selectedMemberIds) : null
+    const pick = (rows: Member[]) => (selected ? rows.filter((m) => selected.has(m.id || "")) : rows)
+    let rowsToExport = pick(filteredMembers)
     try {
       const full = await convex.query(api.members.listPage, {
         organization_id: organization._id,
@@ -197,9 +207,11 @@ export function MembersContent({ view = 'active', onViewChange }: MembersContent
         household_ids: householdIds.length ? (householdIds as Id<"households">[]) : undefined,
         no_household: noHousehold || undefined,
         risk_levels: riskFilters.length ? riskFilters : undefined,
+        sort: sort.column,
+        sort_dir: sort.direction,
       })
-      rowsToExport = full.page as unknown as Member[]
-      if (!full.isDone) {
+      rowsToExport = pick(full.page as unknown as Member[])
+      if (!full.isDone && !selected) {
         toast({
           title: `Exported the first ${exportLimit.toLocaleString()} members`,
           description: `${full.totalCount.toLocaleString()} members match. Narrow the filters to export the rest.`,
@@ -221,6 +233,7 @@ export function MembersContent({ view = 'active', onViewChange }: MembersContent
       "Status",
       "Units",
       "Labels",
+      "Household",
       "Address",
       "Date of Birth",
       "Gender",
@@ -244,6 +257,7 @@ export function MembersContent({ view = 'active', onViewChange }: MembersContent
       m.status ?? "",
       (m.unit_names || []).join("; "),
       (m.labels || []).map((l: any) => l.name).join("; "),
+      m.household_id ? (householdsData?.find(h => h._id === m.household_id)?.name || "Unnamed household") : "",
       m.address ?? "",
       m.dob ?? "",
       m.gender ?? "",
@@ -280,7 +294,9 @@ export function MembersContent({ view = 'active', onViewChange }: MembersContent
           <>
             <Button variant="outline" size="sm" onClick={handleExport}>
               <Download className="mr-2 h-4 w-4" />
-              Export
+              {selectedMemberIds.length > 0
+                ? `Export ${selectedMemberIds.length.toLocaleString()} selected`
+                : "Export"}
             </Button>
             {canShareList && organization?._id && (
               <Button variant="outline" size="sm" onClick={() => setIsShareOpen(true)}>
@@ -327,7 +343,8 @@ export function MembersContent({ view = 'active', onViewChange }: MembersContent
         }
       />
 
-      {/* Active / Archived tabs */}
+      {/* Current / Archived tabs. "Current" rather than "Active", which is
+          also a member status and would suggest inactive members are hidden. */}
       {onViewChange && (
         <div className="flex items-center gap-2">
           <Button
@@ -335,7 +352,7 @@ export function MembersContent({ view = 'active', onViewChange }: MembersContent
             size="sm"
             onClick={() => onViewChange('active')}
           >
-            Active
+            Current
           </Button>
           <Button
             variant={view === 'archived' ? 'default' : 'outline'}
@@ -380,7 +397,9 @@ export function MembersContent({ view = 'active', onViewChange }: MembersContent
                   the authoritative match count, not just the loaded page. */}
               {activeFilterCount > 0 || search
                 ? `${totalCount.toLocaleString()} ${totalCount === 1 ? "match" : "matches"}`
-                : `${totalCount.toLocaleString()} member${totalCount === 1 ? "" : "s"}`}
+                : view === 'archived'
+                  ? `${totalCount.toLocaleString()} archived`
+                  : `${totalCount.toLocaleString()} ${totalCount === 1 ? "person" : "people"}${typeof activeCount === "number" ? ` · ${activeCount.toLocaleString()} active` : ""}`}
             </span>
           )}
         </div>
@@ -511,6 +530,8 @@ export function MembersContent({ view = 'active', onViewChange }: MembersContent
             isArchivedView={view === 'archived'}
             selectedMembers={selectedMemberIds}
             onSelectedMembersChange={setSelectedMemberIds}
+            sort={sort}
+            onSortChange={setSort}
           />
 
           {!isDone && (

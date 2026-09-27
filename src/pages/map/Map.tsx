@@ -13,20 +13,25 @@ import { useSubscription } from "@/providers/SubscriptionProvider";
 import { Button } from "@/components/ui/button";
 import { Link } from "react-router-dom";
 import { useUserRole } from "@/hooks/use-user-role";
+import { useOrganization } from "@/hooks/use-organization";
 
 export default function MapPage() {
     const { isPro, loading: subLoading } = useSubscription();
     const { role } = useUserRole();
     const isSuperAdmin = role === "super_admin";
     const canUseMap = isPro || isSuperAdmin;
+    const { organization } = useOrganization();
+    const orgId = organization?._id;
 
+    // Scoped to the church in view: without an organization a super admin's
+    // getAll returns every church's members.
     const membersData = useQuery(
         api.members.getAll,
-        canUseMap ? {} : "skip",
+        canUseMap && orgId ? { organization_id: orgId } : "skip",
     );
     const householdsData = useQuery(
         api.households.list,
-        canUseMap ? {} : "skip",
+        canUseMap && orgId ? { organization_id: orgId } : "skip",
     );
     const members = ((membersData ?? []) as unknown as Member[]).map((m: any) => ({
         ...m,
@@ -66,6 +71,17 @@ export default function MapPage() {
         return result;
     }, [members, householdsData]);
 
+    // Members with a location of their own or through their household. The
+    // rest have no pin, so say how many the map actually shows.
+    const locatedCount = useMemo(() => {
+        const householdById = new Map((householdsData ?? []).map((h) => [h._id as string, h]));
+        return members.filter((m) => {
+            if (m.latitude && m.longitude) return true;
+            const household = m.household_id ? householdById.get(m.household_id as string) : undefined;
+            return !!(household?.latitude && household?.longitude);
+        }).length;
+    }, [members, householdsData]);
+
     return (
         <LayoutWrapper>
             <div className="container mx-auto flex flex-col gap-6 py-6">
@@ -94,7 +110,13 @@ export default function MapPage() {
                                 <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
                             </div>
                         ) : (
-                            <MapView members={pins} />
+                            <div className="space-y-3">
+                                <p className="text-sm text-muted-foreground">
+                                    {locatedCount.toLocaleString()} of {members.length.toLocaleString()} member{members.length === 1 ? "" : "s"} on the map.
+                                    {locatedCount < members.length && " Members without a location on their address or household aren't shown."}
+                                </p>
+                                <MapView members={pins} />
+                            </div>
                         )}
                     </CardContent>
                 </Card>

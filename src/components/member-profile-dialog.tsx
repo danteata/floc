@@ -1,5 +1,5 @@
 
-import { format } from "date-fns"
+import { format, parse } from "date-fns"
 import { Calendar, Mail, Phone, MapPin, Award, Loader2, Shield, Hash, Crown, CheckCircle2, XCircle, AlertTriangle, HeartHandshake, Home, Star, Activity, CircleDollarSign, Info } from "lucide-react"
 import { useQuery } from "convex/react"
 import { api } from "../../convex/_generated/api"
@@ -20,7 +20,7 @@ import { useUserRole } from "@/hooks/use-user-role"
 import { hasCapability } from "@/lib/permissions"
 import { useMoney } from "@/lib/money"
 import { cn } from "@/lib/utils"
-import { titleCase } from '@/lib/display'
+import { formatDay, formatDayShort, titleCase } from '@/lib/display'
 
 interface MemberProfileDialogProps {
   member: Member | null
@@ -41,12 +41,16 @@ function sentenceCase(value?: string | null): string {
   return text.charAt(0).toUpperCase() + text.slice(1)
 }
 
-/** "26 Sep 2026" for a readable date, or the raw value if it isn't one. */
-function formatDay(value?: string | number | null): string {
-  if (value === null || value === undefined || value === "") return ""
-  const d = new Date(value)
-  return Number.isNaN(d.getTime()) ? String(value) : format(d, "d MMM yyyy")
+/**
+ * A calendar date ("2026-09-26") read as a local day, so it never slips a day
+ * across time zones the way `new Date("yyyy-mm-dd")` (UTC midnight) does.
+ */
+function toLocalDate(value: string): Date {
+  return /^\d{4}-\d{2}-\d{2}$/.test(value) ? parse(value, "yyyy-MM-dd", new Date()) : new Date(value)
 }
+
+/** How many gifts the giving section lists under the all-time total. */
+const GIVING_SHOWN = 10
 
 function StatusBadge({ status }: { status: string }) {
   const tone = STATUS_TONE[status] ?? { label: sentenceCase(status), className: "bg-muted text-muted-foreground" }
@@ -162,6 +166,12 @@ export function MemberProfileDialog({
     open && member?._id && canViewGiving ? { member_id: member._id as Id<"members"> } : "skip"
   )
 
+  // Newest gift first by the date it was given (rows come back in the order
+  // they were recorded, which a backfill or import doesn't follow).
+  const latestGiving = [...(giving ?? [])]
+    .sort((a, b) => b.date.localeCompare(a.date))
+    .slice(0, GIVING_SHOWN)
+
   const loading = attendanceSummary === undefined || memberLabels === undefined
 
   const memberUnits = allUnits?.filter(u => member?.unit_ids?.includes(u._id)) || []
@@ -238,7 +248,7 @@ export function MemberProfileDialog({
               <div className="flex items-center justify-between mb-1">
                 <span className="text-xl font-semibold text-foreground truncate">
                   {loading ? <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" /> :
-                    attendanceSummary?.last_attendance_date ? format(new Date(attendanceSummary.last_attendance_date), 'd MMM') : 'Never'}
+                    attendanceSummary?.last_attendance_date ? formatDayShort(attendanceSummary.last_attendance_date) : 'Never'}
                 </span>
                 <Calendar className="h-4 w-4 text-muted-foreground" aria-hidden="true" />
               </div>
@@ -271,13 +281,13 @@ export function MemberProfileDialog({
                   <div className="flex justify-between items-center text-sm">
                     <span className="text-muted-foreground">Joined</span>
                     <span className="font-medium text-foreground">
-                      {member.joined_date ? format(new Date(member.joined_date), 'd MMM yyyy') : 'Not recorded'}
+                      {member.joined_date ? formatDay(member.joined_date) : 'Not recorded'}
                     </span>
                   </div>
                   {member.dob && (
                     <div className="flex justify-between items-center text-sm">
                       <span className="text-muted-foreground">Birthday</span>
-                      <span className="font-medium text-foreground">{format(new Date(member.dob), 'd MMMM')}</span>
+                      <span className="font-medium text-foreground">{format(toLocalDate(member.dob), 'd MMMM')}</span>
                     </div>
                   )}
                   {member.title && (
@@ -360,7 +370,7 @@ export function MemberProfileDialog({
                     )}
                     <p className="text-xs text-muted-foreground flex items-center gap-1.5">
                       <HeartHandshake className="h-3 w-3" />
-                      Last care contact: {lastResolvedCareContact ? format(new Date(lastResolvedCareContact), 'd MMM yyyy') : 'none yet'}
+                      Last care contact: {lastResolvedCareContact ? formatDay(lastResolvedCareContact) : 'none yet'}
                     </p>
                     <p className="text-xs text-muted-foreground flex items-center gap-1.5">
                       <CircleDollarSign className="h-3 w-3" />
@@ -385,8 +395,13 @@ export function MemberProfileDialog({
                         <p className="text-sm font-medium text-foreground">
                           {money(giving.reduce((sum, g) => sum + g.amount, 0))} in total
                         </p>
+                        {giving.length > GIVING_SHOWN && (
+                          <p className="mt-1 text-xs text-muted-foreground">
+                            Latest {GIVING_SHOWN} of {giving.length.toLocaleString()} gifts
+                          </p>
+                        )}
                         <div className="mt-3 space-y-2 max-h-40 overflow-y-auto">
-                          {giving.slice(0, 10).map((g) => (
+                          {latestGiving.map((g) => (
                             <div key={g._id} className="flex items-center justify-between text-xs">
                               <span className="text-muted-foreground capitalize">
                                 {g.category} &middot; {formatDay(g.date)}
@@ -503,7 +518,7 @@ export function MemberProfileDialog({
                               )}
                               <div>
                                 <p className="text-sm font-medium text-foreground">{titleCase(record.event_type_label)}</p>
-                                <p className="text-xs text-muted-foreground">{format(new Date(record.date), 'd MMM yyyy')}</p>
+                                <p className="text-xs text-muted-foreground">{formatDay(record.date)}</p>
                               </div>
                             </div>
                             <Badge className={isPresent ? "bg-success/15 text-success-strong" : "bg-destructive/15 text-destructive-strong"}>
@@ -554,7 +569,7 @@ export function MemberProfileDialog({
                             </Badge>
                           </div>
                           <p className="text-xs text-muted-foreground mt-0.5">
-                            {format(new Date(task.created_at), 'd MMM yyyy')}
+                            {formatDay(task.created_at)}
                           </p>
                           {task.notes?.length > 0 && (
                             <div className="mt-2 space-y-1.5 pl-3 border-l border-border">
@@ -562,7 +577,7 @@ export function MemberProfileDialog({
                                 <div key={n._id} className="text-xs">
                                   {n.note && <p className="text-foreground">{n.note}</p>}
                                   <p className="text-muted-foreground">
-                                    {n.created_by_name || "Someone"} · {format(new Date(n.created_at), 'd MMM yyyy')}
+                                    {n.created_by_name || "Someone"} · {formatDay(n.created_at)}
                                   </p>
                                 </div>
                               ))}

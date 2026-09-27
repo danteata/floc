@@ -48,7 +48,17 @@ interface MembersTableProps {
    */
   selectedMembers: string[];
   onSelectedMembersChange: (ids: string[]) => void;
+  /**
+   * Sorting runs on the server across the whole filtered list (members.listPage),
+   * so a sorted directory is right before every page is loaded. The table
+   * shows `members` in the order given and reports header clicks.
+   */
+  sort: MemberSort;
+  onSortChange: (sort: MemberSort) => void;
 }
+
+export type MemberSortColumn = "name" | "status" | "joined_date" | "last_attendance" | "score";
+export type MemberSort = { column: MemberSortColumn; direction: "asc" | "desc" };
 
 import { useMutation, useQuery } from "convex/react"
 import { api } from "../../convex/_generated/api"
@@ -67,9 +77,9 @@ export function MembersTable({
   isArchivedView = false,
   selectedMembers,
   onSelectedMembersChange,
+  sort,
+  onSortChange,
 }: MembersTableProps) {
-  const [sortColumn, setSortColumn] = useState<string | null>(null);
-  const [sortDirection, setSortDirection] = useState<"asc" | "desc">("asc");
   const [editingMember, setEditingMember] = useState<Member | null>(null);
   const [viewingMember, setViewingMember] = useState<Member | null>(null);
   const [memberToArchive, setMemberToArchive] = useState<Member | null>(null);
@@ -170,51 +180,16 @@ export function MembersTable({
     }
   };
 
-  const handleSort = (column: string) => {
-    if (sortColumn === column) {
-      setSortDirection(sortDirection === "asc" ? "desc" : "asc");
+  const handleSort = (column: MemberSortColumn) => {
+    if (sort.column === column) {
+      onSortChange({ column, direction: sort.direction === "asc" ? "desc" : "asc" });
     } else {
-      setSortColumn(column);
-      setSortDirection("asc");
+      onSortChange({ column, direction: "asc" });
     }
   };
 
-  const getSortedMembers = () => {
-    if (!sortColumn) return members;
-
-    return [...members].sort((a, b) => {
-      let valueA, valueB;
-
-      switch (sortColumn) {
-        case "name":
-          valueA = a.name;
-          valueB = b.name;
-          break;
-        case "status":
-          valueA = a.status;
-          valueB = b.status;
-          break;
-        case "joined_date":
-          valueA = new Date(a.joined_date);
-          valueB = new Date(b.joined_date);
-          break;
-        case "last_attendance":
-          valueA = new Date(a.last_attendance);
-          valueB = new Date(b.last_attendance);
-          break;
-        case "score":
-          valueA = a.engagement_score ?? -1;
-          valueB = b.engagement_score ?? -1;
-          break;
-        default:
-          return 0;
-      }
-
-      if (valueA < valueB) return sortDirection === "asc" ? -1 : 1;
-      if (valueA > valueB) return sortDirection === "asc" ? 1 : -1;
-      return 0;
-    });
-  };
+  const ariaSort = (column: MemberSortColumn) =>
+    sort.column === column ? (sort.direction === "asc" ? "ascending" : "descending") : undefined;
 
   const getStatusBadge = (status: string) => {
     switch (status) {
@@ -357,7 +332,7 @@ export function MembersTable({
                   aria-label="Select all members"
                 />
               </TableHead>
-              <TableHead className="min-w-48">
+              <TableHead className="min-w-48" aria-sort={ariaSort("name")}>
                 <div className="flex cursor-pointer items-center gap-2" onClick={() => handleSort("name")}>
                   <span className="font-medium">Name</span>
                   <ArrowUpDown className="h-3.5 w-3.5 text-muted-foreground" />
@@ -366,7 +341,7 @@ export function MembersTable({
               {visibleCols.contact && <TableHead className="hidden md:table-cell">Contact</TableHead>}
               {visibleCols.address && <TableHead className="hidden md:table-cell">Address</TableHead>}
               {visibleCols.household && <TableHead className="hidden md:table-cell">Household</TableHead>}
-              <TableHead className="hidden md:table-cell">
+              <TableHead className="hidden md:table-cell" aria-sort={ariaSort("status")}>
                 <div className="flex cursor-pointer items-center gap-2" onClick={() => handleSort("status")}>
                   <span className="font-medium">Status</span>
                   <ArrowUpDown className="h-3.5 w-3.5 text-muted-foreground" />
@@ -389,7 +364,7 @@ export function MembersTable({
                 </TableHead>
               )}
               {visibleCols.lastAttendance && (
-                <TableHead className="hidden lg:table-cell">
+                <TableHead className="hidden lg:table-cell" aria-sort={ariaSort("last_attendance")}>
                   <div className="flex cursor-pointer items-center gap-2" onClick={() => handleSort("last_attendance")}>
                     <span className="font-medium">Last attendance</span>
                     <ArrowUpDown className="h-3.5 w-3.5 text-muted-foreground" />
@@ -397,7 +372,7 @@ export function MembersTable({
                 </TableHead>
               )}
               {visibleCols.score && (
-                <TableHead className="hidden lg:table-cell">
+                <TableHead className="hidden lg:table-cell" aria-sort={ariaSort("score")}>
                   <div className="flex cursor-pointer items-center gap-2" onClick={() => handleSort("score")}>
                     <span className="font-medium">Engagement</span>
                     <ArrowUpDown className="h-3.5 w-3.5 text-muted-foreground" />
@@ -410,7 +385,7 @@ export function MembersTable({
             </TableRow>
           </TableHeader>
           <TableBody>
-            {getSortedMembers().map((member) => (
+            {members.map((member) => (
               <TableRow key={member.id} className="group hover:bg-muted/50 transition-colors border-border last:border-0">
                 <TableCell>
                   <Checkbox
