@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { toast } from "sonner"
+import { errorMessage } from "@/lib/errors"
 
 export default function PortalLink() {
     const status = useQuery(api.check_ins.getMyLinkStatus, {})
@@ -20,16 +21,16 @@ export default function PortalLink() {
         try {
             const res: any = await linkAccount({})
             if (res.status === "linked") {
-                toast.success(`Linked to ${res.member_name}`)
+                toast.success(`Account linked to ${res.member_name}`)
             } else if (res.status === "already_linked") {
-                toast.info(`Already linked to ${res.member_name}`)
+                toast.info(`Your account is already linked to ${res.member_name}`)
             } else if (res.status === "no_matching_member") {
-                toast.error("No member record matches your email. Ask your church admin to add you as a member and grant app access.")
+                toast.error("Couldn't link your account", { description: "No member record matches your email. Ask your church office to add you as a member with this email." })
             } else if (res.status === "wrong_org") {
-                toast.error("That member record belongs to a different organization.")
+                toast.error("Couldn't link your account", { description: "That member record is with a different church. Ask your church office to check your details." })
             }
         } catch (err: any) {
-            toast.error(err?.message ?? "Linking failed")
+            toast.error("Couldn't link your account", { description: errorMessage(err, "Check your connection and try again.") })
         } finally {
             setLinking(false)
         }
@@ -37,7 +38,7 @@ export default function PortalLink() {
 
     if (status === undefined) {
         return (
-            <Card className="border-border/50 rounded-lg">
+            <Card>
                 <CardContent className="p-8 flex justify-center">
                     <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
                 </CardContent>
@@ -47,9 +48,9 @@ export default function PortalLink() {
 
     if (!status.authenticated) {
         return (
-            <Card className="border-border/50 rounded-lg">
+            <Card>
                 <CardContent className="p-8 text-center text-sm text-muted-foreground">
-                    Sign in to link your member account.
+                    Sign in to link your account to your member record.
                 </CardContent>
             </Card>
         )
@@ -58,9 +59,9 @@ export default function PortalLink() {
     if ((status as any).linked) {
         const s = status as any
         return (
-            <Card className="border-border/50 rounded-lg">
+            <Card>
                 <CardHeader>
-                    <CardTitle className="flex items-center gap-2 text-base">
+                    <CardTitle className="flex items-center gap-2 text-base font-semibold">
                         <CheckCircle2 className="h-4 w-4 text-success" />
                         Account linked
                     </CardTitle>
@@ -71,7 +72,7 @@ export default function PortalLink() {
                         <span className="font-medium">{s.organization_name}</span>.
                     </p>
                     <Button asChild variant="outline">
-                        <a href="/portal">Go to portal</a>
+                        <a href="/portal">Go to my portal</a>
                     </Button>
                 </CardContent>
             </Card>
@@ -80,31 +81,31 @@ export default function PortalLink() {
 
     const s = status as any
     return (
-        <Card className="border-border/50 rounded-lg">
+        <Card>
             <CardHeader>
-                <CardTitle className="flex items-center gap-2 text-base">
-                    <LinkIcon className="h-4 w-4" />
+                <CardTitle className="flex items-center gap-2 text-base font-semibold">
+                    <LinkIcon className="h-4 w-4 text-muted-foreground" />
                     Link your member account
                 </CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
                 <div className="space-y-2">
-                    <Label>Your email</Label>
-                    <Input value={s.email ?? ""} disabled />
+                    <Label htmlFor="link-email">Your email</Label>
+                    <Input id="link-email" value={s.email ?? ""} disabled />
                     <p className="text-xs text-muted-foreground">
-                        We'll look up a member record matching this email in your church's database.
+                        We'll look for your church's member record with this email.
                     </p>
                 </div>
                 <div className="rounded-md border border-warning/30 bg-warning/5 p-3 text-sm flex gap-2">
                     <AlertCircle className="h-4 w-4 text-warning-strong shrink-0 mt-0.5" />
                     <div>
-                        <p className="font-medium">If linking fails</p>
-                        <p className="text-xs text-muted-foreground mt-1">
-                            Your church admin may not have added you as a member yet, or your member email doesn't match this account's email. Ask them to add you and grant app access.
+                        <p className="font-medium">If we can't find you</p>
+                        <p className="text-sm text-muted-foreground mt-1">
+                            Your church may not have added you yet, or has a different email for you. Ask your church office to add you with this email, then try again.
                         </p>
                     </div>
                 </div>
-                <Button onClick={handleLink} disabled={linking} className="w-full">
+                <Button onClick={handleLink} disabled={linking} className="h-11 w-full">
                     {linking && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                     Link my account
                 </Button>

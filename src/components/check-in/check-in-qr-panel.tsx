@@ -13,7 +13,26 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { toast } from "sonner"
 import { cn } from "@/lib/utils"
+import { titleCase } from "@/lib/display"
+import { EmptyState } from "@/components/ui/empty-state"
 import { SessionQrCode } from "@/components/check-in/session-qr-code"
+
+/** How someone checked in, as the roster shows it. */
+const SOURCE_LABELS: Record<string, string> = {
+    qr: "QR code",
+    kiosk: "Kiosk",
+    manual: "Manual",
+    portal: "Member portal",
+    geofence: "On arrival",
+}
+
+const STATUS_LABELS: Record<string, string> = {
+    draft: "Draft",
+    open: "Open",
+    closed: "Closed",
+    expired: "Expired",
+    revoked: "Revoked",
+}
 
 type SessionState = {
     sessionId: string | null
@@ -64,12 +83,15 @@ export function CheckInQrPanel({ eventTypes }: { eventTypes: { _id: string; labe
                 sessionId: result.sessionId as string,
                 token: result.token,
                 qrUrl: result.qrUrl,
-                display_name: displayName || result.qrUrl,
+                display_name:
+                    displayName ||
+                    titleCase(eventTypes.find((et) => et._id === selectedEventTypeId)?.label) ||
+                    null,
                 status: "open",
             })
-            toast.success(result.created ? "Check-in session opened" : "Existing session reopened")
+            toast.success(result.created ? "Check-in open" : "Check-in reopened")
         } catch (err: any) {
-            toast.error(err.message ?? "Failed to open session")
+            toast.error("Couldn't open check-in", { description: err?.message ?? "Try again in a moment." })
         } finally {
             setCreating(false)
         }
@@ -80,9 +102,9 @@ export function CheckInQrPanel({ eventTypes }: { eventTypes: { _id: string; labe
         try {
             await close({ sessionId: session.sessionId as any })
             setSession((s) => ({ ...s, status: "closed" }))
-            toast.success("Session closed")
+            toast.success("Check-in closed")
         } catch (err: any) {
-            toast.error(err.message ?? "Failed to close session")
+            toast.error("Couldn't close check-in", { description: err?.message ?? "Try again in a moment." })
         }
     }
 
@@ -91,9 +113,9 @@ export function CheckInQrPanel({ eventTypes }: { eventTypes: { _id: string; labe
         try {
             const result = await regenerate({ sessionId: session.sessionId as any })
             setSession((s) => ({ ...s, token: result.token, qrUrl: result.qrUrl }))
-            toast.success("QR code regenerated")
+            toast.success("New QR code ready", { description: "The old code no longer works." })
         } catch (err: any) {
-            toast.error(err.message ?? "Failed to regenerate")
+            toast.error("Couldn't make a new QR code", { description: err?.message ?? "Try again in a moment." })
         }
     }
 
@@ -102,11 +124,11 @@ export function CheckInQrPanel({ eventTypes }: { eventTypes: { _id: string; labe
     return (
         <div className="grid gap-6 lg:grid-cols-2">
             {/* Setup / control card */}
-            <Card className="border-border/50 rounded-lg">
+            <Card>
                 <CardHeader>
-                    <CardTitle className="flex items-center gap-2 text-base">
-                        <QrCode className="h-4 w-4" />
-                        Check-in Session
+                    <CardTitle className="flex items-center gap-2 text-base font-semibold">
+                        <QrCode className="h-4 w-4 text-muted-foreground" />
+                        Check-in session
                     </CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-4">
@@ -114,11 +136,11 @@ export function CheckInQrPanel({ eventTypes }: { eventTypes: { _id: string; labe
                         <Label htmlFor="event-type">Event type</Label>
                         <Select value={selectedEventTypeId} onValueChange={setSelectedEventTypeId}>
                             <SelectTrigger id="event-type" className="w-full">
-                                <SelectValue placeholder="Select event type" />
+                                <SelectValue placeholder="Choose an event type" />
                             </SelectTrigger>
                             <SelectContent>
                                 {eventTypes.map((et) => (
-                                    <SelectItem key={et._id} value={et._id}>{et.label}</SelectItem>
+                                    <SelectItem key={et._id} value={et._id}>{titleCase(et.label)}</SelectItem>
                                 ))}
                             </SelectContent>
                         </Select>
@@ -133,14 +155,14 @@ export function CheckInQrPanel({ eventTypes }: { eventTypes: { _id: string; labe
                         <Label htmlFor="display-name">Display name (optional)</Label>
                         <Input
                             id="display-name"
-                            placeholder="e.g. Sunday Service — Jul 7"
+                            placeholder="For example, Sunday service, 7 Jul"
                             value={displayName}
                             onChange={(e) => setDisplayName(e.target.value)}
                         />
                     </div>
 
                     <div className="space-y-2">
-                        <Label htmlFor="closes-at">Closes at (optional, defaults to +4h)</Label>
+                        <Label htmlFor="closes-at">Closes at (optional, 4 hours after opening if blank)</Label>
                         <Input
                             id="closes-at"
                             type="datetime-local"
@@ -152,13 +174,13 @@ export function CheckInQrPanel({ eventTypes }: { eventTypes: { _id: string; labe
                     <div className="flex flex-wrap gap-2 pt-2">
                         <Button onClick={handleCreateOrOpen} disabled={!canCreate}>
                             {creating && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                            {isOpen ? "Reopen / New" : "Open session"}
+                            {isOpen ? "Open again" : "Open check-in"}
                         </Button>
                         {session.sessionId && (
                             <>
                                 <Button variant="outline" onClick={handleRegenerate} disabled={!isOpen}>
                                     <RefreshCw className="mr-2 h-4 w-4" />
-                                    Regenerate QR
+                                    New QR code
                                 </Button>
                                 <Button variant="outline" onClick={handleClose} disabled={!isOpen}>
                                     <Lock className="mr-2 h-4 w-4" />
@@ -167,7 +189,7 @@ export function CheckInQrPanel({ eventTypes }: { eventTypes: { _id: string; labe
                                 <Link to={`/kiosk/${session.sessionId}`} target="_blank">
                                     <Button variant="outline" disabled={!isOpen}>
                                         <Monitor className="mr-2 h-4 w-4" />
-                                        Open Kiosk
+                                        Open kiosk
                                     </Button>
                                 </Link>
                             </>
@@ -177,17 +199,17 @@ export function CheckInQrPanel({ eventTypes }: { eventTypes: { _id: string; labe
             </Card>
 
             {/* QR display + live stats */}
-            <Card className="border-border/50 rounded-lg">
+            <Card>
                 <CardHeader>
-                    <CardTitle className="flex items-center justify-between text-base">
-                        <span className="flex items-center gap-2">
-                            <QrCode className="h-4 w-4" />
-                            {session.display_name ?? "QR Code"}
+                    <CardTitle className="flex items-center justify-between gap-2 text-base font-semibold">
+                        <span className="flex min-w-0 items-center gap-2">
+                            <QrCode className="h-4 w-4 shrink-0 text-muted-foreground" />
+                            <span className="truncate">{session.display_name ?? "QR code"}</span>
                         </span>
                         {session.sessionId && (
-                            <Badge variant={isOpen ? "default" : "secondary"} className={cn(isOpen && "bg-success/15 text-success border-success/30")}>
+                            <Badge variant={isOpen ? "default" : "secondary"} className={cn(isOpen && "bg-success/15 text-success-strong border-success/30")}>
                                 {isOpen ? <Unlock className="mr-1 h-3 w-3" /> : <Lock className="mr-1 h-3 w-3" />}
-                                {session.status}
+                                {(session.status && STATUS_LABELS[session.status]) ?? session.status}
                             </Badge>
                         )}
                     </CardTitle>
@@ -201,10 +223,11 @@ export function CheckInQrPanel({ eventTypes }: { eventTypes: { _id: string; labe
                             </p>
                         </>
                     ) : (
-                        <div className="flex flex-col items-center justify-center py-12 text-center text-muted-foreground">
-                            <QrCode className="h-10 w-10 mb-2 opacity-40" />
-                            <p className="text-sm">Open a session to display the QR code</p>
-                        </div>
+                        <EmptyState
+                            icon={QrCode}
+                            title="No QR code yet"
+                            description="Choose an event type and open check-in to show the code here."
+                        />
                     )}
 
                     {session.sessionId && liveStats && (
@@ -219,7 +242,7 @@ export function CheckInQrPanel({ eventTypes }: { eventTypes: { _id: string; labe
                             <div className="flex items-center gap-2 rounded-md border border-border/50 p-3">
                                 <Clock className="h-4 w-4 text-muted-foreground" />
                                 <div className="text-xs text-muted-foreground">
-                                    Live roster below
+                                    {liveStats.recent.length > 0 ? "Latest check-ins are listed below" : "No one has checked in yet"}
                                 </div>
                             </div>
                         </div>
@@ -229,25 +252,25 @@ export function CheckInQrPanel({ eventTypes }: { eventTypes: { _id: string; labe
 
             {/* Live check-in list */}
             {session.sessionId && liveStats && liveStats.recent.length > 0 && (
-                <Card className="border-border/50 rounded-lg lg:col-span-2">
+                <Card className="lg:col-span-2">
                     <CardHeader>
-                        <CardTitle className="flex items-center gap-2 text-base">
-                            <Users className="h-4 w-4" />
-                            Live Check-ins
+                        <CardTitle className="flex items-center gap-2 text-base font-semibold">
+                            <Users className="h-4 w-4 text-muted-foreground" />
+                            Latest check-ins
                         </CardTitle>
                     </CardHeader>
                     <CardContent>
                         <div className="divide-y divide-border/40">
                             {liveStats.recent.map((r: any) => (
-                                <div key={r.member_id + (r.checked_in_at ?? "")} className="flex items-center justify-between py-2 text-sm">
-                                    <span className="font-medium">{r.member_name ?? "Unknown"}</span>
-                                    <div className="flex items-center gap-3 text-xs text-muted-foreground">
-                                        {r.is_late && <Badge variant="outline" className="text-warning-strong border-warning/30">late</Badge>}
-                                        <Badge variant="secondary" className="uppercase">{r.source}</Badge>
+                                <div key={r.member_id + (r.checked_in_at ?? "")} className="flex items-center justify-between gap-3 py-2 text-sm">
+                                    <span className="font-medium truncate">{r.member_name ?? "Unnamed member"}</span>
+                                    <div className="flex shrink-0 items-center gap-2 text-xs text-muted-foreground">
+                                        {r.is_late && <Badge variant="outline" className="text-warning-strong border-warning/30">Late</Badge>}
+                                        {r.source && <Badge variant="secondary">{SOURCE_LABELS[r.source] ?? titleCase(r.source)}</Badge>}
                                         {r.checked_in_at && (
                                             <span className="flex items-center gap-1">
                                                 <Clock className="h-3 w-3" />
-                                                {new Date(r.checked_in_at).toLocaleTimeString()}
+                                                {new Date(r.checked_in_at).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" })}
                                             </span>
                                         )}
                                     </div>

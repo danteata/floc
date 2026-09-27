@@ -1,3 +1,5 @@
+import { DEFAULT_CURRENCY, formatMoney } from '@/lib/money'
+import { formatMonth } from '@/lib/display'
 import { FinancialTransaction, TransactionType, TransactionCategory, BudgetCategory } from '@/types/database'
 
 export const TRANSACTION_CATEGORIES: Record<TransactionCategory, { label: string; color: string; icon: string }> = {
@@ -16,26 +18,21 @@ export const TRANSACTION_CATEGORIES: Record<TransactionCategory, { label: string
 export const PAYMENT_METHODS = [
     { value: 'cash', label: 'Cash' },
     { value: 'check', label: 'Check' },
-    { value: 'bank_transfer', label: 'Bank Transfer' },
-    { value: 'credit_card', label: 'Credit Card' },
-    { value: 'online', label: 'Online Payment' },
+    { value: 'bank_transfer', label: 'Bank transfer' },
+    { value: 'credit_card', label: 'Card' },
+    { value: 'online', label: 'Online' },
     { value: 'other', label: 'Other' }
 ] as const
 
-export function formatCurrency(amount: number): string {
-    return new Intl.NumberFormat('en-US', {
-        style: 'currency',
-        currency: 'USD'
-    }).format(amount)
+/** Money in the church's currency (see src/lib/money.ts). This used to be
+ *  hard-wired to US dollars, whatever the church's books were kept in. */
+export function formatCurrency(amount: number, currency: string = DEFAULT_CURRENCY): string {
+    return formatMoney(amount, currency)
 }
 
-/** Online giving is GHS-only (see convex/paystack.ts) — format accordingly,
- *  rather than reusing formatCurrency's hardcoded USD. */
+/** Online giving settles in cedis only (see convex/paystack.ts). */
 export function formatGHS(amount: number): string {
-    return new Intl.NumberFormat('en-GB', {
-        style: 'currency',
-        currency: 'GHS'
-    }).format(amount)
+    return formatMoney(amount, 'GHS')
 }
 
 // Online gifts can sit as "pending" (checkout started, not yet confirmed) or
@@ -221,7 +218,7 @@ export function getMonthlyTrend(transactions: FinancialTransaction[], months = 1
         const totals = calculateTransactionTotals(monthTransactions)
 
         trend.push({
-            month: date.toLocaleDateString('en-US', { month: 'short', year: 'numeric' }),
+            month: formatMonth(date),
             income: totals.income,
             expense: totals.expense,
             net: totals.net

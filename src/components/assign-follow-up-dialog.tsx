@@ -140,7 +140,7 @@ export function AssignFollowUpDialog({
     } catch (err) {
       toast({
         title: "Couldn't assign follow-up",
-        description: err instanceof Error ? err.message : "Please try again.",
+        description: err instanceof Error ? err.message : "Try again in a moment.",
         variant: "destructive",
       })
     } finally {
@@ -153,19 +153,19 @@ export function AssignFollowUpDialog({
       <DialogTrigger asChild>
         {trigger ?? (
           <Button size="sm" variant="outline">
-            Assign for Follow-up
+            Follow up
           </Button>
         )}
       </DialogTrigger>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
-            <HeartHandshake className="h-4 w-4" />
-            Assign for Follow-up
+            <HeartHandshake className="h-4 w-4 text-muted-foreground" />
+            Assign a follow-up
           </DialogTitle>
           <DialogDescription>
-            Create a tracked follow-up task for the selected members. The assignee will be
-            notified and can update status as they reach out.
+            Choose who reaches out to these members. They get a care task and can
+            mark it as contacted or resolved as they go.
           </DialogDescription>
         </DialogHeader>
 
@@ -208,7 +208,7 @@ export function AssignFollowUpDialog({
             </Select>
             {unitAdmins?.length === 0 && (
               <p className="text-xs text-muted-foreground">
-                No unit leaders found for this organization yet.
+                There are no leaders to assign yet. Add unit leaders first.
               </p>
             )}
           </div>

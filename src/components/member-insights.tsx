@@ -3,8 +3,8 @@
 import { useMemo } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
-import { Progress } from "@/components/ui/progress"
-import { Avatar, AvatarFallback } from "@/components/ui/avatar"
+import { MemberAvatar } from "@/components/ui/member-avatar"
+import { StatCard, StatGrid } from "@/components/ui/stat-card"
 import { Skeleton } from "@/components/ui/skeleton"
 import {
   Area,
@@ -79,7 +79,7 @@ export function MemberInsights() {
   if (!insights) {
     return (
       <div className="space-y-6">
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4">
           {[...Array(4)].map((_, i) => (
             <Skeleton key={i} className="h-28 rounded-xl" />
           ))}
@@ -98,94 +98,43 @@ export function MemberInsights() {
     <div className="space-y-6">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <h2 className="text-xl font-semibold text-foreground">Member Insights</h2>
+          <h2 className="text-lg font-semibold text-foreground">Member insights</h2>
           <p className="text-sm text-muted-foreground">
-            {scopeSubtitle(insights.scope, "Engagement patterns and membership analytics")}
+            {scopeSubtitle(insights.scope, "How members are attending and who might need a visit")}
           </p>
         </div>
         <div className="flex items-center gap-2">
           <ScopeBadge scope={insights.scope} />
           {overview.trendingUp ? (
-            <Badge variant="outline" className="bg-success/10 text-success-strong border-success/20">
+            <Badge className="bg-success/15 text-success-strong">
               <TrendingUp className="h-3 w-3 mr-1" />
               Growing
             </Badge>
           ) : (
-            <Badge variant="outline" className="bg-warning/10 text-warning-strong border-warning/20">
+            <Badge className="bg-warning/15 text-warning-strong">
               <TrendingDown className="h-3 w-3 mr-1" />
-              Needs Attention
+              Needs attention
             </Badge>
           )}
         </div>
       </div>
 
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <Card className="border-border/50 rounded-xl">
-          <CardContent className="p-4">
-            <div className="flex items-center gap-3">
-              <div className="h-10 w-10 bg-primary/10 text-primary rounded-lg flex items-center justify-center">
-                <Users className="h-5 w-5" />
-              </div>
-              <div>
-                <p className="text-2xl font-semibold text-foreground">{overview.totalMembers}</p>
-                <p className="text-xs text-muted-foreground">Total Members</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card className="border-border/50 rounded-xl">
-          <CardContent className="p-4">
-            <div className="flex items-center gap-3">
-              <div className="h-10 w-10 bg-success/10 text-success-strong rounded-lg flex items-center justify-center">
-                <UserCheck className="h-5 w-5" />
-              </div>
-              <div>
-                <p className="text-2xl font-semibold text-foreground">{overview.activeMembers}</p>
-                <p className="text-xs text-muted-foreground">Active</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card className="border-border/50 rounded-xl">
-          <CardContent className="p-4">
-            <div className="flex items-center gap-3">
-              <div className="h-10 w-10 bg-warning/10 text-warning-strong rounded-lg flex items-center justify-center">
-                <Activity className="h-5 w-5" />
-              </div>
-              <div>
-                <p className="text-2xl font-semibold text-foreground">{overview.engagementRate}%</p>
-                <p className="text-xs text-muted-foreground">Engagement</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card className="border-border/50 rounded-xl">
-          <CardContent className="p-4">
-            <div className="flex items-center gap-3">
-              <div className="h-10 w-10 bg-info/10 text-info-strong rounded-lg flex items-center justify-center">
-                <UserPlus className="h-5 w-5" />
-              </div>
-              <div>
-                <p className="text-2xl font-semibold text-foreground">+{overview.newMembersThisMonth}</p>
-                <p className="text-xs text-muted-foreground">New This Month</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
+      <StatGrid>
+        <StatCard label="Members" value={overview.totalMembers.toLocaleString()} icon={Users} />
+        <StatCard label="Active" value={overview.activeMembers.toLocaleString()} icon={UserCheck} />
+        <StatCard label="Engagement" value={`${overview.engagementRate}%`} icon={Activity} />
+        <StatCard label="New this month" value={`+${overview.newMembersThisMonth}`} icon={UserPlus} />
+      </StatGrid>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <Card className="border-border/50 rounded-xl">
+        <Card>
           <CardHeader className="pb-2">
             <CardTitle className="text-base flex items-center gap-2">
               <BarChart3 className="h-4 w-4 text-muted-foreground" />
-              Monthly Engagement
+              Monthly attendance
             </CardTitle>
             <CardDescription className="text-sm">
-              Unique attendees vs average attendance
+              Different people who came each month, and the average per gathering
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -223,7 +172,7 @@ export function MemberInsights() {
                     <Area
                       type="monotone"
                       dataKey="attendees"
-                      name="Unique Attendees"
+                      name="People who came"
                       stroke="var(--primary)"
                       fillOpacity={1}
                       fill="url(#colorAttendees)"
@@ -231,7 +180,7 @@ export function MemberInsights() {
                     <Line
                       type="monotone"
                       dataKey="avgAttendance"
-                      name="Avg Attendance"
+                      name="Average attendance"
                       stroke="var(--chart-1)"
                       strokeWidth={2}
                       dot={false}
@@ -241,27 +190,27 @@ export function MemberInsights() {
               </div>
             ) : (
               <div className="h-[300px] flex items-center justify-center text-sm text-muted-foreground">
-                No attendance data available
+                No attendance recorded yet
               </div>
             )}
           </CardContent>
         </Card>
 
-        <Card className="border-border/50 rounded-xl">
+        <Card>
           <CardHeader className="pb-2">
             <CardTitle className="text-base flex items-center gap-2">
               <PieChartIcon className="h-4 w-4 text-muted-foreground" />
               Demographics
             </CardTitle>
             <CardDescription className="text-sm">
-              Age and gender distribution
+              Members by age group and gender
             </CardDescription>
           </CardHeader>
           <CardContent>
             {chartData && (chartData.ageData.length > 0 || chartData.genderData.length > 0) ? (
-              <div className="grid grid-cols-2 gap-4 h-[300px]">
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                 <div>
-                  <p className="text-xs text-muted-foreground text-center mb-2">Age Groups</p>
+                  <p className="text-xs text-muted-foreground text-center mb-2">Age groups</p>
                   <ResponsiveContainer width="100%" height={250}>
                     <PieChart>
                       <Pie
@@ -282,7 +231,7 @@ export function MemberInsights() {
                   </ResponsiveContainer>
                   <div className="flex flex-wrap justify-center gap-2 mt-1">
                     {chartData.ageData.map((item, i) => (
-                      <Badge key={i} variant="outline" className="text-[10px]">
+                      <Badge key={i} variant="outline" className="font-normal">
                         {item.name}: {item.value}
                       </Badge>
                     ))}
@@ -310,7 +259,7 @@ export function MemberInsights() {
                   </ResponsiveContainer>
                   <div className="flex flex-wrap justify-center gap-2 mt-1">
                     {chartData.genderData.map((item, i) => (
-                      <Badge key={i} variant="outline" className="text-[10px]">
+                      <Badge key={i} variant="outline" className="font-normal">
                         {item.name}: {item.value}
                       </Badge>
                     ))}
@@ -319,18 +268,18 @@ export function MemberInsights() {
               </div>
             ) : (
               <div className="h-[300px] flex items-center justify-center text-sm text-muted-foreground">
-                No demographic data available
+                No ages or genders recorded yet
               </div>
             )}
           </CardContent>
         </Card>
       </div>
 
-      <Card className="border-border/50 rounded-xl">
+      <Card>
         <CardHeader className="pb-2">
           <CardTitle className="text-base flex items-center gap-2">
-            <AlertTriangle className="h-4 w-4 text-warning-strong" />
-            Inactive Members
+            <AlertTriangle className="h-4 w-4 text-muted-foreground" />
+            Not seen recently
           </CardTitle>
           <CardDescription className="text-sm">
             Members who haven't attended in the last 60 days
@@ -345,17 +294,13 @@ export function MemberInsights() {
                   className="flex items-center justify-between p-3 rounded-lg bg-muted/30 hover:bg-muted/50 transition-colors"
                 >
                   <div className="flex items-center gap-3">
-                    <Avatar className="h-8 w-8">
-                      <AvatarFallback className="text-xs">
-                        {member.name.split(' ').map(n => n[0]).join('').slice(0, 2)}
-                      </AvatarFallback>
-                    </Avatar>
+                    <MemberAvatar name={member.name} size="sm" />
                     <div>
                       <p className="text-sm font-medium text-foreground">{member.name}</p>
-                      <p className="text-xs text-muted-foreground">No recent activity</p>
+                      <p className="text-xs text-muted-foreground">Not seen in 60 days</p>
                     </div>
                   </div>
-                  <Badge variant="outline" className="text-warning-strong border-warning/30">
+                  <Badge className="bg-warning/15 text-warning-strong">
                     Inactive
                   </Badge>
                 </div>
@@ -363,8 +308,8 @@ export function MemberInsights() {
             </div>
           ) : (
             <div className="py-8 text-center text-sm text-muted-foreground">
-              <UserCheck className="h-8 w-8 mx-auto mb-2 text-success-strong" />
-              All members are actively engaged
+              <UserCheck className="h-8 w-8 mx-auto mb-2 text-muted-foreground/30" />
+              Everyone has attended in the last 60 days
             </div>
           )}
         </CardContent>

@@ -95,11 +95,11 @@ export function UnitManagement() {
         category: data.category,
         leader_id: data.leader_id,
       });
-      toast({ title: "Success", description: "Unit created successfully" });
+      toast({ title: "Unit created" });
       setCreateUnitDialogOpen(false);
       setSelectedUnitId(null);
     } catch (error: any) {
-      toast({ title: "Error", description: error.message, variant: "destructive" });
+      toast({ title: "Couldn't create the unit", description: error.message, variant: "destructive" });
     } finally {
       setIsSubmitting(false);
     }
@@ -119,10 +119,10 @@ export function UnitManagement() {
           leader_id: data.leader_id,
         }
       });
-      toast({ title: "Success", description: "Unit updated successfully" });
+      toast({ title: "Unit updated" });
       setEditUnitDialogOpen(false);
     } catch (error: any) {
-      toast({ title: "Error", description: error.message, variant: "destructive" });
+      toast({ title: "Couldn't update the unit", description: error.message, variant: "destructive" });
     } finally {
       setIsSubmitting(false);
     }
@@ -137,15 +137,15 @@ export function UnitManagement() {
           id: editingTemplate._id as Id<"unit_templates">,
           updates: data,
         });
-        toast({ title: "Success", description: "Template updated" });
+        toast({ title: "Template updated" });
       } else {
         await createTemplateMutation({ organization_id: orgId, ...data });
-        toast({ title: "Success", description: "Template created" });
+        toast({ title: "Template created" });
       }
       setTemplateDialogOpen(false);
       setEditingTemplate(null);
     } catch (error: any) {
-      toast({ title: "Error", description: error.message, variant: "destructive" });
+      toast({ title: "Couldn't save the template", description: error.message, variant: "destructive" });
     } finally {
       setIsSubmitting(false);
     }
@@ -155,9 +155,9 @@ export function UnitManagement() {
     if (!confirm("Delete this template? Units created from it become independent (they keep their members and data).")) return;
     try {
       await removeTemplateMutation({ id: templateId as Id<"unit_templates"> });
-      toast({ title: "Deleted", description: "Template removed; its units are now independent" });
+      toast({ title: "Template deleted", description: "Its units are now independent." });
     } catch (error: any) {
-      toast({ title: "Error", description: error.message, variant: "destructive" });
+      toast({ title: "Couldn't delete the template", description: error.message, variant: "destructive" });
     }
   }
 
@@ -168,9 +168,9 @@ export function UnitManagement() {
         template_id: template._id as Id<"unit_templates">,
         organization_id: orgId,
       });
-      toast({ title: "Added", description: `${template.name} created from template` });
+      toast({ title: `${template.name} created from template` });
     } catch (error: any) {
-      toast({ title: "Error", description: error.message, variant: "destructive" });
+      toast({ title: "Couldn't create the unit", description: error.message, variant: "destructive" });
     }
   }
 
@@ -183,10 +183,10 @@ export function UnitManagement() {
         name: data.name,
         description: data.description,
       });
-      toast({ title: "Saved", description: "Local override applied" });
+      toast({ title: "Changes saved", description: "This unit now differs from its template." });
       setOverrideUnit(null);
     } catch (error: any) {
-      toast({ title: "Error", description: error.message, variant: "destructive" });
+      toast({ title: "Couldn't save your changes", description: error.message, variant: "destructive" });
     } finally {
       setIsSubmitting(false);
     }
@@ -196,9 +196,9 @@ export function UnitManagement() {
     if (!confirm("Reset this unit to its template values? Local changes will be lost.")) return;
     try {
       await resetMutation({ unit_id: unitId as Id<"units"> });
-      toast({ title: "Reset", description: "Unit restored to template values" });
+      toast({ title: "Unit reset", description: "It matches its template again." });
     } catch (error: any) {
-      toast({ title: "Error", description: error.message, variant: "destructive" });
+      toast({ title: "Couldn't reset the unit", description: error.message, variant: "destructive" });
     }
   }
 
@@ -206,10 +206,10 @@ export function UnitManagement() {
     setIsSubmitting(true);
     try {
       await mergeMutation({ source_id: sourceId as Id<"units">, target_id: targetId as Id<"units"> });
-      toast({ title: "Merged", description: "Unit merged successfully" });
+      toast({ title: "Units merged" });
       setMergeSource(null);
     } catch (error: any) {
-      toast({ title: "Error", description: error.message, variant: "destructive" });
+      toast({ title: "Couldn't merge the units", description: error.message, variant: "destructive" });
     } finally {
       setIsSubmitting(false);
     }
@@ -230,14 +230,14 @@ export function UnitManagement() {
   }, [chartData?.units, editingUnit])
 
   if (!chartData) {
-    return <div className="p-8 text-center animate-pulse">Loading organizational hierarchy...</div>
+    return <div className="p-8 text-center text-sm text-muted-foreground animate-pulse">Loading units…</div>
   }
 
   // Transform chartData to match what sub-components expect if necessary
   // Or update sub-components to use Convex data model
 
   return (
-    <div className="container p-4 md:p-6 space-y-6">
+    <div className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
           <h2 className="text-lg font-semibold">Units</h2>
@@ -256,7 +256,7 @@ export function UnitManagement() {
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="rounded-xl border-border/50 shadow-soft">
-                <DropdownMenuLabel className="font-semibold">Create New</DropdownMenuLabel>
+                <DropdownMenuLabel className="font-semibold">Create</DropdownMenuLabel>
                 <DropdownMenuSeparator className="bg-border" />
                 <DropdownMenuItem onClick={() => setCreateUnitDialogOpen(true)}>
                   <Layers className="h-4 w-4 mr-2" />

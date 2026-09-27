@@ -49,15 +49,15 @@ import { X, Crown } from "lucide-react"
 const memberSchema = z.object({
   title: z.string().optional(),
   unit_ids: z.array(z.string()).optional(),
-  first_name: z.string().min(1, "First name is required"),
-  last_name: z.string().min(1, "Last name is required"),
-  email: z.string().email("Invalid email address").optional().or(z.literal("")),
-  phone: z.string().min(1, "Phone number is required"),
+  first_name: z.string().min(1, "Enter a first name"),
+  last_name: z.string().min(1, "Enter a last name"),
+  email: z.string().email("Enter a valid email address").optional().or(z.literal("")),
+  phone: z.string().min(1, "Enter a phone number"),
   dob: z.string().optional(),
   birth_month: z.number().min(1).max(12).optional(),
   birth_day: z.number().min(1).max(31).optional(),
   gender: z.string().optional(),
-  status: z.string().min(1, "Status is required"),
+  status: z.string().min(1, "Choose a status"),
   joined_date: z.string().optional(),
   address: z.string().optional(),
   city: z.string().optional(),
@@ -217,8 +217,8 @@ export function MemberEditDialog({
       });
 
       toast({
-        title: "Success",
-        description: "Member updated successfully",
+        title: "Member updated",
+        description: `Changes to ${data.first_name} ${data.last_name} are saved.`,
       })
 
       onOpenChange(false)
@@ -226,8 +226,8 @@ export function MemberEditDialog({
     } catch (error: any) {
       console.error("Error updating member:", error)
       toast({
-        title: "Error",
-        description: error.message,
+        title: "Couldn't save the member",
+        description: error.message || "Something went wrong. Try again.",
         variant: "destructive",
       })
     } finally {
@@ -238,12 +238,12 @@ export function MemberEditDialog({
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent
-        className="flex flex-col w-[calc(100%-2rem)] sm:w-[700px] max-h-[90vh] p-0 border border-border/50 shadow-soft-xl overflow-hidden"
+        className="flex flex-col w-[calc(100%-2rem)] sm:w-[700px] max-h-[90vh] p-0 overflow-hidden"
       >
-        <DialogHeader className="px-6 pt-6 pb-2 shrink-0">
-          <DialogTitle className="text-xl tracking-tight">Edit Member Profile</DialogTitle>
+        <DialogHeader className="px-4 pt-6 pb-2 shrink-0 sm:px-6">
+          <DialogTitle className="text-xl tracking-tight">Edit {member.name || "member"}</DialogTitle>
           <DialogDescription>
-            Update personal information, unit assignments, and classification labels.
+            Update their details, units, household and labels.
           </DialogDescription>
         </DialogHeader>
         <Form {...form}>
@@ -251,15 +251,15 @@ export function MemberEditDialog({
             {/* Scrollable body: only this area scrolls, so the footer below stays
                 reachable no matter how tall a given tab's content is (e.g. a long
                 unit list). */}
-            <div className="px-6 pb-6 flex-1 min-h-0 overflow-y-auto">
+            <div className="px-4 pb-6 flex-1 min-h-0 overflow-y-auto sm:px-6">
               <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-                <TabsList className="grid w-full grid-cols-6 h-12 p-1 rounded-xl mb-6">
-                  <TabsTrigger value="basic" className="rounded-lg text-xs">Basic</TabsTrigger>
-                  <TabsTrigger value="contact" className="rounded-lg text-xs">Contact</TabsTrigger>
-                  <TabsTrigger value="photo" className="rounded-lg text-xs">Photo</TabsTrigger>
-                  <TabsTrigger value="unit" className="rounded-lg text-xs">{unitLabels.single}</TabsTrigger>
-                  <TabsTrigger value="household" className="rounded-lg text-xs">Household</TabsTrigger>
-                  <TabsTrigger value="labels" className="rounded-lg text-xs">Labels</TabsTrigger>
+                <TabsList className="mb-6 flex h-10 w-full justify-start overflow-x-auto p-1 sm:grid sm:grid-cols-6">
+                  <TabsTrigger value="basic" className="flex-none px-3 text-xs sm:flex-1 sm:px-1.5">Basic</TabsTrigger>
+                  <TabsTrigger value="contact" className="flex-none px-3 text-xs sm:flex-1 sm:px-1.5">Contact</TabsTrigger>
+                  <TabsTrigger value="photo" className="flex-none px-3 text-xs sm:flex-1 sm:px-1.5">Photo</TabsTrigger>
+                  <TabsTrigger value="unit" className="flex-none px-3 text-xs sm:flex-1 sm:px-1.5">{unitLabels.single}</TabsTrigger>
+                  <TabsTrigger value="household" className="flex-none px-3 text-xs sm:flex-1 sm:px-1.5">Household</TabsTrigger>
+                  <TabsTrigger value="labels" className="flex-none px-3 text-xs sm:flex-1 sm:px-1.5">Labels</TabsTrigger>
                 </TabsList>
 
                 <TabsContent value="basic" className="space-y-4 mt-0">
@@ -272,11 +272,11 @@ export function MemberEditDialog({
                           <FormLabel className="text-sm font-medium">Title</FormLabel>
                           <Select onValueChange={field.onChange} defaultValue={field.value}>
                             <FormControl>
-                              <SelectTrigger className="rounded-xl">
+                              <SelectTrigger>
                                 <SelectValue placeholder="Select" />
                               </SelectTrigger>
                             </FormControl>
-                            <SelectContent className="rounded-xl border-border/50 shadow-soft">
+                            <SelectContent>
                               <SelectItem value="Mr">Mr</SelectItem>
                               <SelectItem value="Mrs">Mrs</SelectItem>
                               <SelectItem value="Ms">Ms</SelectItem>
@@ -291,9 +291,9 @@ export function MemberEditDialog({
                       name="first_name"
                       render={({ field }) => (
                         <FormItem className="md:col-span-3">
-                          <FormLabel className="text-sm font-medium">First Name</FormLabel>
+                          <FormLabel className="text-sm font-medium">First name</FormLabel>
                           <FormControl>
-                            <Input {...field} className="rounded-xl" />
+                            <Input {...field} />
                           </FormControl>
                           <FormMessage />
                         </FormItem>
@@ -307,9 +307,9 @@ export function MemberEditDialog({
                       name="last_name"
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel className="text-sm font-medium">Last Name</FormLabel>
+                          <FormLabel className="text-sm font-medium">Last name</FormLabel>
                           <FormControl>
-                            <Input {...field} className="rounded-xl" />
+                            <Input {...field} />
                           </FormControl>
                           <FormMessage />
                         </FormItem>
@@ -324,11 +324,11 @@ export function MemberEditDialog({
                           <FormLabel className="text-sm font-medium">Gender</FormLabel>
                           <Select onValueChange={field.onChange} defaultValue={field.value}>
                             <FormControl>
-                              <SelectTrigger className="rounded-xl">
-                                <SelectValue placeholder="Select gender" />
+                              <SelectTrigger>
+                                <SelectValue placeholder="Choose" />
                               </SelectTrigger>
                             </FormControl>
-                            <SelectContent className="rounded-xl border-border/50 shadow-soft">
+                            <SelectContent>
                               <SelectItem value="male">Male</SelectItem>
                               <SelectItem value="female">Female</SelectItem>
                               <SelectItem value="other">Other</SelectItem>
@@ -343,9 +343,9 @@ export function MemberEditDialog({
                     name="dob"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel className="text-sm font-medium">Date of Birth</FormLabel>
+                        <FormLabel className="text-sm font-medium">Date of birth</FormLabel>
                         <FormControl>
-                          <Input type="date" {...field} className="rounded-xl" />
+                          <Input type="date" {...field} />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
@@ -358,14 +358,14 @@ export function MemberEditDialog({
                       name="birth_month"
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel className="text-sm font-medium">Birth Month</FormLabel>
+                          <FormLabel className="text-sm font-medium">Birth month</FormLabel>
                           <Select onValueChange={(value) => field.onChange(parseInt(value))} value={field.value?.toString()}>
                             <FormControl>
-                              <SelectTrigger className="rounded-xl">
+                              <SelectTrigger>
                                 <SelectValue placeholder="Select month" />
                               </SelectTrigger>
                             </FormControl>
-                            <SelectContent className="rounded-xl border-border/50 shadow-soft">
+                            <SelectContent>
                               <SelectItem value="1">January</SelectItem>
                               <SelectItem value="2">February</SelectItem>
                               <SelectItem value="3">March</SelectItem>
@@ -389,14 +389,14 @@ export function MemberEditDialog({
                       name="birth_day"
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel className="text-sm font-medium">Birth Day</FormLabel>
+                          <FormLabel className="text-sm font-medium">Birth day</FormLabel>
                           <Select onValueChange={(value) => field.onChange(parseInt(value))} value={field.value?.toString()}>
                             <FormControl>
-                              <SelectTrigger className="rounded-xl">
+                              <SelectTrigger>
                                 <SelectValue placeholder="Select day" />
                               </SelectTrigger>
                             </FormControl>
-                            <SelectContent className="rounded-xl border-border/50 shadow-soft">
+                            <SelectContent>
                               {Array.from({ length: 31 }, (_, i) => i + 1).map((day) => (
                                 <SelectItem key={day} value={day.toString()}>
                                   {day}
@@ -415,9 +415,9 @@ export function MemberEditDialog({
                     name="skills"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel className="text-sm font-medium">Skills / Talents</FormLabel>
+                        <FormLabel className="text-sm font-medium">Skills and talents</FormLabel>
                         <FormControl>
-                          <Input {...field} placeholder="e.g. Singing, Playing instrument, Teaching..." className="rounded-xl" />
+                          <Input {...field} placeholder="e.g. Singing, playing an instrument, teaching" />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
@@ -432,9 +432,9 @@ export function MemberEditDialog({
                     name="email"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel className="text-sm font-medium">Email Address</FormLabel>
+                        <FormLabel className="text-sm font-medium">Email address</FormLabel>
                         <FormControl>
-                          <Input type="email" {...field} className="rounded-xl" />
+                          <Input type="email" {...field} />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
@@ -446,9 +446,9 @@ export function MemberEditDialog({
                     name="phone"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel className="text-sm font-medium">Contact Number</FormLabel>
+                        <FormLabel className="text-sm font-medium">Phone number</FormLabel>
                         <FormControl>
-                          <Input {...field} className="rounded-xl" />
+                          <Input {...field} />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
@@ -460,9 +460,9 @@ export function MemberEditDialog({
                     name="address"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel className="text-sm font-medium">Physical Address</FormLabel>
+                        <FormLabel className="text-sm font-medium">Home address</FormLabel>
                         <FormControl>
-                          <Input {...field} className="rounded-xl" />
+                          <Input {...field} />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
@@ -477,7 +477,7 @@ export function MemberEditDialog({
                         <FormItem>
                           <FormLabel className="text-sm font-medium">City</FormLabel>
                           <FormControl>
-                            <Input {...field} className="rounded-xl" />
+                            <Input {...field} />
                           </FormControl>
                           <FormMessage />
                         </FormItem>
@@ -488,9 +488,9 @@ export function MemberEditDialog({
                       name="state"
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel className="text-sm font-medium">State / Region</FormLabel>
+                          <FormLabel className="text-sm font-medium">Region or state</FormLabel>
                           <FormControl>
-                            <Input {...field} className="rounded-xl" />
+                            <Input {...field} />
                           </FormControl>
                           <FormMessage />
                         </FormItem>
@@ -504,9 +504,9 @@ export function MemberEditDialog({
                       name="zip"
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel className="text-sm font-medium">Postal Code</FormLabel>
+                          <FormLabel className="text-sm font-medium">Postcode</FormLabel>
                           <FormControl>
-                            <Input {...field} className="rounded-xl" />
+                            <Input {...field} />
                           </FormControl>
                           <FormMessage />
                         </FormItem>
@@ -519,7 +519,7 @@ export function MemberEditDialog({
                         <FormItem>
                           <FormLabel className="text-sm font-medium">Country</FormLabel>
                           <FormControl>
-                            <Input {...field} className="rounded-xl" />
+                            <Input {...field} />
                           </FormControl>
                           <FormMessage />
                         </FormItem>
@@ -532,9 +532,9 @@ export function MemberEditDialog({
                     name="plus_code"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel className="text-sm font-medium">Maps Location (Plus Code)</FormLabel>
+                        <FormLabel className="text-sm font-medium">Plus code (for the map pin)</FormLabel>
                         <FormControl>
-                          <Input {...field} className="rounded-xl font-mono text-xs" />
+                          <Input {...field} className="font-mono" />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
@@ -545,12 +545,12 @@ export function MemberEditDialog({
                 <TabsContent value="photo" className="space-y-4 mt-0">
                   <div className="space-y-6 flex flex-col items-center pt-2">
                     <div className="relative group">
-                      <Avatar className="w-40 h-40 border-8 border-muted shadow-soft ring-1 ring-border">
+                      <Avatar className="size-32 ring-1 ring-border">
                         <AvatarImage src={uploadedImageUrl || ""} alt="Member photo" />
-                        <AvatarFallback className="bg-muted text-muted-foreground text-3xl">
+                        <AvatarFallback className="bg-primary/10 font-semibold text-primary text-3xl">
                           {form.watch("first_name") && form.watch("last_name")
                             ? `${form.watch("first_name")[0]}${form.watch("last_name")[0]}`.toUpperCase()
-                            : "MP"}
+                            : "?"}
                         </AvatarFallback>
                       </Avatar>
                       {uploadedImageUrl && (
@@ -558,10 +558,11 @@ export function MemberEditDialog({
                           type="button"
                           variant="destructive"
                           size="icon"
-                          className="absolute bottom-2 right-2 rounded-full w-8 h-8 p-0 shadow-lg border-2 border-background scale-0 group-hover:scale-100 transition-transform"
+                          className="absolute bottom-1 right-1 rounded-full w-8 h-8 p-0 border-2 border-background"
                           onClick={removePhoto}
                         >
                           <X className="w-4 h-4" />
+                          <span className="sr-only">Remove photo</span>
                         </Button>
                       )}
                     </div>
@@ -578,9 +579,9 @@ export function MemberEditDialog({
                     name="joined_date"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel className="text-sm font-medium">Onboarding Date</FormLabel>
+                        <FormLabel className="text-sm font-medium">Date joined</FormLabel>
                         <FormControl>
-                          <Input type="date" {...field} className="rounded-xl" />
+                          <Input type="date" {...field} />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
@@ -609,12 +610,12 @@ export function MemberEditDialog({
                   />
 
                   {/* Units Led Section */}
-                  <div className="border border-border rounded-2xl p-4 bg-card">
+                  <div className="rounded-xl bg-card p-4 ring-1 ring-foreground/10">
                     <div className="flex items-center gap-2 mb-3">
                       <Crown className="h-4 w-4 text-muted-foreground" />
-                      <h4 className="text-xs font-semibold text-foreground">Units Led</h4>
+                      <h4 className="text-sm font-semibold text-foreground">Leads</h4>
                     </div>
-                    <div className="space-y-2 max-h-[150px] overflow-y-auto">
+                    <div className="space-y-2 max-h-40 overflow-y-auto">
                       {availableUnits.filter(u => {
                         const memberId = (member as any)._id || (member as any).id;
                         if (!u.leader_id) return false;
@@ -636,36 +637,36 @@ export function MemberEditDialog({
                             <div key={unit.id} className="flex items-center gap-3 p-2 bg-muted/40 rounded-lg border border-border">
                               <div className="flex-1">
                                 <p className="text-sm text-foreground">{unit.name}</p>
-                                <p className="text-[10px] text-muted-foreground">{unit.type}</p>
+                                <p className="text-xs text-muted-foreground">{unit.type}</p>
                               </div>
-                              <Badge variant="secondary" className="text-[10px]">Leader</Badge>
+                              <Badge variant="secondary">{unitLabels.leader || "Leader"}</Badge>
                             </div>
                           ))
                       ) : (
-                        <p className="text-sm text-muted-foreground py-2">No units led</p>
+                        <p className="text-sm text-muted-foreground py-2">Doesn't lead any {unitLabels.plural?.toLowerCase() || "units"} yet</p>
                       )}
                     </div>
-                    <p className="text-[10px] text-muted-foreground mt-3">
-                      Leadership assignments are managed in Unit Management.
+                    <p className="text-xs text-muted-foreground mt-3">
+                      Leaders are set on the {unitLabels.plural?.toLowerCase() || "units"} page.
                     </p>
                   </div>
                 </TabsContent>
 
                 <TabsContent value="household" className="space-y-4 mt-0">
-                  <div className="border border-border rounded-2xl p-5 bg-card">
+                  <div className="rounded-xl bg-card p-4 ring-1 ring-foreground/10">
                     {organization?._id ? (
                       <HouseholdPicker
                         memberId={((member as any)._id || (member as any).id) as Id<"members">}
                         organizationId={organization._id}
                       />
                     ) : (
-                      <p className="text-sm text-muted-foreground">No organization set.</p>
+                      <p className="text-sm text-muted-foreground">Households load once your church is set up.</p>
                     )}
                   </div>
                 </TabsContent>
 
                 <TabsContent value="labels" className="space-y-4 mt-0">
-                  <div className="border border-border rounded-2xl p-5 bg-card">
+                  <div className="rounded-xl bg-card p-4 ring-1 ring-foreground/10">
                     <LabelSelector
                       memberId={(member as any)._id || (member as any).id || ''}
                       variant="full"
@@ -677,12 +678,11 @@ export function MemberEditDialog({
 
             {/* Sticky footer: stays visible regardless of scroll position in the
                 body above, so Submit is always reachable. */}
-            <div className="shrink-0 bg-muted/40 px-6 py-4 flex items-center justify-between border-t border-border">
+            <div className="shrink-0 px-4 py-4 flex items-center justify-between border-t border-border sm:px-6">
               <Button
                 variant="ghost"
                 type="button"
                 onClick={() => onOpenChange(false)}
-                className="font-bold text-muted-foreground hover:text-foreground rounded-xl"
               >
                 Cancel
               </Button>
@@ -690,9 +690,8 @@ export function MemberEditDialog({
                 <Button
                   type="submit"
                   disabled={isLoading}
-                  className="rounded-xl px-6 shadow-soft"
                 >
-                  {isLoading ? "Saving..." : "Submit"}
+                  {isLoading ? "Saving…" : "Save changes"}
                 </Button>
               </div>
             </div>

@@ -33,10 +33,11 @@ import { Textarea } from '@/components/ui/textarea'
 import { Button } from '@/components/ui/button'
 import { Calendar } from '@/components/ui/calendar'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
-import { CalendarIcon, Loader2, Save, User, Users, ClipboardCheck, Info, MessageSquare, Plus, CheckCircle2, BookOpen } from 'lucide-react'
+import { CalendarIcon, Loader2, Save, Users, Info, Plus, CheckCircle2, BookOpen } from 'lucide-react'
 import { format } from 'date-fns'
 import { cn } from '@/lib/utils'
-import { ServiceMetadataSummary, MessageCategory } from '@/types/database'
+import { titleCase } from '@/lib/display'
+import { ServiceMetadataSummary } from '@/types/database'
 import { useUser } from '@clerk/clerk-react'
 import { MemberCombobox } from '@/components/ui/member-combobox'
 import { useEventTypes } from '@/hooks/use-event-types'
@@ -48,7 +49,7 @@ import { Badge } from '@/components/ui/badge'
 
 const serviceMetadataSchema = z.object({
     service_date: z.date(),
-    service_type: z.string().min(1, 'Service type is required'),
+    service_type: z.string().min(1, 'Choose the type of service'),
     service_name: z.string().optional(),
     event_id: z.string().optional(),
     message_title: z.string().optional(),
@@ -245,15 +246,15 @@ export function ServiceMetadataSummaryDialog({
                     id: summary._id as any,
                     ...summaryPayload
                 })
-                toast.success('Service report updated')
+                toast.success('Service summary updated')
             } else {
                 await createSummary(summaryPayload)
-                toast.success('Service report recorded')
+                toast.success('Service summary saved')
             }
             onOpenChange(false)
         } catch (error) {
             console.error('Error saving service metadata summary:', error)
-            toast.error('Failed to save service report')
+            toast.error("Couldn't save the service summary", { description: error instanceof Error ? error.message : 'Try again in a moment.' })
         } finally {
             setIsLoading(false)
         }
@@ -266,41 +267,25 @@ export function ServiceMetadataSummaryDialog({
 
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
-            <DialogContent className="sm:max-w-[850px] max-h-[90vh] flex flex-col overflow-hidden p-0 border-0 shadow-soft-xl rounded-2xl bg-background">
-                {/* Header Strip */}
-                <div className="h-1.5 shrink-0 bg-gradient-to-r from-primary to-primary"></div>
-
+            <DialogContent className="sm:max-w-[850px] max-h-[90vh] flex flex-col overflow-hidden p-0 rounded-xl bg-background">
                 <div className="flex flex-col flex-1 min-h-0 overflow-hidden">
-                    <DialogHeader className="p-8 pb-4 shrink-0">
-                        <div className="flex items-center justify-between">
-                            <div className="space-y-1">
-                                <DialogTitle className="text-2xl flex items-center gap-3">
-                                    <div className="p-3 bg-primary/15 dark:bg-primary/20 rounded-xl text-primary dark:text-primary">
-                                        <ClipboardCheck className="h-6 w-6" />
-                                    </div>
-                                    {summary ? 'Edit Service Report' : 'New Service Report'}
-                                </DialogTitle>
-                                <DialogDescription className="text-muted-foreground ml-14">
-                                    Record attendance, message details, and service metrics.
-                                </DialogDescription>
-                            </div>
-                            <div className="flex flex-col items-end gap-1">
-                                <Badge variant="secondary" className="px-3 py-1 text-sm font-semibold rounded-lg bg-secondary/50 text-secondary-foreground">
-                                    {summary ? 'ID: ' + (summary._id as string).slice(-8) : 'NEW RECORD'}
-                                </Badge>
-                                <span className="text-[10px] text-muted-foreground tracking-wider">Service Log</span>
-                            </div>
-                        </div>
+                    <DialogHeader className="p-4 pb-2 md:p-6 md:pb-2 shrink-0 text-left">
+                        <DialogTitle className="text-lg font-semibold">
+                            {summary ? 'Edit service summary' : 'New service summary'}
+                        </DialogTitle>
+                        <DialogDescription className="text-sm text-muted-foreground">
+                            The message, who preached, headcounts and first-timers for one service.
+                        </DialogDescription>
                     </DialogHeader>
 
-                    <div className="flex-1 min-h-0 overflow-y-auto p-8 pt-2">
+                    <div className="flex-1 min-h-0 overflow-y-auto p-4 pt-2 md:p-6 md:pt-2">
                         <Form {...form}>
-                            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
+                            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
                                 {/* Service Details */}
-                                <section className="space-y-6 rounded-xl border border-border/50 bg-muted/20 p-6">
-                                    <div className="flex items-center gap-2 mb-4">
-                                        <Info className="h-4 w-4 text-primary" />
-                                        <h3 className="font-semibold text-lg">Service Information</h3>
+                                <section className="space-y-6 rounded-xl border border-border/50 bg-muted/20 p-4 md:p-6">
+                                    <div className="flex items-center gap-2">
+                                        <Info className="h-4 w-4 text-muted-foreground" />
+                                        <h3 className="font-semibold text-base">Service</h3>
                                     </div>
 
                                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -320,7 +305,7 @@ export function ServiceMetadataSummaryDialog({
                                                                         !field.value && 'text-muted-foreground'
                                                                     )}
                                                                 >
-                                                                    {field.value ? format(field.value, 'PPP') : 'Select date'}
+                                                                    {field.value ? format(field.value, 'd MMM yyyy') : 'Choose a date'}
                                                                     <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
                                                                 </Button>
                                                             </FormControl>
@@ -339,17 +324,17 @@ export function ServiceMetadataSummaryDialog({
                                             name="service_type"
                                             render={({ field }) => (
                                                 <FormItem>
-                                                    <FormLabel className="text-sm">Service Type</FormLabel>
+                                                    <FormLabel className="text-sm">Type of service</FormLabel>
                                                     <Select onValueChange={field.onChange} value={field.value}>
                                                         <FormControl>
                                                             <SelectTrigger className="h-11 rounded-lg bg-background">
-                                                                <SelectValue placeholder="Select Type" />
+                                                                <SelectValue placeholder="Choose a type" />
                                                             </SelectTrigger>
                                                         </FormControl>
                                                         <SelectContent className="rounded-lg shadow-soft-lg">
                                                             {eventTypes.map((eventType) => (
                                                                 <SelectItem key={eventType.value} value={eventType.value}>
-                                                                    {eventType.label}
+                                                                    {titleCase(eventType.label)}
                                                                 </SelectItem>
                                                             ))}
                                                         </SelectContent>
@@ -365,18 +350,18 @@ export function ServiceMetadataSummaryDialog({
                                                 name="event_id"
                                                 render={({ field }) => (
                                                     <FormItem className="animate-in fade-in slide-in-from-top-2">
-                                                        <FormLabel className="text-sm">Linked Event</FormLabel>
+                                                        <FormLabel className="text-sm">Linked event</FormLabel>
                                                         <Select onValueChange={field.onChange} value={field.value}>
                                                             <FormControl>
                                                                 <SelectTrigger className="h-11 rounded-lg bg-background">
-                                                                    <SelectValue placeholder="Select Event" />
+                                                                    <SelectValue placeholder="Choose an event" />
                                                                 </SelectTrigger>
                                                             </FormControl>
                                                             <SelectContent className="rounded-lg shadow-soft-lg max-h-[300px]">
                                                                 <SelectItem value="" className="text-muted-foreground">None</SelectItem>
                                                                 {events?.map((event) => (
                                                                     <SelectItem key={event._id} value={event._id}>
-                                                                        {event.title} ({format(new Date(event.date), 'MMM dd')})
+                                                                        {titleCase(event.title)} ({format(new Date(event.date), 'd MMM')})
                                                                     </SelectItem>
                                                                 ))}
                                                             </SelectContent>
@@ -392,10 +377,10 @@ export function ServiceMetadataSummaryDialog({
                                             name="service_name"
                                             render={({ field }) => (
                                                 <FormItem>
-                                                    <FormLabel className="text-sm">Service Name (Optional)</FormLabel>
+                                                    <FormLabel className="text-sm">Service name (optional)</FormLabel>
                                                     <FormControl>
                                                         <Input
-                                                            placeholder="e.g. Special Revival Service"
+                                                            placeholder="For example, Revival service"
                                                             className="h-11 rounded-lg bg-background"
                                                             {...field}
                                                         />
@@ -408,10 +393,10 @@ export function ServiceMetadataSummaryDialog({
                                 </section>
 
                                 {/* Message Details */}
-                                <section className="space-y-6 rounded-xl border border-border/50 bg-muted/20 p-6">
-                                    <div className="flex items-center gap-2 mb-2">
-                                        <BookOpen className="h-4 w-4 text-primary" />
-                                        <h4 className="font-semibold text-lg">Message & Sermon</h4>
+                                <section className="space-y-6 rounded-xl border border-border/50 bg-muted/20 p-4 md:p-6">
+                                    <div className="flex items-center gap-2">
+                                        <BookOpen className="h-4 w-4 text-muted-foreground" />
+                                        <h3 className="font-semibold text-base">Message</h3>
                                     </div>
 
                                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -420,9 +405,9 @@ export function ServiceMetadataSummaryDialog({
                                             name="message_title"
                                             render={({ field }) => (
                                                 <FormItem>
-                                                    <FormLabel className="text-sm">Sermon Title</FormLabel>
+                                                    <FormLabel className="text-sm">Sermon title</FormLabel>
                                                     <FormControl>
-                                                        <Input placeholder="Theme of the message..." className="h-11 rounded-lg bg-background" {...field} />
+                                                        <Input placeholder="Theme of the message…" className="h-11 rounded-lg bg-background" {...field} />
                                                     </FormControl>
                                                     <FormMessage />
                                                 </FormItem>
@@ -438,7 +423,7 @@ export function ServiceMetadataSummaryDialog({
                                                     <Select onValueChange={field.onChange} value={field.value}>
                                                         <FormControl>
                                                             <SelectTrigger className="h-11 rounded-lg bg-background">
-                                                                <SelectValue placeholder="Select Category" />
+                                                                <SelectValue placeholder="Choose a category" />
                                                             </SelectTrigger>
                                                         </FormControl>
                                                         <SelectContent className="rounded-lg shadow-soft-lg max-h-[300px]">
@@ -446,7 +431,7 @@ export function ServiceMetadataSummaryDialog({
                                                                 <SelectItem key={category.value} value={category.value}>
                                                                     <div className="flex flex-col py-0.5">
                                                                         <span className="font-medium">{category.label}</span>
-                                                                        <span className="text-[10px] text-muted-foreground">{category.description}</span>
+                                                                        <span className="text-xs text-muted-foreground">{category.description}</span>
                                                                     </div>
                                                                 </SelectItem>
                                                             ))}
@@ -472,7 +457,7 @@ export function ServiceMetadataSummaryDialog({
                                                     }}
                                                     className="h-4 w-4 accent-primary cursor-pointer"
                                                 />
-                                                <label htmlFor="member-speaker" className="text-xs cursor-pointer">Internal Speaker</label>
+                                                <label htmlFor="member-speaker" className="text-sm cursor-pointer">Member of the church</label>
                                             </div>
                                             <div className="flex items-center gap-2 px-3 py-1.5 rounded-md cursor-pointer transition-colors hover:bg-background">
                                                 <input
@@ -486,7 +471,7 @@ export function ServiceMetadataSummaryDialog({
                                                     }}
                                                     className="h-4 w-4 accent-primary cursor-pointer"
                                                 />
-                                                <label htmlFor="guest-speaker" className="text-xs cursor-pointer">Guest Speaker</label>
+                                                <label htmlFor="guest-speaker" className="text-sm cursor-pointer">Guest speaker</label>
                                             </div>
                                         </div>
 
@@ -496,9 +481,9 @@ export function ServiceMetadataSummaryDialog({
                                                 name="preacher_name"
                                                 render={({ field }) => (
                                                     <FormItem>
-                                                        <FormLabel className="text-sm">Guest Name</FormLabel>
+                                                        <FormLabel className="text-sm">Guest name</FormLabel>
                                                         <FormControl>
-                                                            <Input placeholder="Name of guest speaker..." className="h-11 rounded-lg bg-background" {...field} />
+                                                            <Input placeholder="Name of the guest speaker…" className="h-11 rounded-lg bg-background" {...field} />
                                                         </FormControl>
                                                         <FormMessage />
                                                     </FormItem>
@@ -510,7 +495,7 @@ export function ServiceMetadataSummaryDialog({
                                                 name="preacher_id"
                                                 render={({ field }) => (
                                                     <FormItem>
-                                                        <FormLabel className="text-sm">Select Minister</FormLabel>
+                                                        <FormLabel className="text-sm">Preacher</FormLabel>
                                                         <MemberCombobox
                                                             members={members?.map(m => ({
                                                                 id: m._id,
@@ -520,7 +505,7 @@ export function ServiceMetadataSummaryDialog({
                                                             })) || []}
                                                             value={field.value}
                                                             onValueChange={field.onChange}
-                                                            placeholder="Search for minister..."
+                                                            placeholder="Search members…"
                                                             className="h-11 rounded-lg bg-background"
                                                         />
                                                         <FormMessage />
@@ -534,13 +519,13 @@ export function ServiceMetadataSummaryDialog({
                                 {/* Attendance Metrics */}
                                 <section className="space-y-6">
                                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                        <div className="space-y-6 rounded-xl border border-border/50 bg-muted/20 p-6">
-                                            <div className="flex items-center justify-between mb-2">
+                                        <div className="space-y-6 rounded-xl border border-border/50 bg-muted/20 p-4 md:p-6">
+                                            <div className="flex items-center justify-between gap-2">
                                                 <div className="flex items-center gap-2">
-                                                    <Users className="h-4 w-4 text-primary" />
-                                                    <h3 className="font-semibold text-lg">Attendance</h3>
+                                                    <Users className="h-4 w-4 text-muted-foreground" />
+                                                    <h3 className="font-semibold text-base">Attendance</h3>
                                                 </div>
-                                                <Badge variant="secondary" className="text-lg px-3 py-1 bg-background shadow-sm">
+                                                <Badge variant="secondary" className="tabular-nums">
                                                     Total: {totalAttendance}
                                                 </Badge>
                                             </div>
@@ -575,10 +560,10 @@ export function ServiceMetadataSummaryDialog({
                                             </div>
                                         </div>
 
-                                        <div className="space-y-6 rounded-xl border border-border/50 bg-muted/20 p-6">
-                                            <div className="flex items-center gap-2 mb-2">
-                                                <Plus className="h-4 w-4 text-success-strong" />
-                                                <h3 className="font-semibold text-lg">Growth & Metrics</h3>
+                                        <div className="space-y-6 rounded-xl border border-border/50 bg-muted/20 p-4 md:p-6">
+                                            <div className="flex items-center gap-2">
+                                                <Plus className="h-4 w-4 text-muted-foreground" />
+                                                <h3 className="font-semibold text-base">Growth</h3>
                                             </div>
 
                                             <div className="grid grid-cols-1 gap-4">
@@ -588,7 +573,7 @@ export function ServiceMetadataSummaryDialog({
                                                         name="first_timers"
                                                         render={({ field }) => (
                                                             <FormItem>
-                                                                <FormLabel className="text-xs text-muted-foreground">First Timers</FormLabel>
+                                                                <FormLabel className="text-xs text-muted-foreground">First-timers</FormLabel>
                                                                 <FormControl>
                                                                     <Input type="number" className="h-10 rounded-md bg-background" {...field} onChange={(e) => field.onChange(parseInt(e.target.value) || 0)} />
                                                                 </FormControl>
@@ -600,7 +585,7 @@ export function ServiceMetadataSummaryDialog({
                                                         name="new_converts"
                                                         render={({ field }) => (
                                                             <FormItem>
-                                                                <FormLabel className="text-xs text-muted-foreground">New Converts</FormLabel>
+                                                                <FormLabel className="text-xs text-muted-foreground">New converts</FormLabel>
                                                                 <FormControl>
                                                                     <Input type="number" className="h-10 rounded-md bg-background" {...field} onChange={(e) => field.onChange(parseInt(e.target.value) || 0)} />
                                                                 </FormControl>
@@ -613,7 +598,7 @@ export function ServiceMetadataSummaryDialog({
                                                     name="tithe_payers"
                                                     render={({ field }) => (
                                                         <FormItem>
-                                                            <FormLabel className="text-xs text-muted-foreground">Tithe Payers</FormLabel>
+                                                            <FormLabel className="text-xs text-muted-foreground">Tithe payers</FormLabel>
                                                             <FormControl>
                                                                 <Input type="number" className="h-10 rounded-md bg-background" {...field} onChange={(e) => field.onChange(parseInt(e.target.value) || 0)} />
                                                             </FormControl>
@@ -626,10 +611,10 @@ export function ServiceMetadataSummaryDialog({
                                 </section>
 
                                 {/* Verification & Notes */}
-                                <section className="space-y-6 rounded-xl border border-border/50 bg-muted/20 p-6">
-                                    <div className="flex items-center gap-2 mb-2">
-                                        <CheckCircle2 className="h-4 w-4 text-primary" />
-                                        <h3 className="font-semibold text-lg">Verification</h3>
+                                <section className="space-y-6 rounded-xl border border-border/50 bg-muted/20 p-4 md:p-6">
+                                    <div className="flex items-center gap-2">
+                                        <CheckCircle2 className="h-4 w-4 text-muted-foreground" />
+                                        <h3 className="font-semibold text-base">Checked by</h3>
                                     </div>
 
                                     <div className="space-y-4">
@@ -638,7 +623,7 @@ export function ServiceMetadataSummaryDialog({
                                             name="verified_by_id"
                                             render={({ field }) => (
                                                 <FormItem>
-                                                    <FormLabel className="text-sm">Verified By (Optional)</FormLabel>
+                                                    <FormLabel className="text-sm">Checked by (optional)</FormLabel>
                                                     <MemberCombobox
                                                         members={members?.map(m => ({
                                                             id: m._id,
@@ -648,10 +633,10 @@ export function ServiceMetadataSummaryDialog({
                                                         })) || []}
                                                         value={field.value}
                                                         onValueChange={field.onChange}
-                                                        placeholder="Select verifier..."
+                                                        placeholder="Search members…"
                                                         className="h-11 rounded-lg bg-background"
                                                     />
-                                                    <FormDescription className="text-xs">Select a leader who can verify these metrics.</FormDescription>
+                                                    <FormDescription className="text-xs">A leader who can confirm these numbers.</FormDescription>
                                                 </FormItem>
                                             )}
                                         />
@@ -664,7 +649,7 @@ export function ServiceMetadataSummaryDialog({
                                                     <FormLabel className="text-sm">Notes</FormLabel>
                                                     <FormControl>
                                                         <Textarea
-                                                            placeholder="Any additional observations or notes..."
+                                                            placeholder="Anything else worth noting…"
                                                             className="min-h-[100px] rounded-lg bg-background resize-none"
                                                             {...field}
                                                         />
@@ -688,17 +673,17 @@ export function ServiceMetadataSummaryDialog({
                                     <Button
                                         type="submit"
                                         disabled={isLoading}
-                                        className="h-11 rounded-lg px-8 shadow-soft hover:shadow-soft-lg transition-all"
+                                        className="h-11 rounded-lg px-8"
                                     >
                                         {isLoading ? (
                                             <div className="flex items-center gap-2">
                                                 <Loader2 className="h-4 w-4 animate-spin" />
-                                                Saving...
+                                                Saving…
                                             </div>
                                         ) : (
                                             <div className="flex items-center gap-2">
                                                 <Save className="h-4 w-4" />
-                                                {summary ? 'Update Report' : 'Save Report'}
+                                                {summary ? 'Save changes' : 'Save summary'}
                                             </div>
                                         )}
                                     </Button>

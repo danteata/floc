@@ -36,28 +36,28 @@ export function TemplatesLibrary({ templates, onEdit, onDelete, onInstantiate }:
   return (
     <div className="space-y-3">
       <div className="flex items-center gap-2 px-1">
-        <Crown className="h-4 w-4 text-primary" />
+        <Crown className="h-4 w-4 text-muted-foreground" />
         <h3 className="text-sm font-semibold tracking-wide text-foreground">Templates</h3>
         <Badge variant="secondary" className="ml-1">{templates.length}</Badge>
       </div>
 
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
         {templates.map((t) => (
-          <Card key={t._id} className="border-border/50 shadow-soft rounded-xl group">
+          <Card key={t._id} className="rounded-xl group">
             <CardContent className="p-4">
               <div className="flex items-start justify-between gap-2">
                 <div className="min-w-0">
                   <h4 className="font-semibold text-sm text-foreground truncate">{t.name}</h4>
                   <div className="flex flex-wrap items-center gap-1.5 mt-1.5">
-                    <Badge variant="outline" className="text-[10px] capitalize">{t.type || 'unit'}</Badge>
+                    <Badge variant="outline" className="text-xs">{t.type ? t.type.charAt(0).toUpperCase() + t.type.slice(1) : 'Unit'}</Badge>
                     {t.cascade_to_sub_orgs && (
-                      <Badge variant="outline" className="text-[10px] gap-1 border-primary/30 text-primary">
-                        <Network className="h-3 w-3" /> Cascades
+                      <Badge variant="outline" className="text-xs gap-1 border-primary/30 text-primary">
+                        <Network className="h-3 w-3" /> Added to linked churches
                       </Badge>
                     )}
                     {t.inherited && (
-                      <Badge variant="secondary" className="text-[10px]">
-                        from {t.owner_org_name ?? 'parent'}
+                      <Badge variant="secondary" className="text-xs">
+                        From {t.owner_org_name ?? 'parent church'}
                       </Badge>
                     )}
                   </div>
@@ -71,7 +71,7 @@ export function TemplatesLibrary({ templates, onEdit, onDelete, onInstantiate }:
                       </Button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end" className="rounded-xl border-border/50 shadow-soft p-1">
-                      <DropdownMenuItem onClick={() => onInstantiate(t)} className="cursor-pointer rounded-lg"><Plus className="h-4 w-4 mr-2" /> Add to a unit</DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => onInstantiate(t)} className="cursor-pointer rounded-lg"><Plus className="h-4 w-4 mr-2" /> Create a unit from it</DropdownMenuItem>
                       <DropdownMenuItem onClick={() => onEdit(t)} className="cursor-pointer rounded-lg"><Edit className="h-4 w-4 mr-2" /> Edit</DropdownMenuItem>
                       <DropdownMenuItem onClick={() => onDelete(t._id)} className="text-destructive cursor-pointer rounded-lg focus:bg-destructive/10"><Trash2 className="h-4 w-4 mr-2" /> Delete</DropdownMenuItem>
                     </DropdownMenuContent>
@@ -82,7 +82,7 @@ export function TemplatesLibrary({ templates, onEdit, onDelete, onInstantiate }:
               {t.description && (
                 <p className="text-xs text-muted-foreground mt-2 line-clamp-2">{t.description}</p>
               )}
-              <p className="text-[11px] text-muted-foreground mt-3 pt-2 border-t border-border/40">
+              <p className="text-xs text-muted-foreground mt-3 pt-2 border-t border-border/40">
                 {t.instance_count ?? 0} {(t.instance_count ?? 0) === 1 ? 'unit' : 'units'} from this template
               </p>
             </CardContent>

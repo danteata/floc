@@ -257,12 +257,11 @@ export function OrganizationChart({ organizationId }: OrganizationChartProps) {
         newParentId: newParentId ? newParentId as Id<"units"> : undefined
       });
       toast({
-        title: "Success",
-        description: "Unit moved successfully",
+        title: "Unit moved",
       });
     } catch (error: any) {
       toast({
-        title: "Error",
+        title: "Couldn't move the unit",
         description: error.message,
         variant: "destructive",
       });
@@ -390,6 +389,7 @@ export function OrganizationChart({ organizationId }: OrganizationChartProps) {
       // Return the actual unit type from database
       switch (node.unitType) {
         case 'ministry': return 'Ministry'
+        case 'functional': return 'Functional'
         case 'administrative': return 'Administrative'
         case 'geographic': return 'Geographic'
         default: return 'Unit'
@@ -505,7 +505,7 @@ export function OrganizationChart({ organizationId }: OrganizationChartProps) {
       <g key={node.id}>
         {/* First child of the <g> so the tooltip resolves to the nearest node:
             the box may have ellipsised a long name. */}
-        <title>{`${node.name} — ${getNodeTypeLabel(node)}, ${node.memberCount || 0} members`}</title>
+        <title>{`${node.name}: ${getNodeTypeLabel(node)}, ${node.memberCount || 0} ${node.memberCount === 1 ? 'member' : 'members'}`}</title>
 
         {/* Connection lines to children (hidden while this branch is collapsed) */}
         {node.isExpanded && node.children.map(child => {
@@ -644,7 +644,7 @@ export function OrganizationChart({ organizationId }: OrganizationChartProps) {
           <div className="flex items-center justify-center h-96">
             <div className="text-center">
               <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
-              <p className="text-muted-foreground">Loading organization chart...</p>
+              <p className="text-sm text-muted-foreground">Loading the org chart…</p>
             </div>
           </div>
         </CardContent>
@@ -659,12 +659,12 @@ export function OrganizationChart({ organizationId }: OrganizationChartProps) {
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
             <div>
               <CardTitle className="flex items-center gap-2 text-lg">
-                <Building2 className="h-5 w-5 text-primary" />
-                Organization Chart
+                <Building2 className="h-4 w-4 text-muted-foreground" />
+                Org chart
               </CardTitle>
               <CardDescription className="text-xs">
-                Drag to pan, drag a unit onto another to re-parent it, and use the
-                circle on a box to collapse its branch
+                Drag the background to move around, drag a unit onto another to move it beneath that unit, and use the
+                circle on a box to collapse its branch.
               </CardDescription>
             </div>
 
@@ -718,7 +718,7 @@ export function OrganizationChart({ organizationId }: OrganizationChartProps) {
         </CardHeader>
 
         <CardContent className="p-0 bg-muted/20">
-          <div ref={containerRef} className="relative overflow-hidden h-[700px] select-none">
+          <div ref={containerRef} className="relative overflow-hidden h-[480px] md:h-[700px] select-none">
             <svg
               width="100%"
               height="100%"
@@ -798,19 +798,16 @@ export function OrganizationChart({ organizationId }: OrganizationChartProps) {
       <Dialog open={nodeDetailsOpen} onOpenChange={setNodeDetailsOpen}>
         <DialogContent className="rounded-xl shadow-soft-lg border-border/50 sm:max-w-[400px]">
           <DialogHeader>
-            <DialogTitle className="flex items-center gap-2 text-xl">
-              <div className={`p-2 rounded-lg ${selectedNode?.type === 'organization' ? 'bg-muted text-muted-foreground' :
-                selectedNode?.type === 'division' ? 'bg-info/10 text-info-strong dark:text-info' :
-                  'bg-success/10 text-success-strong dark:text-success'
-                }`}>
-                {selectedNode?.type === 'organization' && <Building2 className="h-5 w-5" />}
-                {selectedNode?.type === 'division' && <MapPin className="h-5 w-5" />}
-                {selectedNode?.type === 'unit' && <Users className="h-5 w-5" />}
-              </div>
+            <DialogTitle className="flex items-center gap-2 text-lg">
+              <span className="text-muted-foreground">
+                {selectedNode?.type === 'organization' && <Building2 className="h-4 w-4" />}
+                {selectedNode?.type === 'division' && <MapPin className="h-4 w-4" />}
+                {selectedNode?.type === 'unit' && <Users className="h-4 w-4" />}
+              </span>
               {selectedNode?.name}
             </DialogTitle>
             <DialogDescription>
-              {selectedNode ? getNodeTypeLabel(selectedNode) : 'Unit'} Overview
+              {selectedNode ? getNodeTypeLabel(selectedNode) : 'Unit'} at a glance
             </DialogDescription>
           </DialogHeader>
 
@@ -827,14 +824,14 @@ export function OrganizationChart({ organizationId }: OrganizationChartProps) {
                 </div>
 
                 <div className="space-y-1">
-                  <Label className="text-xs text-muted-foreground tracking-wide">Personnel</Label>
+                  <Label className="text-xs text-muted-foreground tracking-wide">Members</Label>
                   <div className="text-2xl text-foreground">{selectedNode.memberCount} <span className="text-sm font-normal text-muted-foreground">members</span></div>
                 </div>
               </div>
 
               <div className="space-y-1">
                 <div className="flex justify-between items-center text-sm">
-                  <span className="text-muted-foreground">Hierarchy Level</span>
+                  <span className="text-muted-foreground">Level in the structure</span>
                   <span className="font-medium">Level {selectedNode.level}</span>
                 </div>
                 <div className="h-1.5 w-full bg-secondary/20 rounded-full overflow-hidden">
@@ -847,9 +844,9 @@ export function OrganizationChart({ organizationId }: OrganizationChartProps) {
 
               {selectedNode.children.length > 0 && (
                 <div className="pt-2 border-t border-border/50">
-                  <Label className="text-xs text-muted-foreground tracking-wide mb-2 block">Direct Subordinates</Label>
+                  <Label className="text-xs text-muted-foreground tracking-wide mb-2 block">Units directly beneath</Label>
                   <div className="text-sm bg-muted/30 p-3 rounded-lg border border-border/50">
-                    {selectedNode.children.length} direct children nodes
+                    {selectedNode.children.length} {selectedNode.children.length === 1 ? 'unit' : 'units'}
                   </div>
                 </div>
               )}

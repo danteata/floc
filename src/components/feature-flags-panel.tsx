@@ -123,19 +123,19 @@ export function FeatureFlagsPanel() {
           <div className="flex flex-wrap items-center gap-2">
             <code className="text-sm font-medium">{flag.key}</code>
             {flag.killSwitch && (
-              <Badge variant="destructive" className="text-[10px]">
+              <Badge variant="destructive" className="text-xs">
                 Kill switch
               </Badge>
             )}
-            <Badge variant="outline" className="text-[10px] capitalize">
-              {flag.kind}
+            <Badge variant="outline" className="text-xs">
+              {flag.kind.charAt(0).toUpperCase() + flag.kind.slice(1)}
             </Badge>
             {overridden ? (
-              <Badge variant="secondary" className="text-[10px]">
-                {flag.source === "org" ? "Set for this org" : "Set deployment-wide"}
+              <Badge variant="secondary" className="text-xs">
+                {flag.source === "org" ? "Set for this church" : "Set deployment-wide"}
               </Badge>
             ) : (
-              <span className="text-[10px] text-muted-foreground">
+              <span className="text-xs text-muted-foreground">
                 Default ({flag.defaultValue ? "on" : "off"})
               </span>
             )}
@@ -145,7 +145,7 @@ export function FeatureFlagsPanel() {
             <span>Owner: {flag.owner}</span>
             {maskedByOrg && (
               <span className="text-warning-strong dark:text-warning-strong">
-                This org overrides it to {flag.orgValue ? "on" : "off"}
+                This church overrides it to {flag.orgValue ? "on" : "off"}
               </span>
             )}
             {flag.expiresAt && (
@@ -264,7 +264,7 @@ export function FeatureFlagsPanel() {
         <CardHeader className="bg-muted/20 border-b border-border/50 py-4">
           <CardTitle className="text-base">Features</CardTitle>
           <CardDescription>
-            Release and operational flags. Anything marked "Set for this org" applies only to{" "}
+            Release and operational flags. Anything marked "Set for this church" applies only to{" "}
             {organization?.name ?? "this organization"}.
           </CardDescription>
         </CardHeader>

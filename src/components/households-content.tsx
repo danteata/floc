@@ -56,7 +56,7 @@ export function HouseholdsContent() {
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <div className="space-y-1">
           <p className="text-sm text-muted-foreground">
-            Group family members under one address for the map, follow-up, and check-in.
+            Group a family under one address for the map, follow-up and check-in.
           </p>
           {households && households.length > 0 && (
             <p className="text-xs text-muted-foreground">
@@ -68,7 +68,7 @@ export function HouseholdsContent() {
         </div>
         <Button size="sm" onClick={() => setCreating(true)}>
           <Plus className="mr-1.5 h-4 w-4" />
-          New Household
+          New household
         </Button>
       </div>
 
@@ -78,11 +78,11 @@ export function HouseholdsContent() {
         <EmptyState
           icon={Home}
           title="No households yet"
-          description="Create one to group family members under a shared address."
+          description="Create one to group a family under a shared address."
           action={
             <Button size="sm" onClick={() => setCreating(true)}>
               <Plus className="mr-1.5 h-4 w-4" />
-              New Household
+              New household
             </Button>
           }
         />
@@ -110,7 +110,7 @@ export function HouseholdsContent() {
                 <Card key={h._id} className="overflow-hidden">
                   <CardHeader className="pb-2">
                     {/* CardHeader lays this out as a CSS grid item, not a
-                        flex child — min-w-0 on the inner span alone isn't
+                        flex child: min-w-0 on the inner span alone isn't
                         enough, since a grid item's own intrinsic min-width
                         (as computed by its ancestor grid) still defaults to
                         its content's full min-content size regardless of
@@ -120,7 +120,7 @@ export function HouseholdsContent() {
                         pushing "Manage" off the card for longer names. */}
                     <CardTitle className="flex items-center justify-between text-base gap-2 min-w-0">
                       <span className="truncate flex-1 min-w-0">{h.name || "Unnamed household"}</span>
-                      <Badge variant="secondary" className="text-[10px] shrink-0">
+                      <Badge variant="secondary" className="shrink-0 font-normal">
                         {h.members.length} {h.members.length === 1 ? "member" : "members"}
                       </Badge>
                       <Button variant="ghost" size="sm" className="shrink-0" onClick={() => setManaging(h._id)}>
@@ -135,15 +135,17 @@ export function HouseholdsContent() {
                         {h.city ? `, ${h.city}` : ""}
                       </p>
                     ) : (
-                      <p className="text-xs text-muted-foreground/70">No address set</p>
+                      <p className="text-xs text-muted-foreground">No address yet</p>
                     )}
                     <div className="flex flex-wrap gap-1.5">
                       {h.members.length === 0 && (
-                        <span className="text-xs text-muted-foreground/70">No members yet</span>
+                        <span className="text-xs text-muted-foreground">No members yet</span>
                       )}
                       {h.members.map((m) => (
-                        <Badge key={m._id} variant="secondary" className="text-[10px] gap-1">
-                          {m._id === h.head_of_household_id && <Star className="h-2.5 w-2.5" />}
+                        <Badge key={m._id} variant="outline" className="gap-1 font-normal">
+                          {m._id === h.head_of_household_id && (
+                            <Star className="h-3 w-3 text-muted-foreground" aria-label="Head of household" />
+                          )}
                           {m.name}
                         </Badge>
                       ))}
@@ -203,12 +205,12 @@ function CreateHouseholdDialog({
         latitude: latLng?.lat,
         longitude: latLng?.lng,
       })
-      toast({ title: "Household created" })
+      toast({ title: "Household created", description: `${name.trim()} is ready for members.` })
       onClose()
     } catch (err) {
       toast({
         title: "Couldn't create household",
-        description: err instanceof Error ? err.message : "Please try again.",
+        description: err instanceof Error ? err.message : "Something went wrong. Try again.",
         variant: "destructive",
       })
     } finally {
@@ -220,9 +222,9 @@ function CreateHouseholdDialog({
     <Dialog open onOpenChange={(open) => !open && onClose()}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>New Household</DialogTitle>
+          <DialogTitle>New household</DialogTitle>
           <DialogDescription>
-            Add members and a head of household afterward from the Manage view.
+            Once it's created, choose Manage on its card to add members and a head of household.
           </DialogDescription>
         </DialogHeader>
         <div className="space-y-3">
@@ -231,7 +233,7 @@ function CreateHouseholdDialog({
             <Input
               value={name}
               onChange={(e) => setName(e.target.value)}
-              placeholder="e.g. The Mensah Household"
+              placeholder="e.g. The Mensah household"
               autoFocus
             />
           </div>
@@ -296,14 +298,14 @@ function ManageHouseholdDialog({
       await action()
     } catch (err) {
       toast({
-        title: "Action failed",
-        description: err instanceof Error ? err.message : "Please try again.",
+        title: "Couldn't update the household",
+        description: err instanceof Error ? err.message : "Something went wrong. Try again.",
         variant: "destructive",
       })
     }
   }
 
-  // Members not already in *any* household (not just this one) — adding
+  // Members not already in *any* household (not just this one). Adding
   // someone who already belongs elsewhere would silently move them, so they
   // shouldn't show up as a suggestion or search result at all. To reassign
   // someone, remove them from their current household first.
@@ -313,7 +315,7 @@ function ManageHouseholdDialog({
   )
 
   // Same-surname suggestions: unassigned members who share a last name with
-  // someone already in this household — the common case (kids, spouse) when
+  // someone already in this household: the common case (kids, spouse) when
   // the family hasn't all been grouped yet.
   const surnameSuggestions = useMemo(() => {
     if (!household || household.members.length === 0) return []
@@ -366,10 +368,10 @@ function ManageHouseholdDialog({
             <Input
               value={effectiveAddress.name ?? ""}
               onChange={(e) => setAddress({ ...effectiveAddress, name: e.target.value })}
-              placeholder="e.g. The Mensah Household"
+              placeholder="e.g. The Mensah household"
             />
             {!canSaveName && (
-              <p className="text-xs text-destructive">Household name is required.</p>
+              <p className="text-xs text-destructive">Give the household a name.</p>
             )}
           </div>
 
@@ -377,20 +379,20 @@ function ManageHouseholdDialog({
             <label className="text-sm font-medium">Members</label>
             <div className="rounded-md border divide-y">
               {household.members.length === 0 && (
-                <p className="p-3 text-sm text-muted-foreground">No members yet.</p>
+                <p className="p-3 text-sm text-muted-foreground">No members yet. Add one below.</p>
               )}
               {household.members.map((m) => (
                 <div key={m._id} className="flex items-center justify-between p-2.5">
-                  <div className="flex items-center gap-2">
+                  <div className="flex min-w-0 items-center gap-2">
                     <MemberAvatar name={m.name} src={m.avatar_url} size="sm" />
-                    <span className="text-sm">{m.name}</span>
+                    <span className="truncate text-sm">{m.name}</span>
                     {m._id === household.head_of_household_id && (
-                      <Badge variant="outline" className="text-[10px] gap-1">
-                        <Star className="h-2.5 w-2.5" /> Head
+                      <Badge variant="outline" className="gap-1 font-normal">
+                        <Star className="h-3 w-3 text-muted-foreground" /> Head
                       </Badge>
                     )}
                   </div>
-                  <div className="flex items-center gap-1">
+                  <div className="flex shrink-0 items-center gap-1">
                     {m._id !== household.head_of_household_id && (
                       <Button
                         variant="ghost"
@@ -410,6 +412,7 @@ function ManageHouseholdDialog({
                       onClick={() => runOrToastError(() => removeMember({ member_id: m._id }))}
                     >
                       <UserMinus className="h-4 w-4" />
+                      <span className="sr-only">Remove {m.name} from the household</span>
                     </Button>
                   </div>
                 </div>
@@ -423,7 +426,7 @@ function ManageHouseholdDialog({
             {addSearch.trim().length === 0 && surnameSuggestions.length > 0 && (
               <div className="space-y-1.5">
                 <p className="text-xs text-muted-foreground">
-                  Suggested — same surname as someone already in this household:
+                  Suggested: the same surname as someone already in this household
                 </p>
                 <div className="rounded-md border divide-y">
                   {surnameSuggestions.map((m) => (
@@ -544,6 +547,8 @@ function AddMemberRow({
 }) {
   return (
     <button
+      type="button"
+      aria-label={`Add ${member.name}`}
       className="w-full flex items-center justify-between p-2 text-left text-sm hover:bg-muted/50"
       onClick={onAdd}
     >

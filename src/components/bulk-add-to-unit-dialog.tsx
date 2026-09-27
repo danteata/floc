@@ -1,7 +1,7 @@
 "use client"
 
 import { useState } from "react"
-import { Layers, Loader2, Users, Building2 } from "lucide-react"
+import { Loader2, Users, Building2 } from "lucide-react"
 import { useMutation, useQuery } from "convex/react"
 import { api } from "../../convex/_generated/api"
 import { Id } from "../../convex/_generated/dataModel"
@@ -27,6 +27,12 @@ import { Badge } from "@/components/ui/badge"
 import { useToast } from "@/hooks/use-toast"
 import { useOrganization } from "@/hooks/use-organization"
 import { Member } from "@/types/database"
+
+/** "functional" → "Functional". */
+function sentenceCase(value?: string | null): string {
+    const text = (value ?? "").replace(/[_-]+/g, " ")
+    return text.charAt(0).toUpperCase() + text.slice(1)
+}
 
 interface BulkAddToUnitDialogProps {
     selectedMembers: Member[]
@@ -64,7 +70,7 @@ export function BulkAddToUnitDialog({
 
             toast({
                 title: "Members added to unit",
-                description: `${result.added} member${result.added !== 1 ? 's' : ''} added. ${result.skipped > 0 ? `${result.skipped} already in unit.` : ''}`,
+                description: `${result.added} member${result.added !== 1 ? 's' : ''} added to ${selectedUnit?.name ?? "the unit"}.${result.skipped > 0 ? ` ${result.skipped} ${result.skipped === 1 ? "was" : "were"} already in it.` : ''}`,
             })
 
             setOpen(false)
@@ -72,8 +78,8 @@ export function BulkAddToUnitDialog({
             onSuccess?.()
         } catch (error) {
             toast({
-                title: "Error",
-                description: error instanceof Error ? error.message : "Failed to add members to unit",
+                title: "Couldn't add members to the unit",
+                description: error instanceof Error ? error.message : "Something went wrong. Try again.",
                 variant: "destructive",
             })
         } finally {
@@ -89,17 +95,14 @@ export function BulkAddToUnitDialog({
                 {trigger || (
                     <Button variant="outline" size="sm" className="gap-2">
                         <Building2 className="w-4 h-4" />
-                        Add to Unit
+                        Add to unit
                     </Button>
                 )}
             </DialogTrigger>
-            <DialogContent className="sm:max-w-[500px] glass-card border-border/50 shadow-soft">
+            <DialogContent className="sm:max-w-md">
                 <DialogHeader>
-                    <DialogTitle className="flex items-center gap-2 text-xl">
-                        <div className="p-2 bg-primary/10 rounded-lg text-primary">
-                            <Layers className="h-5 w-5" />
-                        </div>
-                        Add Members to Unit
+                    <DialogTitle>
+                        Add to a unit
                     </DialogTitle>
                     <DialogDescription>
                         Add {selectedMembers.length} selected member{selectedMembers.length !== 1 ? 's' : ''} to a unit.
@@ -109,10 +112,8 @@ export function BulkAddToUnitDialog({
                 <div className="space-y-6 py-4">
                     {/* Selected members summary */}
                     <div className="space-y-2">
-                        <label className="text-xs font-semibold text-muted-foreground tracking-wider">
-                            Selected Members
-                        </label>
-                        <div className="flex items-center gap-2 p-3 bg-muted/30 rounded-lg border border-border/50">
+                        <p className="text-sm font-medium">Selected</p>
+                        <div className="flex items-center gap-2 rounded-lg bg-muted/40 p-3">
                             <Users className="h-4 w-4 text-muted-foreground" />
                             <span className="text-sm">
                                 {selectedMembers.length} member{selectedMembers.length !== 1 ? 's' : ''} selected
@@ -122,27 +123,27 @@ export function BulkAddToUnitDialog({
 
                     {/* Unit selection */}
                     <div className="space-y-2">
-                        <label className="text-xs font-semibold text-muted-foreground tracking-wider">
-                            Select Unit *
+                        <label className="text-sm font-medium">
+                            Unit
                         </label>
                         <Select value={selectedUnitId} onValueChange={setSelectedUnitId}>
-                            <SelectTrigger className="bg-background/50 border-input-border">
-                                <SelectValue placeholder="Choose a unit..." />
+                            <SelectTrigger className="w-full">
+                                <SelectValue placeholder="Choose a unit…" />
                             </SelectTrigger>
                             <SelectContent className="max-h-[300px]">
                                 {units?.map((unit) => (
                                     <SelectItem key={unit._id} value={unit._id}>
                                         <div className="flex items-center gap-2">
                                             <span>{unit.name}</span>
-                                            <Badge variant="outline" className="text-[10px] ml-2">
-                                                {unit.type}
+                                            <Badge variant="outline" className="ml-2 font-normal">
+                                                {sentenceCase(unit.type)}
                                             </Badge>
                                         </div>
                                     </SelectItem>
                                 ))}
                                 {(!units || units.length === 0) && (
                                     <div className="p-4 text-center text-sm text-muted-foreground">
-                                        No units available
+                                        No units yet. Create one on the units page.
                                     </div>
                                 )}
                             </SelectContent>
@@ -151,15 +152,15 @@ export function BulkAddToUnitDialog({
 
                     {/* Selected unit preview */}
                     {selectedUnit && (
-                        <div className="p-4 bg-primary/5 rounded-lg border border-primary/20">
+                        <div className="rounded-lg p-4 ring-1 ring-foreground/10">
                             <div className="flex items-start gap-3">
-                                <div className="p-2 bg-primary/10 rounded-lg">
-                                    <Building2 className="h-4 w-4 text-primary" />
+                                <div className="pt-0.5">
+                                    <Building2 className="h-4 w-4 text-muted-foreground" />
                                 </div>
                                 <div>
                                     <h4 className="font-semibold text-sm">{selectedUnit.name}</h4>
                                     <p className="text-xs text-muted-foreground mt-1">
-                                        Type: {selectedUnit.type}
+                                        {sentenceCase(selectedUnit.type)}
                                     </p>
                                     {selectedUnit.description && (
                                         <p className="text-xs text-muted-foreground mt-1">
@@ -183,17 +184,16 @@ export function BulkAddToUnitDialog({
                     <Button
                         onClick={handleAddToUnit}
                         disabled={isLoading || !selectedUnitId}
-                        className="shadow-soft hover:shadow-lg transition-all"
                     >
                         {isLoading ? (
                             <>
                                 <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                                Adding...
+                                Adding…
                             </>
                         ) : (
                             <>
                                 <Building2 className="h-4 w-4 mr-2" />
-                                Add to Unit
+                                Add to unit
                             </>
                         )}
                     </Button>

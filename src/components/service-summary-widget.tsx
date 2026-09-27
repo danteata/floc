@@ -3,20 +3,19 @@
 import { useState } from 'react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
-import { Badge } from '@/components/ui/badge'
+import { StatCard, StatGrid } from '@/components/ui/stat-card'
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import {
     Users,
-    DollarSign,
+    Wallet,
     Plus,
-    ArrowUpRight,
-    ArrowDownRight,
     Calendar,
     Target,
     Church
 } from 'lucide-react'
 import { ServiceFinancialSummary } from '@/types/database'
-import { formatCurrency } from '@/lib/financial-utils'
+import { useMoney } from '@/lib/money'
+import { formatDay } from '@/lib/display'
 
 interface ServiceSummaryWidgetProps {
     summaries: ServiceFinancialSummary[]
@@ -30,6 +29,7 @@ export function ServiceSummaryWidget({
     className = ''
 }: ServiceSummaryWidgetProps) {
     const [selectedPeriod, setSelectedPeriod] = useState<'week' | 'month' | 'quarter'>('week')
+    const money = useMoney()
 
     // Calculate current period totals
     const currentSummaries = summaries.filter(summary => {
@@ -137,9 +137,9 @@ export function ServiceSummaryWidget({
         const now = new Date()
         switch (selectedPeriod) {
             case 'week':
-                return 'This Week'
+                return 'Last 7 days'
             case 'month':
-                return now.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })
+                return now.toLocaleDateString('en-GB', { month: 'long', year: 'numeric' })
             case 'quarter':
                 const quarter = Math.floor(now.getMonth() / 3) + 1
                 return `Q${quarter} ${now.getFullYear()}`
@@ -153,218 +153,106 @@ export function ServiceSummaryWidget({
     const avgTithes = currentTotals.serviceCount > 0 ? currentTotals.totalTithes / currentTotals.serviceCount : 0
     const avgOfferings = currentTotals.serviceCount > 0 ? currentTotals.totalOfferings / currentTotals.serviceCount : 0
 
+    const changeHint = (change: number, base: string) =>
+        change !== 0 ? `${base} · ${change > 0 ? '+' : '-'}${Math.abs(change).toFixed(1)}% on the period before` : base
+    const changeTone = (change: number) => (change > 0 ? 'positive' : change < 0 ? 'negative' : 'neutral') as 'positive' | 'negative' | 'neutral'
+
     return (
-        <Card className={`${className} shadow-soft hover:shadow-soft-lg transition-all border-0`}>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4 border-b border-border/50">
-                <div>
-                    <CardTitle className="text-lg font-semibold flex items-center gap-2">
-                        <Church className="h-5 w-5 text-primary" />
-                        Service Financial Summary
-                    </CardTitle>
-                    <CardDescription>
-                        {getPeriodLabel()} overview
-                    </CardDescription>
-                </div>
-                <div className="flex items-center gap-3">
+        <Card className={className}>
+            <CardHeader>
+                <CardTitle className="flex items-center gap-2 text-lg font-semibold">
+                    <Church className="h-4 w-4 text-muted-foreground" aria-hidden="true" />
+                    Service giving and attendance
+                </CardTitle>
+                <CardDescription>{getPeriodLabel()}</CardDescription>
+                <div className="col-span-full mt-3 flex flex-wrap items-center gap-3">
                     <Tabs value={selectedPeriod} onValueChange={(value) => setSelectedPeriod(value as any)}>
-                        <TabsList className="bg-muted/50 border border-input/20">
+                        <TabsList>
                             <TabsTrigger value="week" className="text-xs">Week</TabsTrigger>
                             <TabsTrigger value="month" className="text-xs">Month</TabsTrigger>
                             <TabsTrigger value="quarter" className="text-xs">Quarter</TabsTrigger>
                         </TabsList>
                     </Tabs>
                     {onAddSummary && (
-                        <Button size="sm" onClick={onAddSummary} className="shadow-sm">
-                            <Plus className="h-4 w-4 mr-1" />
-                            Add
+                        <Button size="sm" onClick={onAddSummary}>
+                            <Plus className="mr-1 h-4 w-4" />
+                            Add summary
                         </Button>
                     )}
                 </div>
             </CardHeader>
 
-            <CardContent className="space-y-6 pt-6">
-                {/* Key Metrics */}
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    {/* Total Attendance */}
-                    <div className="p-4 bg-card rounded-xl border border-border/50 shadow-sm hover:shadow-md transition-all group">
-                        <div className="flex items-center justify-between mb-3">
-                            <div className="flex items-center gap-2">
-                                <div className="p-2 rounded-lg bg-primary/10 text-primary group-hover:bg-primary group-hover:text-primary-foreground transition-colors">
-                                    <Users className="h-4 w-4" />
-                                </div>
-                                <span className="text-sm text-muted-foreground">Total Attendance</span>
-                            </div>
-                            {attendanceChange !== 0 && (
-                                <Badge variant={attendanceChange > 0 ? "success" : "destructive"} className="text-xs border-0">
-                                    {attendanceChange > 0 ? (
-                                        <ArrowUpRight className="h-3 w-3 mr-1" />
-                                    ) : (
-                                        <ArrowDownRight className="h-3 w-3 mr-1" />
-                                    )}
-                                    {Math.abs(attendanceChange).toFixed(1)}%
-                                </Badge>
-                            )}
-                        </div>
-                        <div className="text-2xl text-foreground">
-                            {currentTotals.totalAttendance.toLocaleString()}
-                        </div>
-                        <div className="text-xs text-muted-foreground mt-1">
-                            Avg: {Math.round(avgAttendance)} per service
-                        </div>
-                    </div>
-
-                    {/* Tithe Payers */}
-                    <div className="p-4 bg-card rounded-xl border border-border/50 shadow-sm hover:shadow-md transition-all group">
-                        <div className="flex items-center justify-between mb-3">
-                            <div className="flex items-center gap-2">
-                                <div className="p-2 rounded-lg bg-success/10 text-success group-hover:bg-success group-hover:text-success-foreground transition-colors">
-                                    <Target className="h-4 w-4" />
-                                </div>
-                                <span className="text-sm text-muted-foreground">Tithe Payers</span>
-                            </div>
-                            {tithePayersChange !== 0 && (
-                                <Badge variant={tithePayersChange > 0 ? "success" : "destructive"} className="text-xs border-0">
-                                    {tithePayersChange > 0 ? (
-                                        <ArrowUpRight className="h-3 w-3 mr-1" />
-                                    ) : (
-                                        <ArrowDownRight className="h-3 w-3 mr-1" />
-                                    )}
-                                    {Math.abs(tithePayersChange).toFixed(1)}%
-                                </Badge>
-                            )}
-                        </div>
-                        <div className="text-2xl text-foreground">
-                            {currentTotals.totalTithePayers}
-                        </div>
-                        <div className="text-xs text-muted-foreground mt-1">
-                            {currentTotals.totalAttendance > 0
+            <CardContent className="space-y-6">
+                <StatGrid className="grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
+                    <StatCard
+                        label="Attendance"
+                        value={currentTotals.totalAttendance.toLocaleString('en-GB')}
+                        icon={Users}
+                        hint={changeHint(attendanceChange, `Average ${Math.round(avgAttendance)} per service`)}
+                        hintTone={changeTone(attendanceChange)}
+                    />
+                    <StatCard
+                        label="Tithe payers"
+                        value={currentTotals.totalTithePayers}
+                        icon={Target}
+                        hint={changeHint(
+                            tithePayersChange,
+                            currentTotals.totalAttendance > 0
                                 ? `${((currentTotals.totalTithePayers / currentTotals.totalAttendance) * 100).toFixed(1)}% of attendance`
-                                : '0% of attendance'
-                            }
-                        </div>
-                    </div>
-                </div>
+                                : '0% of attendance',
+                        )}
+                        hintTone={changeTone(tithePayersChange)}
+                    />
+                    <StatCard
+                        label="Services recorded"
+                        value={currentTotals.serviceCount}
+                        icon={Calendar}
+                        hint={
+                            currentSummaries.length > 0
+                                ? `Latest ${formatDay(currentSummaries[currentSummaries.length - 1]?.service_date)}`
+                                : undefined
+                        }
+                    />
+                    <StatCard
+                        label="Tithes"
+                        value={money(currentTotals.totalTithes)}
+                        icon={Wallet}
+                        hint={changeHint(tithesChange, `Average ${money(avgTithes)} per service`)}
+                        hintTone={changeTone(tithesChange)}
+                    />
+                    <StatCard
+                        label="Offerings"
+                        value={money(currentTotals.totalOfferings)}
+                        icon={Church}
+                        hint={changeHint(offeringsChange, `Average ${money(avgOfferings)} per service`)}
+                        hintTone={changeTone(offeringsChange)}
+                    />
+                    <StatCard
+                        label="Total income"
+                        value={money(totalIncome)}
+                        icon={Wallet}
+                        hint="Tithes, offerings, donations and special offerings"
+                    />
+                </StatGrid>
 
-                {/* Financial Metrics */}
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    {/* Total Tithes */}
-                    <div className="p-4 bg-card rounded-xl border border-border/50 shadow-sm hover:shadow-md transition-all group">
-                        <div className="flex items-center justify-between mb-3">
-                            <div className="flex items-center gap-2">
-                                <div className="p-2 rounded-lg bg-success/10 text-success group-hover:bg-success group-hover:text-success-foreground transition-colors">
-                                    <DollarSign className="h-4 w-4" />
-                                </div>
-                                <span className="text-sm text-muted-foreground">Total Tithes</span>
-                            </div>
-                            {tithesChange !== 0 && (
-                                <Badge variant={tithesChange > 0 ? "success" : "destructive"} className="text-xs border-0">
-                                    {tithesChange > 0 ? (
-                                        <ArrowUpRight className="h-3 w-3 mr-1" />
-                                    ) : (
-                                        <ArrowDownRight className="h-3 w-3 mr-1" />
-                                    )}
-                                    {Math.abs(tithesChange).toFixed(1)}%
-                                </Badge>
-                            )}
-                        </div>
-                        <div className="text-2xl text-success">
-                            {formatCurrency(currentTotals.totalTithes)}
-                        </div>
-                        <div className="text-xs text-muted-foreground mt-1">
-                            Avg: {formatCurrency(avgTithes)} per service
-                        </div>
-                    </div>
-
-                    {/* Total Offerings */}
-                    <div className="p-4 bg-card rounded-xl border border-border/50 shadow-sm hover:shadow-md transition-all group">
-                        <div className="flex items-center justify-between mb-3">
-                            <div className="flex items-center gap-2">
-                                <div className="p-2 rounded-lg bg-accent/10 text-accent-foreground group-hover:bg-accent group-hover:text-accent-foreground transition-colors">
-                                    <Church className="h-4 w-4" />
-                                </div>
-                                <span className="text-sm text-muted-foreground">Total Offerings</span>
-                            </div>
-                            {offeringsChange !== 0 && (
-                                <Badge variant={offeringsChange > 0 ? "success" : "destructive"} className="text-xs border-0">
-                                    {offeringsChange > 0 ? (
-                                        <ArrowUpRight className="h-3 w-3 mr-1" />
-                                    ) : (
-                                        <ArrowDownRight className="h-3 w-3 mr-1" />
-                                    )}
-                                    {Math.abs(offeringsChange).toFixed(1)}%
-                                </Badge>
-                            )}
-                        </div>
-                        <div className="text-2xl text-accent-foreground">
-                            {formatCurrency(currentTotals.totalOfferings)}
-                        </div>
-                        <div className="text-xs text-muted-foreground mt-1">
-                            Avg: {formatCurrency(avgOfferings)} per service
-                        </div>
-                    </div>
-                </div>
-
-                {/* Summary Cards */}
-                <div className="grid grid-cols-2 gap-4 pt-4 border-t border-border/50">
-                    <div className="p-4 bg-muted/20 rounded-xl border border-border/50">
-                        <div className="flex items-center gap-2 mb-2">
-                            <div className="p-1.5 rounded-md bg-primary/10 text-primary">
-                                <DollarSign className="h-3.5 w-3.5" />
-                            </div>
-                            <div className="text-xs font-semibold text-muted-foreground tracking-wide">Total Income</div>
-                        </div>
-                        <div className="text-xl text-foreground">
-                            {formatCurrency(totalIncome)}
-                        </div>
-                    </div>
-
-                    <div className="p-4 bg-muted/20 rounded-xl border border-border/50">
-                        <div className="flex items-center gap-2 mb-2">
-                            <div className="p-1.5 rounded-md bg-secondary text-secondary-foreground">
-                                <Calendar className="h-3.5 w-3.5" />
-                            </div>
-                            <div className="text-xs font-semibold text-muted-foreground tracking-wide">Services Recorded</div>
-                        </div>
-                        <div className="text-xl text-foreground">
-                            {currentTotals.serviceCount}
-                        </div>
-                    </div>
-                </div>
-
-                {/* Additional Breakdown */}
                 {(currentTotals.totalDonations > 0 || currentTotals.totalSpecialOfferings > 0) && (
-                    <div className="pt-4 border-t border-border/50 space-y-3 p-4 rounded-xl bg-warning/50 dark:bg-warning/10 border border-warning/25 dark:border-warning/20">
-                        <div className="flex items-center gap-2">
-                            <div className="p-1.5 rounded-md bg-warning/15 text-warning-strong dark:bg-warning/40 dark:text-warning">
-                                <Target className="h-3.5 w-3.5" />
-                            </div>
-                            <h4 className="text-sm font-semibold text-warning-strong dark:text-warning-strong">Additional Income</h4>
-                        </div>
-                        <div className="grid grid-cols-2 gap-4 text-sm">
+                    <section className="space-y-2">
+                        <h4 className="text-sm font-semibold text-foreground">Other income</h4>
+                        <ul className="divide-y divide-border text-sm">
                             {currentTotals.totalDonations > 0 && (
-                                <div className="flex items-center justify-between p-2 rounded-md bg-white/50 dark:bg-black/20">
-                                    <span className="text-muted-foreground">Donations:</span>
-                                    <span className="font-bold">{formatCurrency(currentTotals.totalDonations)}</span>
-                                </div>
+                                <li className="flex items-center justify-between gap-3 py-2">
+                                    <span className="text-muted-foreground">Donations</span>
+                                    <span className="font-medium tabular-nums">{money(currentTotals.totalDonations)}</span>
+                                </li>
                             )}
                             {currentTotals.totalSpecialOfferings > 0 && (
-                                <div className="flex items-center justify-between p-2 rounded-md bg-white/50 dark:bg-black/20">
-                                    <span className="text-muted-foreground">Special Offerings:</span>
-                                    <span className="font-bold">{formatCurrency(currentTotals.totalSpecialOfferings)}</span>
-                                </div>
+                                <li className="flex items-center justify-between gap-3 py-2">
+                                    <span className="text-muted-foreground">Special offerings</span>
+                                    <span className="font-medium tabular-nums">{money(currentTotals.totalSpecialOfferings)}</span>
+                                </li>
                             )}
-                        </div>
-                    </div>
-                )}
-
-                {/* Recent Activity */}
-                {currentSummaries.length > 0 && (
-                    <div className="pt-2 border-t border-border/50 flex items-center justify-between text-xs text-muted-foreground">
-                        <span>Latest: {new Date(currentSummaries[currentSummaries.length - 1]?.service_date).toLocaleDateString()}</span>
-                        <Badge variant="outline" className="text-[10px] h-5">
-                            {currentSummaries.length} services
-                        </Badge>
-                    </div>
+                        </ul>
+                    </section>
                 )}
             </CardContent>
         </Card>

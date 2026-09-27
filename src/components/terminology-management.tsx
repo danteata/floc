@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { Fragment, useState, useEffect } from 'react'
 import {
   Card,
   CardContent,
@@ -67,14 +67,13 @@ export function TerminologyManagement() {
       });
 
       toast({
-        title: "Success",
-        description: "Terminology settings have been updated.",
+        title: "Terminology saved",
       })
     } catch (error: any) {
       console.error('Error saving terminology:', error)
       toast({
-        title: "Error",
-        description: error.message || "Failed to save terminology settings.",
+        title: "Couldn't save the terminology",
+        description: error.message,
         variant: "destructive",
       })
     } finally {
@@ -93,194 +92,126 @@ export function TerminologyManagement() {
 
   if (organizationData === undefined) {
     return (
-      <div className="p-12 text-center animate-pulse flex flex-col items-center gap-4">
-        <RefreshCw className="h-8 w-8 text-muted-foreground/40 animate-spin" />
-        <p className="font-bold text-muted-foreground/70 text-sm">Loading terminology configuration...</p>
+      <div className="p-12 text-center flex flex-col items-center gap-4">
+        <RefreshCw className="h-6 w-6 text-muted-foreground/60 animate-spin" />
+        <p className="text-sm text-muted-foreground">Loading terminology…</p>
       </div>
     )
   }
 
+  const levels = [1, 2, 3, 4] as const
+  type TermKey = keyof typeof formData
+
   return (
-    <div className="container p-4 md:p-10 max-w-6xl mx-auto space-y-10">
+    <div className="container p-4 md:p-10 max-w-6xl mx-auto space-y-8">
       <PageHeader
         title="Terminology"
         description="The names used for each level of your church's structure."
       />
 
-      <div className="grid gap-8">
-        {/* Current Terminology Preview */}
-        <Card className="border-border/50 shadow-soft-xl rounded-3xl overflow-hidden bg-muted/50">
-          <CardHeader className="bg-white border-b border-border/50 p-8">
-            <CardTitle className="flex items-center gap-3 tracking-tight text-xl">
-              <Settings className="h-5 w-5 text-muted-foreground/70" />
-              Active Taxonomy
+      <div className="grid gap-6">
+        {/* How the terms read now */}
+        <Card className="rounded-xl overflow-hidden">
+          <CardHeader className="border-b border-border/50 p-6">
+            <CardTitle className="flex items-center gap-2 text-lg font-semibold">
+              <Settings className="h-4 w-4 text-muted-foreground" />
+              Preview
             </CardTitle>
-            <CardDescription className="font-medium text-muted-foreground">
-              Preview how your localized terms integrate into the interface
+            <CardDescription className="text-muted-foreground">
+              The words Floc will use for each level, in the singular and plural.
             </CardDescription>
           </CardHeader>
-          <CardContent className="p-8">
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-              <div className="space-y-3">
-                <Label className="text-[10px] text-muted-foreground/70 tracking-wider">Level 1</Label>
-                <div className="flex flex-wrap gap-2">
-                  <Badge variant="outline" className="border-border text-muted-foreground h-8 px-3 rounded-lg bg-white">{formData.level1_singular}</Badge>
-                  <Badge variant="outline" className="border-border text-muted-foreground h-8 px-3 rounded-lg bg-white">{formData.level1_plural}</Badge>
+          <CardContent className="p-6">
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-6">
+              {levels.map((n) => (
+                <div key={n} className="space-y-2">
+                  <Label className="text-xs text-muted-foreground">Level {n}</Label>
+                  <div className="flex flex-wrap gap-2">
+                    <Badge variant="outline" className="border-border text-foreground h-7 px-2.5 rounded-lg bg-background">{formData[`level${n}_singular` as TermKey]}</Badge>
+                    <Badge variant="outline" className="border-border text-foreground h-7 px-2.5 rounded-lg bg-background">{formData[`level${n}_plural` as TermKey]}</Badge>
+                  </div>
                 </div>
-              </div>
-
-              <div className="space-y-3">
-                <Label className="text-[10px] text-muted-foreground/70 tracking-wider">Level 2</Label>
-                <div className="flex flex-wrap gap-2">
-                  <Badge variant="outline" className="border-border text-muted-foreground h-8 px-3 rounded-lg bg-white">{formData.level2_singular}</Badge>
-                  <Badge variant="outline" className="border-border text-muted-foreground h-8 px-3 rounded-lg bg-white">{formData.level2_plural}</Badge>
-                </div>
-              </div>
-
-              <div className="space-y-3">
-                <Label className="text-[10px] text-muted-foreground/70 tracking-wider">Level 3</Label>
-                <div className="flex flex-wrap gap-2">
-                  <Badge variant="outline" className="border-border text-muted-foreground h-8 px-3 rounded-lg bg-white">{formData.level3_singular}</Badge>
-                  <Badge variant="outline" className="border-border text-muted-foreground h-8 px-3 rounded-lg bg-white">{formData.level3_plural}</Badge>
-                </div>
-              </div>
-
-              <div className="space-y-3">
-                <Label className="text-[10px] text-muted-foreground/70 tracking-wider">Level 4</Label>
-                <div className="flex flex-wrap gap-2">
-                  <Badge variant="outline" className="border-border text-muted-foreground h-8 px-3 rounded-lg bg-white">{formData.level4_singular}</Badge>
-                  <Badge variant="outline" className="border-border text-muted-foreground h-8 px-3 rounded-lg bg-white">{formData.level4_plural}</Badge>
-                </div>
-              </div>
+              ))}
             </div>
           </CardContent>
         </Card>
 
-        {/* Terminology Settings */}
-        <Card className="border-border/50 shadow-soft-2xl rounded-3xl overflow-hidden">
-          <CardHeader className="p-8 pb-4">
-            <CardTitle className="font-black tracking-tight text-xl">Localized Labels</CardTitle>
-            <CardDescription className="font-medium text-muted-foreground">
-              Customize labels for different levels of your organizational structure
+        {/* The terms themselves */}
+        <Card className="rounded-xl overflow-hidden">
+          <CardHeader className="p-6 pb-2">
+            <CardTitle className="text-lg font-semibold">Names for each level</CardTitle>
+            <CardDescription className="text-muted-foreground">
+              Use the words your members use for each level, such as zone, district or cell.
             </CardDescription>
           </CardHeader>
-          <CardContent className="space-y-8 p-8 pt-4">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-x-12 gap-y-8">
-              {/* Level 1 */}
-              <div className="space-y-2">
-                <Label className="text-[10px] text-muted-foreground/70 tracking-wider pl-1">Level 1 Singular</Label>
-                <Input
-                  value={formData.level1_singular}
-                  onChange={(e) => setFormData({ ...formData, level1_singular: e.target.value })}
-                  className="rounded-xl border-border h-11"
-                />
-              </div>
-              <div className="space-y-2">
-                <Label className="text-[10px] text-muted-foreground/70 tracking-wider pl-1">Level 1 Plural</Label>
-                <Input
-                  value={formData.level1_plural}
-                  onChange={(e) => setFormData({ ...formData, level1_plural: e.target.value })}
-                  className="rounded-xl border-border h-11"
-                />
-              </div>
-
-              {/* Level 2 */}
-              <div className="space-y-2">
-                <Label className="text-[10px] text-muted-foreground/70 tracking-wider pl-1">Level 2 Singular</Label>
-                <Input
-                  value={formData.level2_singular}
-                  onChange={(e) => setFormData({ ...formData, level2_singular: e.target.value })}
-                  className="rounded-xl border-border h-11"
-                />
-              </div>
-              <div className="space-y-2">
-                <Label className="text-[10px] text-muted-foreground/70 tracking-wider pl-1">Level 2 Plural</Label>
-                <Input
-                  value={formData.level2_plural}
-                  onChange={(e) => setFormData({ ...formData, level2_plural: e.target.value })}
-                  className="rounded-xl border-border h-11"
-                />
-              </div>
-
-              {/* Level 3 */}
-              <div className="space-y-2">
-                <Label className="text-[10px] text-muted-foreground/70 tracking-wider pl-1">Level 3 Singular</Label>
-                <Input
-                  value={formData.level3_singular}
-                  onChange={(e) => setFormData({ ...formData, level3_singular: e.target.value })}
-                  className="rounded-xl border-border h-11"
-                />
-              </div>
-              <div className="space-y-2">
-                <Label className="text-[10px] text-muted-foreground/70 tracking-wider pl-1">Level 3 Plural</Label>
-                <Input
-                  value={formData.level3_plural}
-                  onChange={(e) => setFormData({ ...formData, level3_plural: e.target.value })}
-                  className="rounded-xl border-border h-11"
-                />
-              </div>
-
-              {/* Level 4 */}
-              <div className="space-y-2">
-                <Label className="text-[10px] text-muted-foreground/70 tracking-wider pl-1">Level 4 Singular</Label>
-                <Input
-                  value={formData.level4_singular}
-                  onChange={(e) => setFormData({ ...formData, level4_singular: e.target.value })}
-                  className="rounded-xl border-border h-11"
-                />
-              </div>
-              <div className="space-y-2">
-                <Label className="text-[10px] text-muted-foreground/70 tracking-wider pl-1">Level 4 Plural</Label>
-                <Input
-                  value={formData.level4_plural}
-                  onChange={(e) => setFormData({ ...formData, level4_plural: e.target.value })}
-                  className="rounded-xl border-border h-11"
-                />
-              </div>
+          <CardContent className="space-y-6 p-6 pt-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-5">
+              {levels.map((n) => (
+                <Fragment key={n}>
+                  <div className="space-y-2">
+                    <Label htmlFor={`level${n}-singular`} className="text-sm font-medium">Level {n}, singular</Label>
+                    <Input
+                      id={`level${n}-singular`}
+                      value={formData[`level${n}_singular` as TermKey]}
+                      onChange={(e) => setFormData({ ...formData, [`level${n}_singular`]: e.target.value })}
+                      className="rounded-lg border-border h-10"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor={`level${n}-plural`} className="text-sm font-medium">Level {n}, plural</Label>
+                    <Input
+                      id={`level${n}-plural`}
+                      value={formData[`level${n}_plural` as TermKey]}
+                      onChange={(e) => setFormData({ ...formData, [`level${n}_plural`]: e.target.value })}
+                      className="rounded-lg border-border h-10"
+                    />
+                  </div>
+                </Fragment>
+              ))}
             </div>
 
-            <div className="flex flex-col sm:flex-row gap-3 pt-8 border-t border-border justify-end">
+            <div className="flex flex-col sm:flex-row gap-3 pt-6 border-t border-border justify-end">
               <Button
                 variant="ghost"
                 onClick={handleResetToDefaults}
-                className="font-bold text-muted-foreground rounded-xl px-6"
+                className="text-muted-foreground rounded-lg"
               >
-                Reset to Defaults
+                Reset to defaults
               </Button>
               <Button
                 onClick={handleSaveTerminology}
                 disabled={isSaving}
-                className="bg-primary text-primary-foreground hover:bg-primary/90 rounded-xl h-11 px-10 shadow-soft"
+                className="rounded-lg"
               >
                 {isSaving ? (
                   <RefreshCw className="h-4 w-4 animate-spin mr-2" />
                 ) : (
                   <Save className="h-4 w-4 mr-2" />
                 )}
-                {isSaving ? 'Saving Changes...' : 'Save Configuration'}
+                {isSaving ? 'Saving…' : 'Save terminology'}
               </Button>
             </div>
           </CardContent>
         </Card>
 
-        {/* System Preview */}
-        <Card className="border-border/50 shadow-soft rounded-3xl overflow-hidden bg-muted/50">
-          <CardHeader className="p-8 pb-4">
-            <CardTitle className="font-black tracking-tight text-lg text-muted-foreground/70">Contextual Integration</CardTitle>
+        {/* Examples */}
+        <Card className="rounded-xl overflow-hidden">
+          <CardHeader className="p-6 pb-2">
+            <CardTitle className="text-base font-semibold">How they read together</CardTitle>
           </CardHeader>
-          <CardContent className="p-8 pt-2">
-            <div className="space-y-4 text-sm text-muted-foreground">
-              <div className="flex justify-between items-center border-b border-border pb-3">
-                <span className="text-muted-foreground/70">Navigation Pattern:</span>
-                <span className="text-foreground">{formData.level1_plural} <span className="text-muted-foreground/70">/</span> {formData.level2_plural} <span className="text-muted-foreground/70">/</span> {formData.level3_plural}</span>
+          <CardContent className="p-6 pt-2">
+            <div className="space-y-3 text-sm">
+              <div className="flex flex-col gap-1 sm:flex-row sm:justify-between sm:items-center border-b border-border pb-3">
+                <span className="text-muted-foreground">In order</span>
+                <span className="text-foreground">{formData.level1_plural} <span className="text-muted-foreground">/</span> {formData.level2_plural} <span className="text-muted-foreground">/</span> {formData.level3_plural}</span>
               </div>
-              <div className="flex justify-between items-center border-b border-border pb-3">
-                <span className="text-muted-foreground/70">Administrative Titles:</span>
-                <span className="text-foreground">{formData.level1_singular} Admin, {formData.level2_singular} Lead</span>
+              <div className="flex flex-col gap-1 sm:flex-row sm:justify-between sm:items-center border-b border-border pb-3">
+                <span className="text-muted-foreground">Leader titles</span>
+                <span className="text-foreground">{formData.level1_singular} admin, {formData.level2_singular} lead</span>
               </div>
-              <div className="flex justify-between items-center">
-                <span className="text-muted-foreground/70">Reporting Structure:</span>
-                <span className="text-foreground">{formData.level3_plural} nested within {formData.level2_singular}</span>
+              <div className="flex flex-col gap-1 sm:flex-row sm:justify-between sm:items-center">
+                <span className="text-muted-foreground">Nesting</span>
+                <span className="text-foreground">{formData.level3_plural} sit within a {formData.level2_singular}</span>
               </div>
             </div>
           </CardContent>

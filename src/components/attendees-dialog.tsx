@@ -10,6 +10,8 @@ import {
 import { useQuery } from 'convex/react'
 import { api } from '../../convex/_generated/api'
 import { Id } from '../../convex/_generated/dataModel'
+import { MemberAvatar } from '@/components/ui/member-avatar'
+import { titleCase, formatDay } from '@/lib/display'
 
 interface AttendeesDialogProps {
   open: boolean
@@ -38,39 +40,35 @@ export function AttendeesDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Attendees ({attendees.length})</DialogTitle>
+          <DialogTitle>Who was there{loading ? "" : ` (${attendees.length})`}</DialogTitle>
           <DialogDescription>
             {record && (
               <>
-                Event:{' '}
-                <b>
-                  {record.event_type_label ||
-                    record.event_type_value ||
-                    'Unknown'}
-                </b>
-                <br />
-                Date: <b>{record.date}</b>
+                {titleCase(record.event_type_label || record.event_type_value) || 'Attendance'}
+                {' · '}
+                {formatDay(record.date)}
               </>
             )}
           </DialogDescription>
         </DialogHeader>
         {loading ? (
-          <div className="text-center py-4">Loading attendees...</div>
+          <div className="text-center py-4 text-sm text-muted-foreground">Loading…</div>
         ) : attendees.length === 0 ? (
-          <div className="text-center py-4 text-muted-foreground">
-            No attendees found
+          <div className="text-center py-4 text-sm text-muted-foreground">
+            No one was marked present.
           </div>
         ) : (
           <div className="max-h-64 overflow-auto">
             <ul className="space-y-2">
               {attendees.map((a, idx) => (
-                <li key={a.member_id} className="border-b pb-1 flex gap-2">
-                  <span className="text-xs text-muted-foreground w-6 text-right select-none">
+                <li key={a.member_id} className="border-b border-border pb-2 flex items-center gap-3">
+                  <span className="text-xs text-muted-foreground w-6 text-right tabular-nums select-none">
                     {idx + 1}.
                   </span>
-                  <div className="flex-1">
-                    <div className="font-medium">
-                      {a.name || 'Unknown'}
+                  <MemberAvatar name={a.name || ''} size="sm" />
+                  <div className="flex-1 min-w-0">
+                    <div className="text-sm font-medium truncate">
+                      {a.name || 'Unnamed member'}
                     </div>
                     <div className="text-xs text-muted-foreground">
                       {a.email}

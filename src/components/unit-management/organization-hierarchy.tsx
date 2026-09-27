@@ -208,15 +208,13 @@ export function OrganizationHierarchy({
       {rootUnits.length > 0 && (
         <div className="space-y-4">
           <div className="flex items-center gap-3 px-1">
-            <div className="p-2 bg-primary/10 rounded-lg text-primary">
-              <Building2 className="h-5 w-5" />
-            </div>
+            <Building2 className="h-4 w-4 text-muted-foreground" />
             <div>
               <h3 className="text-xl tracking-tight text-foreground">
                 Units
               </h3>
               <p className="text-sm text-muted-foreground">
-                {allUnits.length} units in your organization
+                {allUnits.length} {allUnits.length === 1 ? 'unit' : 'units'} in your church
               </p>
             </div>
           </div>
@@ -244,9 +242,9 @@ export function OrganizationHierarchy({
       {rootUnits.length === 0 && (
         <div className="text-center py-12 border border-dashed border-border/50 rounded-xl bg-muted/10">
           <Building2 className="h-12 w-12 mx-auto mb-4 text-muted-foreground/40" />
-          <h3 className="text-lg text-foreground mb-2">No units yet</h3>
+          <h3 className="text-base font-semibold text-foreground mb-1">No units yet</h3>
           <p className="text-sm text-muted-foreground max-w-md mx-auto">
-            Create your first organizational units to get started with your church structure.
+            Add your first unit with Create to start setting out how your church is organized.
           </p>
         </div>
       )}

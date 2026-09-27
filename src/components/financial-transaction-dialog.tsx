@@ -33,7 +33,7 @@ import { Textarea } from '@/components/ui/textarea'
 import { Button } from '@/components/ui/button'
 import { Calendar } from '@/components/ui/calendar'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
-import { CalendarIcon, Upload, Loader2, Save, ArrowDownLeft, ArrowUpRight, DollarSign, Tag, CreditCard, Hash, Info, FileText } from 'lucide-react'
+import { CalendarIcon, Upload, Loader2, Save, ArrowDownLeft, ArrowUpRight, Wallet, Tag, CreditCard, Hash, Info, FileText } from 'lucide-react'
 import { format } from 'date-fns'
 import { cn } from '@/lib/utils'
 import { FinancialTransaction, TransactionCategory } from '@/types/database'
@@ -47,6 +47,18 @@ import { api } from '../../convex/_generated/api'
 import { useOrganization } from '@/hooks/use-organization'
 import { toast } from 'sonner'
 import { Badge } from '@/components/ui/badge'
+import { useCurrency } from '@/lib/money'
+
+/** The currency's own symbol ("GH₵", "₦", "$") for the amount field. */
+function currencySymbol(currency: string): string {
+    try {
+        return new Intl.NumberFormat('en-GB', { style: 'currency', currency, currencyDisplay: 'narrowSymbol' })
+            .formatToParts(0)
+            .find((part) => part.type === 'currency')?.value ?? currency
+    } catch {
+        return currency
+    }
+}
 
 const transactionSchema = z.object({
     type: z.enum(['income', 'expense']),
@@ -78,6 +90,7 @@ export function FinancialTransactionDialog({
 }: FinancialTransactionDialogProps) {
     const { user } = useUser()
     const { organization } = useOrganization()
+    const symbol = currencySymbol(useCurrency())
     const [isLoading, setIsLoading] = useState(false)
 
     const createTransaction = useMutation(api.financial.createTransaction)
@@ -196,7 +209,7 @@ export function FinancialTransactionDialog({
                 })
             } else {
                 await createTransaction(transactionPayload)
-                toast.success('Transaction recorded')
+                toast.success('Transaction added')
                 trackEvent(AnalyticsEventType.FINANCIAL_TRANSACTION_CREATED, {
                     type: data.type,
                     category: data.category,
@@ -208,7 +221,7 @@ export function FinancialTransactionDialog({
             onOpenChange(false)
         } catch (error) {
             console.error('Error saving transaction:', error)
-            toast.error('Failed to save transaction')
+            toast.error("Couldn't save the transaction", { description: error instanceof Error ? error.message : undefined })
         } finally {
             setIsLoading(false)
         }
@@ -240,26 +253,22 @@ export function FinancialTransactionDialog({
                     <DialogHeader className="p-8 pb-4">
                         <div className="flex items-center justify-between">
                             <div className="space-y-1">
-                                <DialogTitle className="text-2xl flex items-center gap-3">
-                                    <div className={cn(
-                                        "p-3 rounded-xl",
-                                        watchedType === 'income' ? "bg-success/10 text-success" : "bg-destructive/10 text-destructive"
-                                    )}>
-                                        {watchedType === 'income' ? <ArrowDownLeft className="h-6 w-6" /> : <ArrowUpRight className="h-6 w-6" />}
-                                    </div>
-                                    {transaction ? 'Edit Transaction' : 'New Transaction'}
+                                <DialogTitle className="text-xl font-semibold">
+                                    {transaction ? 'Edit transaction' : 'Add a transaction'}
                                 </DialogTitle>
-                                <DialogDescription className="text-muted-foreground ml-14">
-                                    {watchedType === 'income' ? 'Record money coming in to the organization.' : 'Record money going out of the organization.'}
+                                <DialogDescription className="text-sm text-muted-foreground">
+                                    {watchedType === 'income' ? 'Money coming in to the church.' : 'Money going out of the church.'}
                                 </DialogDescription>
                             </div>
-                            <div className="flex flex-col items-end gap-1">
-                                <Badge variant="outline" className="px-3 py-1 text-sm font-semibold rounded-lg border-border/50">
-                                    {transaction ? 'ID: ' + (transaction._id as string).slice(-8) : 'NEW ENTRY'}
-                                </Badge>
-                                {(watchedType === 'income') && <span className="text-[10px] text-success tracking-wider">Revenue</span>}
-                                {(watchedType === 'expense') && <span className="text-[10px] text-destructive tracking-wider">Expense</span>}
-                            </div>
+                            <Badge
+                                variant="outline"
+                                className={cn(
+                                    "border-0 text-xs font-medium",
+                                    watchedType === 'income' ? "bg-success/15 text-success-strong" : "bg-destructive/15 text-destructive-strong"
+                                )}
+                            >
+                                {watchedType === 'income' ? 'Income' : 'Expense'}
+                            </Badge>
                         </div>
                     </DialogHeader>
 
@@ -269,8 +278,8 @@ export function FinancialTransactionDialog({
                                 {/* Basic Info */}
                                 <section className="space-y-6 rounded-xl border border-border/50 bg-muted/20 p-6">
                                     <div className="flex items-center gap-2 mb-4">
-                                        <Tag className="h-4 w-4 text-primary" />
-                                        <h3 className="font-semibold text-lg">Transaction Details</h3>
+                                        <Tag className="h-4 w-4 text-muted-foreground" />
+                                        <h3 className="font-semibold text-base">Details</h3>
                                     </div>
 
                                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -287,15 +296,15 @@ export function FinancialTransactionDialog({
                                                     }} value={field.value}>
                                                         <FormControl>
                                                             <SelectTrigger className="h-11 rounded-lg bg-background">
-                                                                <SelectValue placeholder="Select Type" />
+                                                                <SelectValue placeholder="Choose a type" />
                                                             </SelectTrigger>
                                                         </FormControl>
                                                         <SelectContent className="rounded-lg shadow-soft-lg">
                                                             <SelectItem value="income" className="flex items-center gap-2">
-                                                                <span className="flex items-center gap-2 text-success"><ArrowDownLeft className="h-4 w-4" /> Income</span>
+                                                                <span className="flex items-center gap-2 text-success-strong"><ArrowDownLeft className="h-4 w-4" /> Income</span>
                                                             </SelectItem>
                                                             <SelectItem value="expense" className="flex items-center gap-2">
-                                                                <span className="flex items-center gap-2 text-destructive"><ArrowUpRight className="h-4 w-4" /> Expense</span>
+                                                                <span className="flex items-center gap-2 text-destructive-strong"><ArrowUpRight className="h-4 w-4" /> Expense</span>
                                                             </SelectItem>
                                                         </SelectContent>
                                                     </Select>
@@ -312,7 +321,7 @@ export function FinancialTransactionDialog({
                                                     <Select onValueChange={field.onChange} value={field.value}>
                                                         <FormControl>
                                                             <SelectTrigger className="h-11 rounded-lg bg-background">
-                                                                <SelectValue placeholder="Select Category" />
+                                                                <SelectValue placeholder="Choose a category" />
                                                             </SelectTrigger>
                                                         </FormControl>
                                                         <SelectContent className="rounded-lg shadow-soft-lg max-h-[300px]">
@@ -335,8 +344,8 @@ export function FinancialTransactionDialog({
                                 {/* Financial Amounts */}
                                 <section className="space-y-6 rounded-xl border border-border/50 bg-muted/20 p-6">
                                     <div className="flex items-center gap-2 mb-4">
-                                        <DollarSign className="h-4 w-4 text-primary" />
-                                        <h3 className="font-semibold text-lg">Financial Information</h3>
+                                        <Wallet className="h-4 w-4 text-muted-foreground" />
+                                        <h3 className="font-semibold text-base">Amount and payment</h3>
                                     </div>
 
                                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -348,12 +357,12 @@ export function FinancialTransactionDialog({
                                                     <FormLabel className="text-sm">Amount</FormLabel>
                                                     <FormControl>
                                                         <div className="relative">
-                                                            <div className="absolute left-3 top-1/2 -translate-y-1/2 font-semibold text-muted-foreground">$</div>
+                                                            <div className="absolute left-3 top-1/2 -translate-y-1/2 font-semibold text-muted-foreground">{symbol}</div>
                                                             <Input
                                                                 type="number"
                                                                 step="0.01"
                                                                 placeholder="0.00"
-                                                                className="pl-7 h-11 rounded-lg bg-background font-mono text-lg"
+                                                                className={cn(symbol.length > 1 ? 'pl-12' : 'pl-7', 'h-11 rounded-lg bg-background font-mono text-lg')}
                                                                 {...field}
                                                                 onChange={(e) => field.onChange(parseFloat(e.target.value) || 0)}
                                                             />
@@ -368,11 +377,11 @@ export function FinancialTransactionDialog({
                                             name="payment_method"
                                             render={({ field }) => (
                                                 <FormItem>
-                                                    <FormLabel className="text-sm">Payment Method</FormLabel>
+                                                    <FormLabel className="text-sm">Payment method</FormLabel>
                                                     <Select onValueChange={field.onChange} value={field.value}>
                                                         <FormControl>
                                                             <SelectTrigger className="h-11 rounded-lg bg-background">
-                                                                <SelectValue placeholder="Select Method" />
+                                                                <SelectValue placeholder="Choose a method" />
                                                             </SelectTrigger>
                                                         </FormControl>
                                                         <SelectContent className="rounded-lg shadow-soft-lg">
@@ -409,7 +418,7 @@ export function FinancialTransactionDialog({
                                                                             !field.value && 'text-muted-foreground'
                                                                         )}
                                                                     >
-                                                                        {field.value ? format(field.value, 'PPP') : 'Select date'}
+                                                                        {field.value ? format(field.value, 'd MMM yyyy') : 'Pick a date'}
                                                                         <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
                                                                     </Button>
                                                                 </FormControl>
@@ -445,7 +454,7 @@ export function FinancialTransactionDialog({
                                                                 })) || []}
                                                                 value={field.value || ""}
                                                                 onValueChange={field.onChange}
-                                                                placeholder="Search for member..."
+                                                                placeholder="Search for a member…"
                                                                 className="h-11 rounded-lg"
                                                             />
                                                         </FormItem>
@@ -461,7 +470,7 @@ export function FinancialTransactionDialog({
                                                             <Select onValueChange={field.onChange} value={field.value}>
                                                                 <FormControl>
                                                                     <SelectTrigger className="h-11 rounded-lg bg-background">
-                                                                        <SelectValue placeholder="Link Event" />
+                                                                        <SelectValue placeholder="Choose an event" />
                                                                     </SelectTrigger>
                                                                 </FormControl>
                                                                 <SelectContent className="rounded-lg shadow-soft-lg max-h-[300px]">
@@ -488,7 +497,7 @@ export function FinancialTransactionDialog({
                                                         <FormLabel className="text-sm">Description</FormLabel>
                                                         <FormControl>
                                                             <Input
-                                                                placeholder="Short description..."
+                                                                placeholder="For example, Sunday offering"
                                                                 className="h-11 rounded-lg bg-background"
                                                                 {...field}
                                                             />
@@ -502,10 +511,10 @@ export function FinancialTransactionDialog({
                                                 name="notes"
                                                 render={({ field }) => (
                                                     <FormItem>
-                                                        <FormLabel className="text-sm">Notes (Optional)</FormLabel>
+                                                        <FormLabel className="text-sm">Notes (optional)</FormLabel>
                                                         <FormControl>
                                                             <Textarea
-                                                                placeholder="Additional details..."
+                                                                placeholder="Anything else worth recording"
                                                                 className="min-h-[120px] resize-none rounded-lg bg-background"
                                                                 {...field}
                                                             />
@@ -538,12 +547,12 @@ export function FinancialTransactionDialog({
                                         {isLoading ? (
                                             <div className="flex items-center gap-2">
                                                 <Loader2 className="h-4 w-4 animate-spin" />
-                                                Saving...
+                                                Saving…
                                             </div>
                                         ) : (
                                             <div className="flex items-center gap-2">
                                                 <Save className="h-4 w-4" />
-                                                {transaction ? 'Update Record' : 'Save Transaction'}
+                                                {transaction ? 'Save changes' : 'Save transaction'}
                                             </div>
                                         )}
                                     </Button>

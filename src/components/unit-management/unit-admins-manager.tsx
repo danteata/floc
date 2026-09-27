@@ -47,7 +47,7 @@ export function UnitAdminsManager({ unitId, members, disabled }: UnitAdminsManag
             setSelectedMember(undefined)
             toast({ title: 'Admin added', description: 'The member now has admin access to this unit.' })
         } catch (e: any) {
-            toast({ title: 'Could not add admin', description: e?.message ?? 'Please try again.', variant: 'destructive' })
+            toast({ title: "Couldn't add the admin", description: e?.message ?? 'Try again in a moment.', variant: 'destructive' })
         } finally {
             setBusy(false)
         }
@@ -59,7 +59,7 @@ export function UnitAdminsManager({ unitId, members, disabled }: UnitAdminsManag
             await removeAdmin({ unit_id: unitId as Id<'units'>, member_id: memberId as Id<'members'> })
             toast({ title: 'Admin removed' })
         } catch (e: any) {
-            toast({ title: 'Could not remove admin', description: e?.message ?? 'Please try again.', variant: 'destructive' })
+            toast({ title: "Couldn't remove the admin", description: e?.message ?? 'Try again in a moment.', variant: 'destructive' })
         } finally {
             setBusy(false)
         }
@@ -67,8 +67,8 @@ export function UnitAdminsManager({ unitId, members, disabled }: UnitAdminsManag
 
     return (
         <div className="space-y-3">
-            <Label className="text-xs font-semibold text-muted-foreground tracking-wider">
-                Additional Admins
+            <Label className="text-sm font-medium">
+                Other admins
             </Label>
             <p className="text-xs text-muted-foreground -mt-1">
                 These people share the same admin access as the unit leader. Set the primary leader in the field above.
@@ -80,7 +80,7 @@ export function UnitAdminsManager({ unitId, members, disabled }: UnitAdminsManag
                         <Loader2 className="h-4 w-4 animate-spin" /> Loading admins…
                     </div>
                 ) : admins.length === 0 ? (
-                    <p className="text-sm text-muted-foreground py-2">No additional admins yet.</p>
+                    <p className="text-sm text-muted-foreground py-2">No other admins yet.</p>
                 ) : (
                     admins.map((a: any) => (
                         <div

@@ -50,14 +50,14 @@ import { api } from '../../convex/_generated/api'
 import { Id } from '../../convex/_generated/dataModel'
 
 const eventSchema = z.object({
-  title: z.string().min(1, "Event title is required"),
+  title: z.string().min(1, "Give the event a title"),
   description: z.string().optional(),
   date: z.date({
-    required_error: "Event date is required",
+    required_error: "Choose a date",
   }),
   time: z.string().optional(),
   location: z.string().optional(),
-  type: z.string().min(1, "Event type is required"),
+  type: z.string().min(1, "Choose a type"),
 })
 
 type EventFormData = z.infer<typeof eventSchema>
@@ -146,14 +146,14 @@ export function EventDialog({ open, onOpenChange, event, onSuccess }: EventDialo
             event_type_id: eventData.event_type_id,
           }
         })
-        toast({ title: "Success", description: "Event updated" })
+        toast({ title: "Event updated" })
         trackEvent(AnalyticsEventType.EVENT_UPDATED, {
           event_id: event._id,
           event_type: data.type,
         })
       } else {
         await createMutation(eventData)
-        toast({ title: "Success", description: "Event created" })
+        toast({ title: "Event created" })
         trackEvent(AnalyticsEventType.EVENT_CREATED, {
           event_type: data.type,
           has_description: !!data.description,
@@ -163,7 +163,7 @@ export function EventDialog({ open, onOpenChange, event, onSuccess }: EventDialo
       onOpenChange(false)
       onSuccess?.()
     } catch (error: any) {
-      toast({ title: "Error", description: error.message, variant: "destructive" })
+      toast({ title: "Couldn't save the event", description: error.message, variant: "destructive" })
     } finally {
       setIsLoading(false)
     }
@@ -173,14 +173,11 @@ export function EventDialog({ open, onOpenChange, event, onSuccess }: EventDialo
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-[550px] border border-border/50 shadow-soft-xl rounded-xl p-0 overflow-hidden bg-background">
         <DialogHeader className="p-6 bg-muted/30 border-b border-border/50">
-          <DialogTitle className="text-xl flex items-center gap-2 text-foreground">
-            <div className="p-2 bg-primary/10 rounded-lg text-primary">
-              <Sparkles className="h-5 w-5" />
-            </div>
-            {event ? "Edit Event" : "New Event"}
+          <DialogTitle className="text-lg font-semibold text-foreground">
+            {event ? "Edit event" : "New event"}
           </DialogTitle>
-          <DialogDescription className="text-muted-foreground ml-11">
-            {event ? "Update event details" : "Schedule a new gathering"}
+          <DialogDescription className="text-muted-foreground">
+            {event ? "Change the event's details." : "Add a service or event to the calendar."}
           </DialogDescription>
         </DialogHeader>
 
@@ -192,10 +189,10 @@ export function EventDialog({ open, onOpenChange, event, onSuccess }: EventDialo
               render={({ field }) => (
                 <FormItem>
                   <FormLabel className="text-sm flex items-center gap-2">
-                    <Type className="h-4 w-4 text-muted-foreground" /> Event Title <span className="text-destructive">*</span>
+                    <Type className="h-4 w-4 text-muted-foreground" /> Title <span className="text-destructive">*</span>
                   </FormLabel>
                   <FormControl>
-                    <Input placeholder="e.g., Weekly Service" {...field} className="h-11 rounded-lg" />
+                    <Input placeholder="For example, Sunday service" {...field} className="h-11 rounded-lg" />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -212,7 +209,7 @@ export function EventDialog({ open, onOpenChange, event, onSuccess }: EventDialo
                   </FormLabel>
                   <FormControl>
                     <Textarea
-                      placeholder="Enter event details..."
+                      placeholder="What it is and who it's for…"
                       className="resize-none h-24 rounded-lg"
                       {...field}
                     />
@@ -242,7 +239,7 @@ export function EventDialog({ open, onOpenChange, event, onSuccess }: EventDialo
                             )}
                           >
                             {field.value ? (
-                              format(field.value, "PPP")
+                              format(field.value, "d MMM yyyy")
                             ) : (
                               <span>Pick a date</span>
                             )}
@@ -276,16 +273,16 @@ export function EventDialog({ open, onOpenChange, event, onSuccess }: EventDialo
                     <Select onValueChange={field.onChange} value={field.value}>
                       <FormControl>
                         <SelectTrigger className="h-11 rounded-lg">
-                          <SelectValue placeholder="Event Type" />
+                          <SelectValue placeholder="Choose a type" />
                         </SelectTrigger>
                       </FormControl>
                       <SelectContent className="rounded-lg shadow-soft-lg">
                         {eventTypesLoading ? (
-                          <SelectItem value="loading" disabled>Loading...</SelectItem>
+                          <SelectItem value="loading" disabled>Loading…</SelectItem>
                         ) : (
                           eventTypes.map((type) => (
                             <SelectItem key={type.value} value={type.value}>
-                              {type.label}
+                              {type.label === type.label.toLowerCase() ? type.label.replace(/\b[a-z]/g, (c) => c.toUpperCase()) : type.label}
                             </SelectItem>
                           ))
                         )}
@@ -343,7 +340,7 @@ export function EventDialog({ open, onOpenChange, event, onSuccess }: EventDialo
               </Button>
               <Button type="submit" disabled={isLoading || eventTypesLoading} className="h-11 rounded-lg px-8 shadow-soft hover:shadow-soft-lg transition-all">
                 {isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
-                {isLoading ? "Saving..." : event ? "Update Event" : "Create Event"}
+                {isLoading ? "Saving…" : event ? "Save changes" : "Create event"}
               </Button>
             </DialogFooter>
           </form>

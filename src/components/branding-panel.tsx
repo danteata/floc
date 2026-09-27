@@ -159,7 +159,7 @@ export function BrandingPanel() {
           />
           {!valid && (
             <span className="text-xs text-destructive">
-              Hex only, like #0369a1 — not a colour name or rgb().
+              Hex only, like #0369a1 (not a colour name or rgb()).
             </span>
           )}
         </div>
@@ -208,7 +208,7 @@ export function BrandingPanel() {
             </p>
           ))}
           <p className="text-xs text-muted-foreground pt-1">
-            Your colour is kept where it's legible and darkened or lightened where it isn't — the
+            Your colour is kept where it's legible and darkened or lightened where it isn't. The
             hue stays yours either way.
           </p>
         </div>

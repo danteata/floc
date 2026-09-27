@@ -74,17 +74,15 @@ export default function MapPage() {
                     <CardContent>
                         {subLoading ? (
                             <div className="h-[400px] bg-muted rounded-lg flex items-center justify-center">
-                                <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+                                <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" aria-label="Loading" />
                             </div>
                         ) : !canUseMap ? (
                             <div className="h-[400px] rounded-lg border border-dashed border-border flex flex-col items-center justify-center gap-4 px-6 text-center">
-                                <div className="h-12 w-12 rounded-full bg-primary/10 flex items-center justify-center">
-                                    <Crown className="h-6 w-6 text-primary" />
-                                </div>
+                                <Crown className="h-8 w-8 text-muted-foreground/60" aria-hidden="true" />
                                 <div className="space-y-1 max-w-sm">
-                                    <h3 className="font-semibold">Member map is a Pro feature</h3>
+                                    <h3 className="text-base font-semibold">The member map is part of the Pro plan</h3>
                                     <p className="text-sm text-muted-foreground">
-                                        Upgrade to plot member addresses, plan outreach, and see your congregation geographically.
+                                        Upgrade to see where your members live and plan visits by area.
                                     </p>
                                 </div>
                                 <Button asChild>

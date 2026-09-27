@@ -15,20 +15,20 @@ export default function ReportsPage() {
         />
 
         <Tabs defaultValue="attendance" className="w-full space-y-6">
-          <TabsList className="bg-muted/50 p-1 rounded-lg h-auto flex-wrap gap-0.5">
+          <TabsList className="bg-muted/50 p-1 rounded-lg h-auto max-w-full justify-start overflow-x-auto gap-0.5">
             <TabsTrigger 
               value="attendance" 
               className="h-9 px-4 rounded-md text-sm data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm flex items-center gap-2"
             >
               <BarChart3 className="h-4 w-4" />
-              Attendance Analytics
+              Attendance analytics
             </TabsTrigger>
             <TabsTrigger 
               value="members" 
               className="h-9 px-4 rounded-md text-sm data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm flex items-center gap-2"
             >
               <Users className="h-4 w-4" />
-              Member Insights
+              Member insights
             </TabsTrigger>
           </TabsList>
 

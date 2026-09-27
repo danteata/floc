@@ -14,6 +14,7 @@ import { useToast } from "@/hooks/use-toast"
 import { useOrganization } from "@/hooks/use-organization"
 import { useUserRole } from "@/hooks/use-user-role"
 import { errorMessage } from "@/lib/errors"
+import { formatDayTime } from '@/lib/display'
 
 /**
  * Connecting your own AI provider.
@@ -58,7 +59,7 @@ export function AiCredentialsPanel() {
       setApiKey("")
       toast({
         title: "Key saved",
-        description: `${result.provider} key ending ${result.hint} is now in use for this organization.`,
+        description: `${result.provider} key ending ${result.hint} is now in use for your church.`,
       })
     } catch (err) {
       toast({ title: "Couldn't save the key", description: errorMessage(err), variant: "destructive" })
@@ -120,8 +121,8 @@ export function AiCredentialsPanel() {
         </h3>
         <p className="text-sm text-muted-foreground mt-1">
           Connect your own provider account and your data reaches the model under{" "}
-          <em>your</em> contract, retention settings and region — not ours. Without a key here,
-          AI features stay off for this organization.
+          <em>your</em> contract, retention settings and region, not ours. Without a key here,
+          AI features stay off for your church.
         </p>
       </div>
 
@@ -148,7 +149,7 @@ export function AiCredentialsPanel() {
                   <span className="font-medium">{credential.provider_label}</span>
                   <code className="text-xs text-muted-foreground">{credential.hint}</code>
                   {credential.model && (
-                    <Badge variant="outline" className="text-[10px]">
+                    <Badge variant="outline" className="text-xs">
                       {credential.model}
                     </Badge>
                   )}
@@ -161,10 +162,10 @@ export function AiCredentialsPanel() {
                 ) : credential.last_used_at ? (
                   <p className="flex items-center gap-1.5 text-xs text-muted-foreground">
                     <CheckCircle2 className="h-3 w-3 shrink-0 text-success-strong" />
-                    Last worked {new Date(credential.last_used_at).toLocaleString()}
+                    Last worked {formatDayTime(new Date(credential.last_used_at))}
                   </p>
                 ) : (
-                  <p className="text-xs text-muted-foreground">Not used yet — test it below.</p>
+                  <p className="text-xs text-muted-foreground">Not used yet. Test it below.</p>
                 )}
               </div>
               <div className="flex items-center gap-2">
@@ -247,7 +248,7 @@ export function AiCredentialsPanel() {
         </div>
 
         <p className="text-xs text-muted-foreground">
-          The key is encrypted before it's stored and never shown again — you'll see only the last
+          The key is encrypted before it's stored and never shown again: you'll see only the last
           four characters. Changing it later means pasting a new one.
         </p>
 

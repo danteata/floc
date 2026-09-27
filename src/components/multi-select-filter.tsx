@@ -93,14 +93,14 @@ export function MultiSelectFilter({
               </>
             )}
           </span>
-          <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+          <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 text-muted-foreground" />
         </Button>
       </PopoverTrigger>
       <PopoverContent className="w-[240px] p-0" align="start">
         <Command>
-          <CommandInput placeholder={title} />
+          <CommandInput placeholder={`Search ${title.toLowerCase()}…`} />
           <CommandList>
-            <CommandEmpty>No results found.</CommandEmpty>
+            <CommandEmpty>Nothing matches</CommandEmpty>
             <CommandGroup>
               {options.map((option) => {
                 const isSelected = selectedSet.has(option.value)
@@ -132,7 +132,7 @@ export function MultiSelectFilter({
                     className="justify-center text-center text-muted-foreground"
                   >
                     <X className="mr-2 h-3.5 w-3.5" />
-                    Clear filters
+                    Clear
                   </CommandItem>
                 </div>
               </>

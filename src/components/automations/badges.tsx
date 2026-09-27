@@ -4,18 +4,18 @@ import { cn } from "@/lib/utils"
 // Rule lifecycle status.
 export function RuleStatusBadge({ status, dryRun }: { status: string; dryRun?: boolean }) {
   const map: Record<string, string> = {
-    enabled: "bg-success/10 text-success-strong border-success/20",
-    paused: "bg-warning/10 text-warning-strong border-warning/20",
-    draft: "bg-muted text-muted-foreground border-border",
+    enabled: "border-transparent bg-success/15 text-success-strong",
+    paused: "border-transparent bg-warning/15 text-warning-strong",
+    draft: "border-transparent bg-muted text-muted-foreground",
   }
-  const label = status.charAt(0).toUpperCase() + status.slice(1)
+  const label = status.charAt(0).toUpperCase() + status.slice(1).replace(/_/g, " ")
   return (
     <div className="flex items-center gap-1.5">
-      <Badge variant="outline" className={cn("px-2.5 py-0.5 rounded-full text-xs", map[status] || map.draft)}>
+      <Badge variant="outline" className={map[status] || map.draft}>
         {label}
       </Badge>
       {dryRun && (
-        <Badge variant="outline" className="px-2 py-0.5 rounded-full text-xs bg-info/10 text-info-strong border-info/20">
+        <Badge variant="outline" className="border-transparent bg-info/15 text-info-strong">
           Dry run
         </Badge>
       )}
@@ -26,18 +26,29 @@ export function RuleStatusBadge({ status, dryRun }: { status: string; dryRun?: b
 // message_log outcome.
 export function OutcomeBadge({ outcome }: { outcome: string }) {
   const map: Record<string, string> = {
-    sent: "bg-success/10 text-success-strong border-success/20",
-    dry_run: "bg-info/10 text-info-strong border-info/20",
-    deduped: "bg-muted text-muted-foreground border-border",
-    suppressed_consent: "bg-warning/10 text-warning-strong border-warning/20",
-    quiet_hours_deferred: "bg-warning/10 text-warning-strong border-warning/20",
-    throttled: "bg-warning/10 text-warning-strong border-warning/20",
-    skipped_no_provider: "bg-muted text-muted-foreground border-border",
-    failed: "bg-destructive/10 text-destructive border-destructive/20",
+    sent: "bg-success/15 text-success-strong",
+    dry_run: "bg-info/15 text-info-strong",
+    deduped: "bg-muted text-muted-foreground",
+    suppressed_consent: "bg-warning/15 text-warning-strong",
+    quiet_hours_deferred: "bg-warning/15 text-warning-strong",
+    throttled: "bg-warning/15 text-warning-strong",
+    skipped_no_provider: "bg-muted text-muted-foreground",
+    failed: "bg-destructive/15 text-destructive",
   }
-  const label = outcome.replace(/_/g, " ")
+  const labels: Record<string, string> = {
+    sent: "Sent",
+    dry_run: "Dry run",
+    deduped: "Already sent",
+    suppressed_consent: "No consent",
+    quiet_hours_deferred: "Held for quiet hours",
+    throttled: "Sending limit reached",
+    skipped_no_provider: "No SMS provider",
+    failed: "Failed",
+  }
+  const plain = outcome.replace(/_/g, " ")
+  const label = labels[outcome] ?? plain.charAt(0).toUpperCase() + plain.slice(1)
   return (
-    <Badge variant="outline" className={cn("px-2 py-0.5 rounded-full text-xs capitalize", map[outcome] || map.deduped)}>
+    <Badge variant="outline" className={cn("border-transparent", map[outcome] || map.deduped)}>
       {label}
     </Badge>
   )

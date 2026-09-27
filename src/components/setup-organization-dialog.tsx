@@ -50,11 +50,11 @@ export function SetupOrganizationDialog() {
             await createOrg({ name })
             trackEvent(AnalyticsEventType.ORGANIZATION_CREATED, { name_length: name.length })
             trackEvent(AnalyticsEventType.ORGANIZATION_SETUP_COMPLETED, {})
-            toast.success("Organization created successfully")
+            toast.success("Your church is set up")
             setIsOpen(false)
             window.location.reload()
         } catch (error) {
-            toast.error("Failed to create organization")
+            toast.error("Couldn't set up your church", { description: error instanceof Error ? error.message : undefined })
             console.error(error)
         } finally {
             setIsSubmitting(false)
@@ -63,45 +63,43 @@ export function SetupOrganizationDialog() {
 
     return (
         <Dialog open={isOpen} onOpenChange={() => { }}>
-            <DialogContent className="sm:max-w-[480px] border-0 shadow-soft-xl bg-white dark:bg-card rounded-2xl">
+            <DialogContent className="sm:max-w-[480px] rounded-xl">
                 <DialogHeader className="space-y-4">
-                    <div className="mx-auto bg-gradient-primary p-4 rounded-2xl shadow-soft">
-                        <Building2 className="w-10 h-10 text-primary-foreground" />
-                    </div>
-                    <DialogTitle className="text-3xl text-center bg-gradient-to-r from-primary to-primary/70 bg-clip-text text-transparent">
-                        Setup Organization
+                    <Building2 className="mx-auto h-8 w-8 text-muted-foreground" />
+                    <DialogTitle className="font-serif text-2xl font-medium text-center text-foreground">
+                        Set up your church
                     </DialogTitle>
-                    <DialogDescription className="text-center text-base text-muted-foreground">
-                        Welcome to Floc. To get started, please name your organization.
+                    <DialogDescription className="text-center text-sm text-muted-foreground">
+                        Welcome to Floc. Start by giving your church its name.
                     </DialogDescription>
                 </DialogHeader>
                 <form onSubmit={handleSubmit} className="space-y-6 pt-4">
                     <div className="space-y-3">
                         <Label htmlFor="org-name" className="text-sm font-semibold text-foreground">
-                            Organization Name
+                            Church name
                         </Label>
                         <Input
                             id="org-name"
                             placeholder="e.g. First Baptist Church"
                             value={name}
                             onChange={(e) => setName(e.target.value)}
-                            className="h-12 text-base border-2 focus:border-primary focus:ring-2 focus:ring-primary/20 rounded-xl transition-smooth"
+                            className="h-11 text-base rounded-lg"
                             autoFocus
                         />
                     </div>
                     <DialogFooter>
                         <Button
                             type="submit"
-                            className="w-full h-12 text-base font-semibold bg-gradient-primary hover:opacity-90 shadow-soft hover:shadow-soft-lg transition-smooth rounded-xl"
+                            className="w-full h-11 rounded-lg"
                             disabled={isSubmitting || !name.trim()}
                         >
                             {isSubmitting ? (
                                 <>
-                                    <Loader2 className="w-5 h-5 mr-2 animate-spin" />
-                                    Creating...
+                                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                                    Setting up…
                                 </>
                             ) : (
-                                "Create Organization"
+                                "Create church"
                             )}
                         </Button>
                     </DialogFooter>

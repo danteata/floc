@@ -75,15 +75,15 @@ export function OverrideUnitDialog({
     <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Override Unit</DialogTitle>
+          <DialogTitle>Change this unit</DialogTitle>
           <DialogDescription>
-            Customize this group for your organization.
+            Give this unit its own name and description here. The template stays as it is.
           </DialogDescription>
         </DialogHeader>
 
         <div className="space-y-4">
           <div>
-            <Label>Original Unit</Label>
+            <Label>From template</Label>
             <div className="flex items-center gap-2 mt-1">
               <Badge variant="outline">
                 {selectedUnit?.name}
@@ -92,23 +92,23 @@ export function OverrideUnitDialog({
           </div>
 
           <div>
-            <Label htmlFor="override-name">New Name *</Label>
+            <Label htmlFor="override-name">Name *</Label>
             <Input
               id="override-name"
               value={name}
               onChange={(e) => setName(e.target.value)}
-              placeholder="Enter customized name"
+              placeholder="Name for your church"
               disabled={overriding}
             />
           </div>
 
           <div>
-            <Label htmlFor="override-description">New Description</Label>
+            <Label htmlFor="override-description">Description</Label>
             <Input
               id="override-description"
               value={description}
               onChange={(e) => setDescription(e.target.value)}
-              placeholder="Enter customized description (optional)"
+              placeholder="Description (optional)"
               disabled={overriding}
             />
           </div>
@@ -129,12 +129,12 @@ export function OverrideUnitDialog({
             {overriding ? (
               <>
                 <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                Overriding...
+                Saving…
               </>
             ) : (
               <>
                 <Edit className="h-4 w-4 mr-2" />
-                Override Unit
+                Save changes
               </>
             )}
           </Button>

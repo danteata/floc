@@ -29,6 +29,21 @@ interface SimulateResult {
   }>
 }
 
+const ACTION_LABEL: Record<string, string> = {
+  in_app: "In-app",
+  sms: "SMS",
+  send_in_app: "In-app",
+  send_sms: "SMS",
+  notify_leaders: "Leaders notified",
+  create_follow_up_task: "Care task",
+}
+
+function actionLabel(key: string): string {
+  if (ACTION_LABEL[key]) return ACTION_LABEL[key]
+  const plain = key.replace(/_/g, " ")
+  return plain.charAt(0).toUpperCase() + plain.slice(1)
+}
+
 interface SimulateDialogProps {
   open: boolean
   onOpenChange: (open: boolean) => void
@@ -49,7 +64,7 @@ export function SimulateDialog({ open, onOpenChange, rule }: SimulateDialogProps
     setError(null)
     simulate({ id: rule._id })
       .then((r) => { if (!cancelled) setResult(r as SimulateResult) })
-      .catch((e) => { if (!cancelled) setError(e instanceof Error ? e.message : "Simulation failed") })
+      .catch((e) => { if (!cancelled) setError(e instanceof Error ? e.message : "The simulation didn't finish") })
       .finally(() => { if (!cancelled) setLoading(false) })
     return () => { cancelled = true }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -60,13 +75,13 @@ export function SimulateDialog({ open, onOpenChange, rule }: SimulateDialogProps
       <DialogContent className="sm:max-w-[600px] max-h-[85vh]">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
-            <FlaskConical className="h-5 w-5 text-primary" />
-            Simulate — {rule?.name}
+            <FlaskConical className="h-4 w-4 text-muted-foreground" />
+            Simulate: {rule?.name}
           </DialogTitle>
-          <DialogDescription>Who would this match right now, and what would each receive. Nothing is sent.</DialogDescription>
+          <DialogDescription>Who this would reach right now, and what each person would get. Nothing is sent.</DialogDescription>
         </DialogHeader>
 
-        {loading && <LoadingState message="Running simulation..." />}
+        {loading && <LoadingState message="Running the simulation…" />}
         {error && <EmptyState icon={Info} title="Couldn't simulate" description={error} />}
 
         {!loading && !error && result && (
@@ -79,10 +94,10 @@ export function SimulateDialog({ open, onOpenChange, rule }: SimulateDialogProps
             ) : (
               <>
                 <div className="flex items-center gap-4 text-sm">
-                  <Badge variant="outline" className="bg-primary/10 text-primary border-primary/20 px-3 py-1 rounded-full">
+                  <Badge variant="outline" className="border-transparent bg-primary/15 text-primary">
                     {result.matched_count} member{result.matched_count === 1 ? "" : "s"} would match
                   </Badge>
-                  <span className="text-muted-foreground">{result.scanned} scanned{result.capped ? " (capped)" : ""}</span>
+                  <span className="text-muted-foreground">{result.scanned} checked{result.capped ? " (stopped at the limit)" : ""}</span>
                 </div>
 
                 {result.samples.length === 0 ? (
@@ -97,9 +112,9 @@ export function SimulateDialog({ open, onOpenChange, rule }: SimulateDialogProps
                             {s.actions.map((a, i) => (
                               <div key={i} className="text-sm">
                                 <div className="flex items-center gap-2 mb-0.5">
-                                  <Badge variant="secondary" className="text-[10px] uppercase tracking-wide">{a.channel || a.action_key}</Badge>
+                                  <Badge variant="secondary">{actionLabel(a.channel || a.action_key)}</Badge>
                                   {a.missing.length > 0 && (
-                                    <span className="text-[10px] text-warning-strong">missing: {a.missing.join(", ")}</span>
+                                    <span className="text-xs text-warning-strong">Missing: {a.missing.join(", ")}</span>
                                   )}
                                 </div>
                                 <p className="text-muted-foreground">{a.text}</p>

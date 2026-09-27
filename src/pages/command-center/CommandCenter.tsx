@@ -33,6 +33,38 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/component
 import { ShareAbsentLinkDialog } from "@/components/share-absent-link-dialog"
 import { SessionQrCode } from "@/components/check-in/session-qr-code"
 import { cn } from "@/lib/utils"
+import { titleCase } from "@/lib/display"
+
+/** Why a check-in was turned away, as a person would say it. */
+const OUTCOME_LABELS: Record<string, string> = {
+    already_checked_in: "Already checked in",
+    session_closed: "Session closed",
+    expired: "Session expired",
+    forbidden: "Not allowed",
+    outside_geofence: "Too far from church",
+    outside_window: "Outside check-in time",
+    wrong_org: "Different church",
+    out_of_scope: "Not in this unit",
+    event_not_applicable: "Not for this event",
+    member_inactive: "Inactive member",
+    member_not_linked: "Account not linked to a member",
+    error: "Something went wrong",
+}
+
+const SESSION_STATUS_LABELS: Record<string, string> = {
+    draft: "Draft",
+    open: "Open",
+    closed: "Closed",
+    expired: "Expired",
+    revoked: "Revoked",
+}
+
+function outcomeLabel(outcome: string) {
+    const known = OUTCOME_LABELS[outcome]
+    if (known) return known
+    const words = outcome.replace(/_/g, " ")
+    return words.charAt(0).toUpperCase() + words.slice(1)
+}
 
 function eventTypeBadgeVariant(color: string | null | undefined) {
     if (color === "default") return "default" as const
@@ -71,9 +103,9 @@ export default function CommandCenterPage() {
                 event_type_id: eventTypeId as Id<"event_types">,
             })
             setStartedSession({ eventTypeId, label, qrUrl: result.qrUrl })
-            toast.success(`${label} session opened`)
+            toast.success(`Check-in open for ${titleCase(label)}`)
         } catch (err) {
-            toast.error(err instanceof Error ? err.message : "Failed to open session")
+            toast.error("Couldn't open check-in", { description: err instanceof Error ? err.message : "Try again in a moment." })
         } finally {
             setStartingEventTypeId(null)
         }
@@ -82,9 +114,9 @@ export default function CommandCenterPage() {
     const handleClose = async (sessionId: string) => {
         try {
             await closeSession({ sessionId: sessionId as Id<"check_in_sessions"> })
-            toast.success("Session closed")
+            toast.success("Check-in closed")
         } catch (err) {
-            toast.error(err instanceof Error ? err.message : "Failed to close session")
+            toast.error("Couldn't close check-in", { description: err instanceof Error ? err.message : "Try again in a moment." })
         }
     }
 
@@ -97,11 +129,11 @@ export default function CommandCenterPage() {
                     title="Command center"
                     description={
                         <>
-                            Live for today,{" "}
-                            {new Date(`${date}T00:00:00`).toLocaleDateString(undefined, {
+                            Live check-in for today,{" "}
+                            {new Date(`${date}T00:00:00`).toLocaleDateString("en-GB", {
                                 weekday: "long",
-                                month: "long",
                                 day: "numeric",
+                                month: "long",
                             })}
                         </>
                     }
@@ -147,19 +179,19 @@ export default function CommandCenterPage() {
                                     </Button>
                                 </CollapsibleTrigger>
                                 <CollapsibleContent>
-                                    <Card className="border-border/50 rounded-lg mt-2">
+                                    <Card className="mt-2">
                                         <CardContent className="divide-y divide-border/40 p-0">
                                             {summary.lateArrivals.list.map((l, i) => (
                                                 <div
                                                     key={`${l.member_id}-${i}`}
-                                                    className="flex items-center justify-between px-4 py-2.5 text-sm"
+                                                    className="flex items-center justify-between gap-3 px-4 py-2.5 text-sm"
                                                 >
-                                                    <span className="font-medium">{l.member_name ?? "Unknown"}</span>
+                                                    <span className="font-medium">{l.member_name ?? "Unnamed member"}</span>
                                                     <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                                                        <span>{l.event_type_label ?? "—"}</span>
+                                                        {l.event_type_label && <span>{titleCase(l.event_type_label)}</span>}
                                                         {typeof l.minutes_late === "number" && (
                                                             <Badge variant="outline" className="text-warning-strong border-warning/30">
-                                                                {l.minutes_late}m late
+                                                                {l.minutes_late} min late
                                                             </Badge>
                                                         )}
                                                     </div>
@@ -185,19 +217,19 @@ export default function CommandCenterPage() {
                                     </Button>
                                 </CollapsibleTrigger>
                                 <CollapsibleContent>
-                                    <Card className="border-border/50 rounded-lg mt-2">
+                                    <Card className="mt-2">
                                         <CardContent className="divide-y divide-border/40 p-0">
                                             {summary.recentFailures.map((f, i) => (
                                                 <div
                                                     key={i}
-                                                    className="flex items-center justify-between px-4 py-2.5 text-sm"
+                                                    className="flex items-center justify-between gap-3 px-4 py-2.5 text-sm"
                                                 >
-                                                    <span className="font-medium">{f.member_name ?? "Unknown"}</span>
+                                                    <span className="font-medium">{f.member_name ?? "Unknown person"}</span>
                                                     <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                                                        <Badge variant="outline" className="uppercase">
-                                                            {f.outcome.replace(/_/g, " ")}
+                                                        <Badge variant="outline">
+                                                            {outcomeLabel(f.outcome)}
                                                         </Badge>
-                                                        <span>{new Date(f.timestamp).toLocaleTimeString()}</span>
+                                                        <span>{new Date(f.timestamp).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" })}</span>
                                                     </div>
                                                 </div>
                                             ))}
@@ -208,15 +240,19 @@ export default function CommandCenterPage() {
                         )}
 
                         <div>
-                            <h2 className="text-sm font-semibold text-muted-foreground tracking-wide mb-3">
-                                Today&apos;s sessions
+                            <h2 className="text-base font-semibold text-foreground mb-3">
+                                Today&apos;s check-in sessions
                             </h2>
                             {summary.sessions.length === 0 ? (
-                                <Card className="border-border/50 rounded-lg">
+                                <Card>
                                     <EmptyState
                                         icon={QrCode}
-                                        title="No sessions today yet"
-                                        description="Start one below to open check-in for a service."
+                                        title="No check-in sessions today"
+                                        description={
+                                            summary.openableEventTypes.length > 0
+                                                ? "Start one below to open check-in for a service."
+                                                : "Add an event type first, then you can open check-in for it here."
+                                        }
                                     />
                                 </Card>
                             ) : (
@@ -224,18 +260,18 @@ export default function CommandCenterPage() {
                                     {summary.sessions.map((s) => {
                                         const isOpen = s.status === "open"
                                         return (
-                                            <Card key={s._id} className="border-border/50 rounded-lg">
+                                            <Card key={s._id}>
                                                 <CardHeader className="pb-3">
-                                                    <CardTitle className="flex items-center justify-between text-sm">
-                                                        <span className="flex items-center gap-2">
+                                                    <CardTitle className="flex items-center justify-between gap-2 text-sm">
+                                                        <span className="flex min-w-0 items-center gap-2">
                                                             <Badge variant={eventTypeBadgeVariant(s.event_type_color)}>
-                                                                {s.event_type_label ?? "Event"}
+                                                                {titleCase(s.event_type_label) || "Event"}
                                                             </Badge>
                                                         </span>
                                                         <Badge
                                                             variant={isOpen ? "default" : "secondary"}
                                                             className={cn(
-                                                                isOpen && "bg-success/15 text-success border-success/30",
+                                                                isOpen && "bg-success/15 text-success-strong border-success/30",
                                                             )}
                                                         >
                                                             {isOpen ? (
@@ -243,7 +279,7 @@ export default function CommandCenterPage() {
                                                             ) : (
                                                                 <Lock className="mr-1 h-3 w-3" />
                                                             )}
-                                                            {s.status}
+                                                            {SESSION_STATUS_LABELS[s.status] ?? s.status}
                                                         </Badge>
                                                     </CardTitle>
                                                 </CardHeader>
@@ -274,7 +310,7 @@ export default function CommandCenterPage() {
                                                             <ShareAbsentLinkDialog
                                                                 organizationId={organization._id}
                                                                 eventType={s.event_type_value}
-                                                                eventTypeLabel={s.event_type_label ?? "Service"}
+                                                                eventTypeLabel={titleCase(s.event_type_label) || "Service"}
                                                                 date={new Date(`${date}T00:00:00`)}
                                                                 trigger={
                                                                     <Button variant="outline" size="sm">
@@ -295,8 +331,8 @@ export default function CommandCenterPage() {
 
                         {summary.openableEventTypes.length > 0 && (
                             <div>
-                                <h2 className="text-sm font-semibold text-muted-foreground tracking-wide mb-3">
-                                    Start a session
+                                <h2 className="text-base font-semibold text-foreground mb-3">
+                                    Open check-in
                                 </h2>
                                 <div className="flex flex-wrap gap-2">
                                     {summary.openableEventTypes.map((et) => (
@@ -312,7 +348,7 @@ export default function CommandCenterPage() {
                                             ) : (
                                                 <PlayCircle className="mr-1.5 h-3.5 w-3.5" />
                                             )}
-                                            {et.label}
+                                            {titleCase(et.label)}
                                         </Button>
                                     ))}
                                 </div>
@@ -326,8 +362,8 @@ export default function CommandCenterPage() {
                 <DialogContent className="sm:max-w-sm">
                     <DialogHeader>
                         <DialogTitle className="flex items-center gap-2">
-                            <QrCode className="h-4 w-4" />
-                            {startedSession?.label}
+                            <QrCode className="h-4 w-4 text-muted-foreground" />
+                            {titleCase(startedSession?.label)}
                         </DialogTitle>
                     </DialogHeader>
                     <div className="flex flex-col items-center gap-4">

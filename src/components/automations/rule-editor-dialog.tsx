@@ -130,11 +130,13 @@ export function RuleEditorDialog({ open, onOpenChange, template, existingRule }:
           cooldown_days: payload.cooldown_days,
           dedup_bucket: payload.dedup_bucket,
         })
-        toast.success("Automation created as a draft (dry-run). Simulate it, then enable.")
+        toast.success("Automation saved as a draft", {
+          description: "It stays in dry run until you switch it to live. Simulate it first to see who it would reach.",
+        })
       }
       onOpenChange(false)
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Failed to save automation")
+      toast.error("Couldn't save the automation", { description: e instanceof Error ? e.message : undefined })
     } finally {
       setSaving(false)
     }
@@ -145,7 +147,7 @@ export function RuleEditorDialog({ open, onOpenChange, template, existingRule }:
       <DialogContent className="sm:max-w-[560px] max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
-            <activeTemplate.icon className="h-5 w-5 text-primary" />
+            <activeTemplate.icon className="h-4 w-4 text-muted-foreground" />
             {existingRule ? "Edit automation" : activeTemplate.title}
           </DialogTitle>
           <DialogDescription>{activeTemplate.description}</DialogDescription>
@@ -154,7 +156,7 @@ export function RuleEditorDialog({ open, onOpenChange, template, existingRule }:
         <div className="space-y-4">
           <div className="space-y-2">
             <Label>Name</Label>
-            <Input value={values.name} onChange={(e) => set("name", e.target.value)} placeholder="e.g., 3-week absence follow-up" />
+            <Input value={values.name} onChange={(e) => set("name", e.target.value)} placeholder="For example, 3-week absence follow-up" />
           </div>
 
           {fields.includes("event_type_value") && (
@@ -165,7 +167,9 @@ export function RuleEditorDialog({ open, onOpenChange, template, existingRule }:
                 <SelectContent>
                   <SelectItem value="__all__">All services</SelectItem>
                   {eventTypes.map((et: any) => (
-                    <SelectItem key={et.value} value={et.value}>{et.label}</SelectItem>
+                    <SelectItem key={et.value} value={et.value}>
+                      {et.label === et.label?.toLowerCase() ? et.label.replace(/\b[a-z]/g, (c: string) => c.toUpperCase()) : et.label}
+                    </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
@@ -176,7 +180,7 @@ export function RuleEditorDialog({ open, onOpenChange, template, existingRule }:
             <div className="space-y-2">
               <Label>
                 {activeTemplate.triggerKey === "member.engagement_score_below"
-                  ? "Below what engagement score (0-100)?"
+                  ? "Below what engagement score (0 to 100)?"
                   : "After how many consecutive absences?"}
               </Label>
               <Input
@@ -198,7 +202,7 @@ export function RuleEditorDialog({ open, onOpenChange, template, existingRule }:
 
           {fields.includes("days_before") && (
             <div className="space-y-2">
-              <Label>Days before birthday (0 = on the day)</Label>
+              <Label>How many days before their birthday? (0 sends on the day)</Label>
               <Input type="number" min={0} value={values.days_before} onChange={(e) => set("days_before", Number(e.target.value))} />
             </div>
           )}
@@ -215,7 +219,7 @@ export function RuleEditorDialog({ open, onOpenChange, template, existingRule }:
               </Select>
               {values.channel === "sms" && (
                 <p className="text-xs text-muted-foreground">
-                  SMS only goes to members with a valid phone number, respecting consent, quiet hours, and rate caps.
+                  Texts go only to members with a valid phone number who agreed to receive them, never during quiet hours, and within your sending limits.
                 </p>
               )}
             </div>
@@ -248,7 +252,7 @@ export function RuleEditorDialog({ open, onOpenChange, template, existingRule }:
             <div className="flex items-center justify-between rounded-lg border border-border/60 p-3">
               <div>
                 <Label className="cursor-pointer">Also alert unit leaders</Label>
-                <p className="text-xs text-muted-foreground">Notify the member's unit leaders in-app.</p>
+                <p className="text-xs text-muted-foreground">Send the member's unit leaders an in-app notification.</p>
               </div>
               <Switch checked={values.notify_leaders} onCheckedChange={(c) => set("notify_leaders", c)} />
             </div>
@@ -257,9 +261,9 @@ export function RuleEditorDialog({ open, onOpenChange, template, existingRule }:
           {fields.includes("assign_task") && (
             <div className="flex items-center justify-between rounded-lg border border-border/60 p-3">
               <div>
-                <Label className="cursor-pointer">Create a follow-up task</Label>
+                <Label className="cursor-pointer">Create a care task</Label>
                 <p className="text-xs text-muted-foreground">
-                  Assign the member's unit leader a tracked task (pending/contacted/resolved).
+                  Give the member's unit leader a care task they can mark as contacted, then resolved.
                 </p>
               </div>
               <Switch checked={values.assign_task} onCheckedChange={(c) => set("assign_task", c)} />
@@ -278,9 +282,9 @@ export function RuleEditorDialog({ open, onOpenChange, template, existingRule }:
 
           {fields.includes("cooldown_days") && (
             <div className="space-y-2">
-              <Label>Cooldown (days)</Label>
+              <Label>Days before it can run again</Label>
               <Input type="number" min={0} value={values.cooldown_days} onChange={(e) => set("cooldown_days", Number(e.target.value))} />
-              <p className="text-xs text-muted-foreground">Don't re-trigger for the same member within this many days. 0 = no cooldown.</p>
+              <p className="text-xs text-muted-foreground">It won't run again for the same member within this many days. Use 0 to let it repeat any time.</p>
             </div>
           )}
 
@@ -316,7 +320,7 @@ export function RuleEditorDialog({ open, onOpenChange, template, existingRule }:
         <DialogFooter>
           <Button type="button" variant="outline" onClick={() => onOpenChange(false)} disabled={saving}>Cancel</Button>
           <Button type="button" onClick={handleSave} disabled={saving}>
-            {saving ? "Saving..." : existingRule ? "Save changes" : "Create draft"}
+            {saving ? "Saving…" : existingRule ? "Save changes" : "Create draft"}
           </Button>
         </DialogFooter>
       </DialogContent>

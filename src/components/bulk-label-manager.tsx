@@ -55,7 +55,7 @@ export function BulkLabelManager({ selectedMembers, onComplete, onCancel }: Bulk
 
     const handleBulkOperation = async () => {
         if (selectedLabels.length === 0) {
-            toast({ title: "Validation Error", description: "Please select at least one label", variant: "destructive" })
+            toast({ title: "Choose a label", description: "Pick at least one label to apply.", variant: "destructive" })
             return
         }
 
@@ -70,10 +70,10 @@ export function BulkLabelManager({ selectedMembers, onComplete, onCancel }: Bulk
                 notes: notes.trim() || undefined
             })
 
-            toast({ title: "Success", description: `Updated labels for ${selectedMembers.length} members` })
+            toast({ title: "Labels updated", description: `Labels changed for ${selectedMembers.length} member${selectedMembers.length === 1 ? "" : "s"}.` })
             onComplete?.()
         } catch (error: any) {
-            toast({ title: "Error", description: error.message, variant: "destructive" })
+            toast({ title: "Couldn't update the labels", description: error.message || "Something went wrong. Try again.", variant: "destructive" })
         } finally {
             setSaving(false)
         }
@@ -95,19 +95,18 @@ export function BulkLabelManager({ selectedMembers, onComplete, onCancel }: Bulk
     return (
         <div className="space-y-6">
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-                <div>
-                    <h3 className="text-lg font-semibold">Apply Labels</h3>
-                    <p className="text-xs text-muted-foreground">Selected members: {selectedMembers.length}</p>
-                </div>
-                <div className="w-full sm:w-48">
+                <p className="text-sm text-muted-foreground">
+                    {selectedMembers.length} member{selectedMembers.length === 1 ? "" : "s"} selected
+                </p>
+                <div className="w-full sm:w-56">
                     <Select value={operation} onValueChange={(value: any) => setOperation(value)}>
-                        <SelectTrigger className="h-9">
+                        <SelectTrigger className="h-9 w-full" aria-label="What to do with the labels">
                             <SelectValue />
                         </SelectTrigger>
                         <SelectContent>
-                            <SelectItem value="add">Add</SelectItem>
-                            <SelectItem value="remove">Remove</SelectItem>
-                            <SelectItem value="replace">Replace</SelectItem>
+                            <SelectItem value="add">Add these labels</SelectItem>
+                            <SelectItem value="remove">Remove these labels</SelectItem>
+                            <SelectItem value="replace">Replace all labels with these</SelectItem>
                         </SelectContent>
                     </Select>
                 </div>
@@ -116,7 +115,7 @@ export function BulkLabelManager({ selectedMembers, onComplete, onCancel }: Bulk
             <div className="flex items-center gap-2 border rounded-md px-3 py-2">
                 <Search className="h-4 w-4 text-muted-foreground" />
                 <Input
-                    placeholder="Search labels..."
+                    placeholder="Search or create a label…"
                     value={searchValue}
                     onChange={(e) => setSearchValue(e.target.value)}
                     className="border-0 shadow-none focus-visible:ring-0 p-0 h-auto"
@@ -125,13 +124,15 @@ export function BulkLabelManager({ selectedMembers, onComplete, onCancel }: Bulk
 
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2 max-h-[320px] overflow-y-auto border rounded-md p-2">
                 {filteredLabels.length === 0 ? (
-                    <div className="text-sm text-muted-foreground p-4">No matching labels</div>
+                    <div className="text-sm text-muted-foreground p-4">No labels match</div>
                 ) : (
                     filteredLabels.map((label: any) => {
                         const isSelected = selectedLabels.some(l => l._id === label._id)
                         return (
                             <button
                                 key={label._id}
+                                type="button"
+                                aria-pressed={isSelected}
                                 onClick={() => handleLabelToggle(label)}
                                 className="text-left"
                             >
@@ -166,17 +167,18 @@ export function BulkLabelManager({ selectedMembers, onComplete, onCancel }: Bulk
                                     created_by: user?.clerk_user_id,
                                     created_by_name: user?.name,
                                 })
-                                toast({ title: "Label created" })
+                                toast({ title: "Label created", description: `“${searchValue.trim()}” is ready to apply.` })
                             } catch (err: any) {
                                 toast({
-                                    title: "Create failed",
-                                    description: err.message || "Unable to create label.",
+                                    title: "Couldn't create the label",
+                                    description: err.message || "Something went wrong. Try again.",
                                     variant: "destructive",
                                 })
                             } finally {
                                 setCreatingLabel(false)
                             }
                         }}
+                        type="button"
                         disabled={creatingLabel}
                         className="flex items-center gap-2 p-2 rounded-md border border-dashed text-left text-sm"
                     >
@@ -192,7 +194,9 @@ export function BulkLabelManager({ selectedMembers, onComplete, onCancel }: Bulk
                         <Badge key={label._id} variant="secondary" className="flex items-center gap-2">
                             <div className="h-2 w-2 rounded-full" style={{ backgroundColor: label.color }} />
                             {label.name}
-                            <X className="w-3 h-3 cursor-pointer" onClick={() => handleLabelToggle(label)} />
+                            <button type="button" onClick={() => handleLabelToggle(label)} aria-label={`Remove ${label.name}`} className="rounded-full p-0.5 hover:bg-foreground/10">
+                                <X className="w-3 h-3" />
+                            </button>
                         </Badge>
                     ))}
                 </div>
@@ -203,7 +207,7 @@ export function BulkLabelManager({ selectedMembers, onComplete, onCancel }: Bulk
                     Cancel
                 </Button>
                 <Button onClick={handleBulkOperation} disabled={saving || selectedLabels.length === 0}>
-                    {saving ? "Applying..." : `Update ${selectedMembers.length}`}
+                    {saving ? "Saving…" : `Update ${selectedMembers.length} member${selectedMembers.length === 1 ? "" : "s"}`}
                 </Button>
             </div>
         </div>
@@ -225,10 +229,10 @@ export function BulkLabelDialog({ selectedMembers, trigger }: {
             <DialogTrigger asChild>
                 {trigger}
             </DialogTrigger>
-            <DialogContent className="sm:max-w-3xl p-6">
+            <DialogContent className="sm:max-w-3xl">
                 <DialogHeader className="space-y-1">
-                    <DialogTitle>Labels</DialogTitle>
-                    <DialogDescription>Apply labels to selected members</DialogDescription>
+                    <DialogTitle>Update labels</DialogTitle>
+                    <DialogDescription>Add, remove or replace labels on the selected members.</DialogDescription>
                 </DialogHeader>
                 <BulkLabelManager
                     selectedMembers={selectedMembers}

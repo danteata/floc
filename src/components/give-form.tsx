@@ -11,6 +11,13 @@ import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { TRANSACTION_CATEGORIES } from "@/lib/financial-utils"
+import { formatMoney } from "@/lib/money"
+import { errorMessage } from "@/lib/errors"
+
+// Giving is taken in cedis (Paystack checkout is GHS).
+const GIVING_CURRENCY = "GHS"
+/** "GH₵": the currency symbol alone, for the amount label. */
+const CURRENCY_SYMBOL = formatMoney(0, GIVING_CURRENCY, { whole: true }).replace(/[\d.,\s]/g, "")
 
 // Subset of TRANSACTION_CATEGORIES that count as "giving" — mirrors
 // convex/financial.ts's GIVING_CATEGORIES. Keep both in sync.
@@ -69,7 +76,7 @@ export function GiveForm({ organizationId, mode, defaultName, defaultEmail, onSt
             // billing tab an admin keeps working alongside.
             window.location.href = authorizationUrl
         } catch (err) {
-            setError(err instanceof Error ? err.message : "Couldn't start checkout. Please try again.")
+            setError(errorMessage(err, "We couldn't open the payment page. Check your connection and try again."))
             setSubmitting(false)
         }
     }
@@ -77,14 +84,15 @@ export function GiveForm({ organizationId, mode, defaultName, defaultEmail, onSt
     return (
         <form onSubmit={handleSubmit} className="space-y-4">
             <div className="space-y-2">
-                <Label htmlFor="give-amount">Amount (GHS)</Label>
+                <Label htmlFor="give-amount">Amount ({CURRENCY_SYMBOL})</Label>
                 <Input
                     id="give-amount"
                     type="number"
                     min="1"
                     step="0.01"
                     inputMode="decimal"
-                    placeholder="e.g. 50"
+                    placeholder="50"
+                    className="h-11"
                     value={amount}
                     onChange={(e) => setAmount(e.target.value)}
                     required
@@ -94,11 +102,11 @@ export function GiveForm({ organizationId, mode, defaultName, defaultEmail, onSt
             <div className="space-y-2">
                 <Label htmlFor="give-category">Give towards</Label>
                 <Select value={category} onValueChange={setCategory}>
-                    <SelectTrigger id="give-category"><SelectValue /></SelectTrigger>
+                    <SelectTrigger id="give-category" className="h-11 w-full"><SelectValue /></SelectTrigger>
                     <SelectContent>
                         {GIVING_CATEGORY_KEYS.map((key) => (
                             <SelectItem key={key} value={key}>
-                                {TRANSACTION_CATEGORIES[key].icon} {TRANSACTION_CATEGORIES[key].label}
+                                {TRANSACTION_CATEGORIES[key].label}
                             </SelectItem>
                         ))}
                     </SelectContent>
@@ -113,7 +121,8 @@ export function GiveForm({ organizationId, mode, defaultName, defaultEmail, onSt
                             id="give-name"
                             value={giverName}
                             onChange={(e) => setGiverName(e.target.value)}
-                            placeholder="Anonymous"
+                            placeholder="Leave blank to give anonymously"
+                            className="h-11"
                         />
                     </div>
                     <div className="space-y-2">
@@ -124,9 +133,10 @@ export function GiveForm({ organizationId, mode, defaultName, defaultEmail, onSt
                             value={giverEmail}
                             onChange={(e) => setGiverEmail(e.target.value)}
                             placeholder="you@example.com"
+                            className="h-11"
                         />
                         <p className="text-xs text-muted-foreground">
-                            Only needed if you'd like a receipt — not required to give.
+                            Only if you'd like a receipt by email.
                         </p>
                     </div>
                     <div className="space-y-2">
@@ -136,6 +146,7 @@ export function GiveForm({ organizationId, mode, defaultName, defaultEmail, onSt
                             type="tel"
                             value={giverPhone}
                             onChange={(e) => setGiverPhone(e.target.value)}
+                            className="h-11"
                         />
                     </div>
                 </>
@@ -150,9 +161,10 @@ export function GiveForm({ organizationId, mode, defaultName, defaultEmail, onSt
                         value={giverEmail}
                         onChange={(e) => setGiverEmail(e.target.value)}
                         placeholder="you@example.com"
+                        className="h-11"
                     />
                     <p className="text-xs text-muted-foreground">
-                        We don't have an email on file for you — only needed if you'd like a receipt.
+                        We don't have an email for you. Add one only if you'd like a receipt.
                     </p>
                 </div>
             )}
@@ -164,19 +176,19 @@ export function GiveForm({ organizationId, mode, defaultName, defaultEmail, onSt
                     value={note}
                     onChange={(e) => setNote(e.target.value)}
                     rows={2}
-                    placeholder="Anything you'd like recorded with this gift"
+                    placeholder="Anything you'd like noted with this gift"
                 />
             </div>
 
-            {error && <p className="text-sm text-destructive">{error}</p>}
+            {error && <p role="alert" className="text-sm text-destructive-strong">{error}</p>}
 
-            <Button type="submit" className="w-full" disabled={!canSubmit}>
+            <Button type="submit" className="h-11 w-full text-base" disabled={!canSubmit}>
                 {submitting ? (
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                 ) : (
                     <HeartHandshake className="mr-2 h-4 w-4" />
                 )}
-                Give {amount ? `GHS ${amount}` : ""}
+                {Number.isFinite(parsedAmount) && parsedAmount > 0 ? `Give ${formatMoney(parsedAmount, GIVING_CURRENCY)}` : "Give"}
             </Button>
         </form>
     )

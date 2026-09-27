@@ -2,11 +2,14 @@
 
 import { useQuery } from "convex/react"
 import { Link } from "react-router-dom"
-import { QrCode, Calendar, CheckCircle2, Info } from "lucide-react"
+import { QrCode, Calendar, CalendarCheck } from "lucide-react"
 import { api } from "../../../convex/_generated/api"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
+import { Badge } from "@/components/ui/badge"
 import { Skeleton } from "@/components/ui/skeleton"
+import { EmptyState } from "@/components/ui/empty-state"
+import { checkInSourceLabel, formatDay, formatDayTime, titleCase } from "./format"
 
 export default function PortalDashboard() {
     const upcoming = useQuery(api.check_ins.getMyUpcomingSessions, { limit: 5 })
@@ -18,47 +21,44 @@ export default function PortalDashboard() {
     return (
         <div className="grid gap-6 md:grid-cols-2">
             {/* Current check-in card */}
-            <Card className="border-border/50 rounded-lg md:col-span-2">
+            <Card className="md:col-span-2">
                 <CardHeader>
-                    <CardTitle className="flex items-center gap-2 text-base">
-                        <QrCode className="h-4 w-4" />
-                        Active Check-in
+                    <CardTitle className="flex items-center gap-2 text-base font-semibold">
+                        <QrCode className="h-4 w-4 text-muted-foreground" />
+                        Check-in
                     </CardTitle>
                 </CardHeader>
                 <CardContent>
                     {openSession ? (
-                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                            <div>
-                                <p className="font-medium">{openSession.display_name}</p>
-                                <p className="text-sm text-muted-foreground">
-                                    {openSession.event_type_label} · {openSession.date}
-                                </p>
-                                <p className="text-xs text-muted-foreground mt-1">
-                                    Open until {new Date(openSession.closes_at).toLocaleString()}
-                                </p>
+                        <div className="space-y-1">
+                            <div className="flex flex-wrap items-center gap-2">
+                                <p className="font-medium">{titleCase(openSession.display_name)}</p>
+                                <Badge className="bg-success/15 text-success-strong">Open now</Badge>
                             </div>
-                            <Link to="/portal">
-                                <Button variant="outline">
-                                    <QrCode className="mr-2 h-4 w-4" />
-                                    Go to portal for check-in
-                                </Button>
-                            </Link>
+                            <p className="text-sm text-muted-foreground">
+                                {[titleCase(openSession.event_type_label), formatDay(openSession.date)].filter(Boolean).join(" · ")}
+                            </p>
+                            <p className="text-sm text-muted-foreground">
+                                Open until {formatDayTime(openSession.closes_at)}. Scan the QR code at the venue to check in.
+                            </p>
                         </div>
                     ) : (
-                        <div className="flex items-center gap-3 text-sm text-muted-foreground">
-                            <Info className="h-4 w-4" />
-                            No active check-in right now. Scan the QR code displayed at your venue when you arrive.
-                        </div>
+                        <EmptyState
+                            icon={QrCode}
+                            className="py-6"
+                            title="Nothing to check in to right now"
+                            description="When you arrive at church, scan the QR code on display to check in."
+                        />
                     )}
                 </CardContent>
             </Card>
 
             {/* Upcoming sessions */}
-            <Card className="border-border/50 rounded-lg">
+            <Card>
                 <CardHeader>
-                    <CardTitle className="flex items-center gap-2 text-base">
-                        <Calendar className="h-4 w-4" />
-                        Upcoming
+                    <CardTitle className="flex items-center gap-2 text-base font-semibold">
+                        <Calendar className="h-4 w-4 text-muted-foreground" />
+                        Coming up
                     </CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-3">
@@ -66,30 +66,33 @@ export default function PortalDashboard() {
                         <Skeleton className="h-12 w-full" />
                     ) : hasUpcoming ? (
                         upcoming.map((s: any) => (
-                            <div key={s.sessionId} className="flex items-center justify-between text-sm">
-                                <div>
-                                    <p className="font-medium">{s.display_name}</p>
-                                    <p className="text-xs text-muted-foreground">{s.date}</p>
+                            <div key={s.sessionId} className="flex items-center justify-between gap-3 text-sm">
+                                <div className="min-w-0">
+                                    <p className="truncate font-medium">{titleCase(s.display_name)}</p>
+                                    <p className="text-xs text-muted-foreground">{formatDay(s.date)}</p>
                                 </div>
                                 {s.status === "open" && (
-                                    <span className="text-xs text-success flex items-center gap-1">
-                                        <CheckCircle2 className="h-3 w-3" /> open
-                                    </span>
+                                    <Badge className="shrink-0 bg-success/15 text-success-strong">Open</Badge>
                                 )}
                             </div>
                         ))
                     ) : (
-                        <p className="text-sm text-muted-foreground">No upcoming sessions.</p>
+                        <EmptyState
+                            icon={Calendar}
+                            className="py-6"
+                            title="No events coming up"
+                            description="Your church's next events will show here once they're scheduled."
+                        />
                     )}
                 </CardContent>
             </Card>
 
             {/* Recent attendance */}
-            <Card className="border-border/50 rounded-lg">
+            <Card>
                 <CardHeader>
-                    <CardTitle className="flex items-center gap-2 text-base">
-                        <Calendar className="h-4 w-4" />
-                        Recent Attendance
+                    <CardTitle className="flex items-center gap-2 text-base font-semibold">
+                        <CalendarCheck className="h-4 w-4 text-muted-foreground" />
+                        Recent attendance
                     </CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-3">
@@ -97,20 +100,27 @@ export default function PortalDashboard() {
                         <Skeleton className="h-12 w-full" />
                     ) : history.length > 0 ? (
                         history.map((h: any, i: number) => (
-                            <div key={i} className="flex items-center justify-between text-sm">
-                                <div>
-                                    <p className="font-medium">{h.event_type_label ?? "Event"}</p>
-                                    <p className="text-xs text-muted-foreground">{h.date}</p>
+                            <div key={i} className="flex items-center justify-between gap-3 text-sm">
+                                <div className="min-w-0">
+                                    <p className="truncate font-medium">{titleCase(h.event_type_label) || "Event"}</p>
+                                    <p className="text-xs text-muted-foreground">{formatDay(h.date)}</p>
                                 </div>
-                                <span className="text-xs uppercase text-muted-foreground">{h.source ?? "manual"}</span>
+                                <span className="shrink-0 text-xs text-muted-foreground">{checkInSourceLabel(h.source)}</span>
                             </div>
                         ))
                     ) : (
-                        <p className="text-sm text-muted-foreground">No attendance recorded yet.</p>
+                        <EmptyState
+                            icon={CalendarCheck}
+                            className="py-6"
+                            title="No attendance yet"
+                            description="Each time you check in at church, it will show here."
+                        />
                     )}
-                    <Link to="/portal/attendance" className="block">
-                        <Button variant="outline" size="sm" className="w-full">View full history</Button>
-                    </Link>
+                    {history !== undefined && history.length > 0 && (
+                        <Button asChild variant="outline" size="sm" className="w-full">
+                            <Link to="/portal/attendance">See all attendance</Link>
+                        </Button>
+                    )}
                 </CardContent>
             </Card>
         </div>

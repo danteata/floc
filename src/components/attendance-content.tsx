@@ -12,6 +12,8 @@ import { AbsentMembers } from "@/components/absent-members"
 import { ServiceMetadataSummaryDialog } from "@/components/service-metadata-summary-dialog"
 import { CheckInQrPanel } from "@/components/check-in/check-in-qr-panel"
 import { cn } from "@/lib/utils"
+import { titleCase, formatDay } from "@/lib/display"
+import { EmptyState } from "@/components/ui/empty-state"
 import { Skeleton } from "@/components/ui/skeleton"
 import { StatCard, StatGrid } from "@/components/ui/stat-card"
 import { useQuery, useMutation } from "convex/react"
@@ -33,7 +35,7 @@ import {
 export function AttendanceContent() {
   const { role } = useUserRole();
   // Managing check-in sessions is allowed for org admins and unit-level admins
-  // alike — mirrors the backend requireWriteAccess check (convex/scope.ts).
+  // alike; mirrors the backend requireWriteAccess check (convex/scope.ts).
   const canManageCheckIn = hasCapability(role, "command_center");
   const { members, isLoading: membersLoading } = useManagedMembers();
   const { ministries, isLoading: filtersLoading } = useAccessibleUnits();
@@ -125,7 +127,7 @@ export function AttendanceContent() {
               className="h-8"
             >
               <RefreshCw className={`mr-2 h-3.5 w-3.5 ${isRefreshing ? 'animate-spin' : ''}`} />
-              {isRefreshing ? 'Syncing...' : 'Refresh'}
+              {isRefreshing ? 'Refreshing…' : 'Refresh'}
             </Button>
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
@@ -143,15 +145,15 @@ export function AttendanceContent() {
                       onClick={() => handleExportAttendance(record._id)}
                       className="flex flex-col items-start gap-1 p-3"
                     >
-                      <div className="font-medium">{record.event_type_label || "Attendance Record"}</div>
+                      <div className="font-medium">{titleCase(record.event_type_label) || "Attendance"}</div>
                       <div className="text-xs text-muted-foreground">
-                        {record.date} • {record.count} attendees
+                        {formatDay(record.date)} · {record.count} {record.count === 1 ? "person" : "people"}
                       </div>
                     </DropdownMenuItem>
                   ))
                 ) : (
                   <DropdownMenuItem disabled>
-                    No attendance records found
+                    No attendance to export yet
                   </DropdownMenuItem>
                 )}
               </DropdownMenuContent>
@@ -166,7 +168,7 @@ export function AttendanceContent() {
         <Select value={unitFilter} onValueChange={setUnitFilter}>
           <SelectTrigger className="h-9 w-full sm:w-[240px]" disabled={filtersLoading}>
             <Filter className="h-3.5 w-3.5 mr-2 text-muted-foreground" />
-            <SelectValue placeholder={filtersLoading ? "Loading units..." : "All units"} />
+            <SelectValue placeholder={filtersLoading ? "Loading units…" : "All units"} />
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="all">All units</SelectItem>
@@ -179,8 +181,8 @@ export function AttendanceContent() {
         </Select>
         <p className="text-xs text-muted-foreground">
           {unitName
-            ? `Cards, registry, history and absentees below all count ${unitName} only.`
-            : "Counting every member you oversee. Pick a unit to narrow every number on this page."}
+            ? `Everything below counts ${unitName} only.`
+            : "Counting every member you look after. Pick a unit to narrow every number on this page."}
         </p>
       </div>
 
@@ -191,7 +193,7 @@ export function AttendanceContent() {
       {loading ? (
         <div className="order-2 md:order-none grid grid-cols-2 gap-3 md:gap-6 lg:grid-cols-3 xl:grid-cols-6">
           {[...Array(6)].map((_, i) => (
-            <Card key={i} className="border-border/50 shadow-soft rounded-2xl overflow-hidden">
+            <Card key={i}>
               <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
                 <Skeleton className="h-4 w-24" />
                 <Skeleton className="h-4 w-4" />
@@ -211,21 +213,23 @@ export function AttendanceContent() {
             icon={Users}
           />
           <StatCard label="This week" value={stats?.thisWeekTotal || 0} icon={Calendar} />
+          {/* With nothing recorded yet this week the change is always -100%,
+              which reads as a collapse rather than "not taken yet". */}
           <StatCard
-            label="Growth"
-            value={`${(stats?.weeklyGrowthRate || 0) > 0 ? "+" : ""}${(stats?.weeklyGrowthRate || 0).toFixed(1)}%`}
+            label="Change on last week"
+            value={(stats?.thisWeekTotal || 0) === 0 ? "No data yet" : `${(stats?.weeklyGrowthRate || 0) > 0 ? "+" : ""}${(stats?.weeklyGrowthRate || 0).toFixed(1)}%`}
             icon={TrendingUp}
-            hint="Week on week"
-            hintTone={(stats?.weeklyGrowthRate || 0) >= 0 ? "positive" : "negative"}
+            hint={(stats?.thisWeekTotal || 0) === 0 ? "No attendance recorded this week yet" : "Week on week"}
+            hintTone={(stats?.thisWeekTotal || 0) === 0 ? "neutral" : (stats?.weeklyGrowthRate || 0) >= 0 ? "positive" : "negative"}
           />
-          <StatCard label="Rate" value={`${(stats?.attendanceRate || 0).toFixed(1)}%`} icon={Target} />
+          <StatCard label="Attendance rate" value={`${(stats?.attendanceRate || 0).toFixed(1)}%`} icon={Target} />
           <StatCard label="Active days" value={stats?.recentActivityDays || 0} icon={Activity} />
-          <StatCard label="Records" value={stats?.totalRecords || 0} icon={BarChart3} />
+          <StatCard label="Services recorded" value={stats?.totalRecords || 0} icon={BarChart3} />
         </StatGrid>
       )}
 
       <Tabs defaultValue="record" className="order-1 md:order-none w-full space-y-6">
-        <TabsList className="bg-muted/50 p-1 rounded-lg h-auto max-w-full flex-nowrap gap-0.5 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+        <TabsList className="bg-muted/50 p-1 rounded-lg h-auto w-full max-w-full sm:w-fit justify-start flex-nowrap gap-0.5 overflow-x-auto overflow-y-hidden [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
           {[
             {
               value: "record",
@@ -280,21 +284,23 @@ export function AttendanceContent() {
 
           <TabsContent value="checkin" className="space-y-4 outline-none">
             {!canManageCheckIn ? (
-              <Card className="border-border/50 rounded-lg">
-                <CardContent className="p-8 text-center">
-                  <Lock className="h-8 w-8 mx-auto mb-2 text-muted-foreground/50" />
-                  <p className="text-sm text-muted-foreground">
-                    You need admin access to manage check-in sessions.
-                  </p>
+              <Card>
+                <CardContent>
+                  <EmptyState
+                    icon={Lock}
+                    title="Check-in is for admins"
+                    description="Ask an admin to open a check-in session for you."
+                  />
                 </CardContent>
               </Card>
             ) : !eventTypes || eventTypes.length === 0 ? (
-              <Card className="border-border/50 rounded-lg">
-                <CardContent className="p-8 text-center">
-                  <QrCode className="h-8 w-8 mx-auto mb-2 text-muted-foreground/50" />
-                  <p className="text-sm text-muted-foreground">
-                    No active event types found. Create event types first.
-                  </p>
+              <Card>
+                <CardContent>
+                  <EmptyState
+                    icon={QrCode}
+                    title="No event types yet"
+                    description="Add an event type (such as Sunday service) and you can open check-in for it here."
+                  />
                 </CardContent>
               </Card>
             ) : (
@@ -314,11 +320,11 @@ export function AttendanceContent() {
           </TabsContent>
 
           <TabsContent value="metadata" className="space-y-4 outline-none">
-            <div className="flex flex-col sm:flex-row items-center justify-between gap-4 p-6 bg-muted/30 rounded-lg border border-border/50">
-              <div className="text-center sm:text-left">
-                <h2 className="text-lg font-semibold text-foreground">Service Metadata</h2>
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 p-4 md:p-6 bg-muted/30 rounded-xl border border-border/50">
+              <div>
+                <h2 className="text-lg font-semibold text-foreground">Service summaries</h2>
                 <p className="text-sm text-muted-foreground">
-                  Document service details and outcomes
+                  Record the message, who preached, headcounts and first-timers for each service.
                 </p>
               </div>
               <Button
@@ -326,19 +332,17 @@ export function AttendanceContent() {
                 className="h-9"
               >
                 <PlusCircle className="h-4 w-4 mr-2" />
-                New Summary
+                New summary
               </Button>
             </div>
 
-            <Card className="border-border/50 rounded-lg">
-              <CardContent className="p-8 text-center">
-                <div className="w-12 h-12 bg-muted rounded-lg flex items-center justify-center mx-auto mb-3">
-                  <BarChart3 className="h-6 w-6 text-muted-foreground" />
-                </div>
-                <h3 className="text-base text-foreground mb-1">Service Summaries</h3>
-                <p className="text-sm text-muted-foreground max-w-md mx-auto">
-                  Add detailed metrics and notes to attendance records for comprehensive insights.
-                </p>
+            <Card>
+              <CardContent>
+                <EmptyState
+                  icon={BarChart3}
+                  title="No service summaries yet"
+                  description="Add one after a service to keep its details alongside the attendance."
+                />
               </CardContent>
             </Card>
           </TabsContent>

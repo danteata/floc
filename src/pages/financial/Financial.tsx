@@ -6,7 +6,7 @@ import { useState, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useUser } from '@clerk/clerk-react'
 import { Button } from '@/components/ui/button'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Badge } from '@/components/ui/badge'
 import { Input } from '@/components/ui/input'
@@ -36,14 +36,12 @@ import {
     Download,
     Edit,
     Ban,
-    DollarSign,
     Calendar as CalendarIcon,
     ArrowUpRight,
     ArrowDownRight,
     BarChart3,
 } from 'lucide-react'
 import {
-    formatCurrency,
     calculateTransactionTotals,
     monthOnMonth,
     describeMonthOnMonth,
@@ -53,18 +51,22 @@ import {
 import { LayoutWrapper } from '@/components/layout-wrapper'
 import { PageHeader } from '@/components/ui/page-header'
 import { StatCard, StatGrid } from '@/components/ui/stat-card'
+import { EmptyState } from '@/components/ui/empty-state'
+import { useMoney } from '@/lib/money'
 import { useQuery, useMutation } from 'convex/react'
 import { api } from '../../../convex/_generated/api'
 import { Id } from '../../../convex/_generated/dataModel'
 import { useOrganization } from '@/hooks/use-organization'
 import { useToast } from '@/hooks/use-toast'
 import { cn } from '@/lib/utils'
+import { formatDay } from '@/lib/display'
 
 export default function FinancialPage() {
     const { user, isLoaded } = useUser()
     const { organization } = useOrganization()
     const { toast } = useToast()
     const navigate = useNavigate()
+    const money = useMoney()
 
     // State
     const [searchTerm, setSearchTerm] = useState('')
@@ -93,35 +95,35 @@ export default function FinancialPage() {
                     id: editingTransaction._id as Id<"financial_transactions">,
                     ...transactionData
                 })
-                toast({ title: "Success", description: "Transaction updated" })
+                toast({ title: "Transaction updated" })
             } else {
                 await createTransaction({
                     ...transactionData,
                     organization_id: organization?._id as Id<"organizations">
                 })
-                toast({ title: "Success", description: "Transaction created" })
+                toast({ title: "Transaction added" })
             }
             setShowTransactionDialog(false)
             setEditingTransaction(null)
         } catch (error: any) {
-            toast({ title: "Error", description: error.message, variant: "destructive" })
+            toast({ title: "Couldn't save the transaction", description: error.message, variant: "destructive" })
         }
     }
 
     const handleVoidTransaction = async (transactionId: string) => {
         // Financial records are never deleted once entered — voiding keeps
         // the row (audit-preserving) but excludes it from totals/reports.
-        const reason = window.prompt('Reason for voiding this transaction:')
+        const reason = window.prompt('Why are you voiding this transaction? It stays in the ledger but no longer counts in any total.')
         if (reason === null) return
         if (!reason.trim()) {
-            toast({ title: "Void cancelled", description: "A reason is required.", variant: "destructive" })
+            toast({ title: "Transaction not voided", description: "Give a reason to void a transaction.", variant: "destructive" })
             return
         }
         try {
             await voidTransaction({ id: transactionId as Id<"financial_transactions">, reason: reason.trim() })
-            toast({ title: "Success", description: "Transaction voided" })
+            toast({ title: "Transaction voided" })
         } catch (error: any) {
-            toast({ title: "Error", description: error.message, variant: "destructive" })
+            toast({ title: "Couldn't void the transaction", description: error.message, variant: "destructive" })
         }
     }
 
@@ -202,7 +204,7 @@ export default function FinancialPage() {
                             onClick={() => setShowTransactionDialog(true)}
                         >
                             <Plus className="h-4 w-4 mr-2" />
-                            New Record
+                            Add transaction
                         </Button>
                     </>}
                 />
@@ -210,20 +212,20 @@ export default function FinancialPage() {
                 <StatGrid>
                     <StatCard
                         label="Total income"
-                        value={formatCurrency(totals.income)}
+                        value={money(totals.income)}
                         icon={ArrowUpRight}
                         hint={describeMonthOnMonth(incomeTrend)}
                         hintTone={incomeTrend === null || incomeTrend === 0 ? 'neutral' : incomeTrend > 0 ? 'positive' : 'negative'}
                     />
                     <StatCard
                         label="Total expenses"
-                        value={formatCurrency(totals.expense)}
+                        value={money(totals.expense)}
                         icon={ArrowDownRight}
                         hint={describeMonthOnMonth(expenseTrend)}
                     />
                     <StatCard
-                        label="Net remainder"
-                        value={formatCurrency(totals.net)}
+                        label="Net"
+                        value={money(totals.net)}
                         icon={BarChart3}
                     />
                     <StatCard
@@ -256,24 +258,22 @@ export default function FinancialPage() {
                     </TabsList>
 
                     <TabsContent value="overview" className="animate-in fade-in duration-500 space-y-8">
-                        <div className="rounded-xl overflow-hidden shadow-soft border border-border/50">
-                            <FinancialWidget
-                                onAddTransaction={() => setShowTransactionDialog(true)}
-                            />
-                        </div>
+                        <FinancialWidget
+                            onAddTransaction={() => setShowTransactionDialog(true)}
+                        />
 
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                             <ActionBox
-                                title="Service Summary"
-                                description="Record attendance and financial breakdown for a specific service or event."
-                                buttonText="Add Summary"
+                                title="Service summary"
+                                description="Record the attendance and giving for one service or event."
+                                buttonText="Add summary"
                                 onClick={() => setShowSummaryDialog(true)}
                                 icon={<Plus className="h-5 w-5" />}
                             />
                             <ActionBox
-                                title="Batch Upload"
-                                description="Import transaction records from external CSV or spreadsheet systems."
-                                buttonText="Import Data"
+                                title="Import transactions"
+                                description="Bring in transactions from a CSV file or spreadsheet."
+                                buttonText="Import"
                                 onClick={() => { }}
                                 icon={<Download className="h-5 w-5" />}
                             />
@@ -286,7 +286,7 @@ export default function FinancialPage() {
                             <CardHeader className="bg-muted/30 pb-4">
                                 <CardTitle className="text-lg font-semibold flex items-center gap-2">
                                     <Filter className="h-4 w-4 text-muted-foreground" />
-                                    Filter LEDGER
+                                    Filters
                                 </CardTitle>
                             </CardHeader>
                             <CardContent className="p-6">
@@ -294,7 +294,7 @@ export default function FinancialPage() {
                                     <div className="relative group">
                                         <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground group-focus-within:text-primary transition-colors" />
                                         <Input
-                                            placeholder="Search ledger..."
+                                            placeholder="Search the ledger…"
                                             value={searchTerm}
                                             onChange={(e) => setSearchTerm(e.target.value)}
                                             className="pl-9 bg-background border-input-border rounded-lg"
@@ -306,9 +306,9 @@ export default function FinancialPage() {
                                             <SelectValue placeholder="Type" />
                                         </SelectTrigger>
                                         <SelectContent className="rounded-lg shadow-lg border-border/50">
-                                            <SelectItem value="all">All Types</SelectItem>
-                                            <SelectItem value="income">Income (+)</SelectItem>
-                                            <SelectItem value="expense">Expense (-)</SelectItem>
+                                            <SelectItem value="all">All types</SelectItem>
+                                            <SelectItem value="income">Income</SelectItem>
+                                            <SelectItem value="expense">Expenses</SelectItem>
                                         </SelectContent>
                                     </Select>
 
@@ -317,7 +317,7 @@ export default function FinancialPage() {
                                             <SelectValue placeholder="Category" />
                                         </SelectTrigger>
                                         <SelectContent className="rounded-lg shadow-lg border-border/50 max-h-[300px]">
-                                            <SelectItem value="all">All Categories</SelectItem>
+                                            <SelectItem value="all">All categories</SelectItem>
                                             {Object.entries(TRANSACTION_CATEGORIES).map(([key, category]) => (
                                                 <SelectItem key={key} value={key}>
                                                     {category.label}
@@ -331,11 +331,11 @@ export default function FinancialPage() {
                                             <SelectValue placeholder="Range" />
                                         </SelectTrigger>
                                         <SelectContent className="rounded-lg shadow-lg border-border/50">
-                                            <SelectItem value="all">All Time</SelectItem>
+                                            <SelectItem value="all">All time</SelectItem>
                                             <SelectItem value="today">Today</SelectItem>
-                                            <SelectItem value="week">This Week</SelectItem>
-                                            <SelectItem value="month">This Month</SelectItem>
-                                            <SelectItem value="year">This Year</SelectItem>
+                                            <SelectItem value="week">Last 7 days</SelectItem>
+                                            <SelectItem value="month">This month</SelectItem>
+                                            <SelectItem value="year">This year</SelectItem>
                                         </SelectContent>
                                     </Select>
                                 </div>
@@ -349,7 +349,7 @@ export default function FinancialPage() {
                                     <TableRow className="bg-muted/40 hover:bg-muted/40 border-b border-border/50">
                                         <TableHead className="font-semibold text-muted-foreground pl-6">Date</TableHead>
                                         <TableHead className="font-semibold text-muted-foreground">Description</TableHead>
-                                        <TableHead className="font-semibold text-muted-foreground">Entity</TableHead>
+                                        <TableHead className="font-semibold text-muted-foreground">Member or event</TableHead>
                                         <TableHead className="font-semibold text-muted-foreground">Amount</TableHead>
                                         <TableHead className="font-semibold text-muted-foreground text-right pr-6">Actions</TableHead>
                                     </TableRow>
@@ -362,22 +362,22 @@ export default function FinancialPage() {
                                         return (
                                         <TableRow key={transaction._id} className={cn("hover:bg-muted/30 border-b border-border/50 transition-colors", isVoided && "opacity-50")}>
                                             <TableCell className="pl-6 text-sm text-muted-foreground">
-                                                {new Date(transaction.date).toLocaleDateString()}
+                                                {formatDay(new Date(transaction.date))}
                                             </TableCell>
                                             <TableCell>
                                                 <div className="flex flex-col gap-1">
                                                     <div className="flex items-center gap-1.5">
-                                                        <Badge variant="outline" className="w-fit text-[10px] bg-muted/50 border-border/50 text-muted-foreground">
-                                                            {transaction.category}
+                                                        <Badge variant="outline" className="w-fit text-xs bg-muted/50 border-border/50 text-muted-foreground">
+                                                            {TRANSACTION_CATEGORIES[transaction.category]?.label ?? transaction.category}
                                                         </Badge>
                                                         {isVoided && (
-                                                            <Badge variant="destructive" className="text-[10px]" title={transaction.void_reason}>Voided</Badge>
+                                                            <Badge variant="destructive" className="text-xs" title={transaction.void_reason}>Voided</Badge>
                                                         )}
                                                         {isPending && (
-                                                            <Badge variant="outline" className="text-[10px] text-warning-strong border-warning/30">Pending</Badge>
+                                                            <Badge variant="outline" className="text-xs text-warning-strong border-warning/30">Pending</Badge>
                                                         )}
                                                         {isFailed && (
-                                                            <Badge variant="outline" className="text-[10px] text-muted-foreground">Failed</Badge>
+                                                            <Badge variant="outline" className="text-xs text-muted-foreground">Failed</Badge>
                                                         )}
                                                     </div>
                                                     <span className={cn("font-medium text-sm text-foreground truncate max-w-[200px]", isVoided && "line-through")}>
@@ -386,7 +386,7 @@ export default function FinancialPage() {
                                                 </div>
                                             </TableCell>
                                             <TableCell className="text-sm">
-                                                {transaction.member_name || transaction.giver_name || transaction.event_name || <span className="text-muted-foreground italic">System</span>}
+                                                {transaction.member_name || transaction.giver_name || transaction.event_name || <span className="text-muted-foreground">Not linked</span>}
                                             </TableCell>
                                             <TableCell>
                                                 <Badge
@@ -398,7 +398,7 @@ export default function FinancialPage() {
                                                             : 'bg-destructive/10 text-destructive-strong dark:text-destructive'
                                                     )}
                                                 >
-                                                    {transaction.type === 'income' ? '+' : '-'} {formatCurrency(transaction.amount)}
+                                                    {transaction.type === 'income' ? '+' : '-'} {money(transaction.amount)}
                                                 </Badge>
                                             </TableCell>
                                             <TableCell className="text-right pr-6">
@@ -408,6 +408,8 @@ export default function FinancialPage() {
                                                         size="icon"
                                                         className="h-8 w-8 text-muted-foreground hover:text-foreground hover:bg-muted/50 rounded-lg"
                                                         disabled={isVoided}
+                                                        aria-label="Edit transaction"
+                                                        title="Edit"
                                                         onClick={() => {
                                                             setEditingTransaction(transaction)
                                                             setShowTransactionDialog(true)
@@ -420,6 +422,8 @@ export default function FinancialPage() {
                                                         size="icon"
                                                         className="h-8 w-8 text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded-lg"
                                                         disabled={isVoided}
+                                                        aria-label="Void transaction"
+                                                        title="Void"
                                                         onClick={() => transaction._id && handleVoidTransaction(transaction._id)}
                                                     >
                                                         <Ban className="h-4 w-4" />
@@ -432,13 +436,19 @@ export default function FinancialPage() {
                                 </TableBody>
                             </Table>
                             {filteredTransactions.length === 0 && (
-                                <div className="p-12 text-center">
-                                    <div className="mx-auto h-16 w-16 bg-muted/50 rounded-full flex items-center justify-center mb-4">
-                                        <Search className="h-8 w-8 text-muted-foreground/50" />
-                                    </div>
-                                    <h3 className="text-lg font-semibold text-foreground">No Records Found</h3>
-                                    <p className="text-sm text-muted-foreground mt-1">Adjust your filters to see more results.</p>
-                                </div>
+                                transactions.length === 0 ? (
+                                    <EmptyState
+                                        icon={Search}
+                                        title="No transactions yet"
+                                        description="Add a transaction or a service summary and it will appear here."
+                                    />
+                                ) : (
+                                    <EmptyState
+                                        icon={Search}
+                                        title="No transactions match these filters"
+                                        description="Change or clear the filters to see more."
+                                    />
+                                )
                             )}
                         </div>
                     </TabsContent>
@@ -476,7 +486,7 @@ function ActionBox({ title, description, buttonText, onClick, icon }: { title: s
     return (
         <div className="p-6 rounded-xl border border-border/50 bg-card shadow-sm hover:shadow-md transition-all flex flex-col sm:flex-row sm:items-center justify-between gap-6 group cursor-pointer" onClick={onClick}>
             <div className="space-y-2">
-                <h3 className="text-lg flex items-center gap-2 group-hover:text-primary transition-colors">
+                <h3 className="text-lg font-semibold flex items-center gap-2 group-hover:text-primary transition-colors">
                     {title}
                 </h3>
                 <p className="text-sm text-muted-foreground max-w-sm leading-relaxed">

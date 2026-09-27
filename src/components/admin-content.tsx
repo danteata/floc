@@ -1,6 +1,6 @@
 
 import { useState } from "react"
-import { Plus, Settings, Trash2, Edit, RefreshCw, Shield, Map, Zap, Database, Users, Building, Layers } from "lucide-react"
+import { Plus, Settings, Trash2, Edit, RefreshCw, Shield, Map, Database, Building, Layers } from "lucide-react"
 import { useQuery, useMutation } from "convex/react"
 import { api } from "../../convex/_generated/api"
 import type { Unit } from "@/types/database"
@@ -19,6 +19,9 @@ import { EmptyState } from "@/components/ui/empty-state"
 import { LoadingState } from "@/components/ui/loading-state"
 import { toast } from "sonner"
 import { useOrganization } from "@/hooks/use-organization"
+
+/** Leader's name when the unit row carries one; the units query adds it for some rows. */
+const leaderName = (unit: object): string | undefined => (unit as { leader_name?: string }).leader_name
 
 export function AdminContent() {
   const { organization } = useOrganization()
@@ -50,11 +53,11 @@ export function AdminContent() {
   const handleDeleteUnit = async (unit: Unit) => {
     try {
       await removeUnitMutation({ id: unit._id as any })
-      toast.success(`${unit.name} removed successfully`)
+      toast.success(`${unit.name} deleted`)
       setDeleteDialog({ open: false, type: 'unit', item: null })
     } catch (error) {
       console.error("Error deleting unit:", error)
-      toast.error(`Critical failure removing unit`)
+      toast.error("Couldn't delete the unit", { description: error instanceof Error ? error.message : undefined })
     }
   }
 
@@ -64,10 +67,10 @@ export function AdminContent() {
         id: unit._id as any,
         updates: { active: !unit.active }
       })
-      toast.success(`Status updated for ${unit.name}`)
+      toast.success(`${unit.name} is now ${unit.active ? "inactive" : "active"}`)
     } catch (error) {
       console.error("Error updating unit:", error)
-      toast.error("Failed to toggle status")
+      toast.error("Couldn't change the unit's status", { description: error instanceof Error ? error.message : undefined })
     }
   }
 
@@ -95,58 +98,52 @@ export function AdminContent() {
   )
 
   if (isLoading) {
-    return <LoadingState message="Synchronizing configuration..." />
+    return <LoadingState message="Loading…" />
   }
 
   return (
     <div className="w-full space-y-8 animate-in fade-in duration-500">
       <PageHeader
         title="Administration"
-        description="Your church's units, operations, settings and features."
-        actions={
-          <>
-            <Badge variant="outline" className="bg-success/10 text-success-strong border-success/20 px-4 py-1.5 rounded-full text-xs">
-              <span className="w-1.5 h-1.5 rounded-full bg-success mr-2 animate-pulse"></span>
-              System Active
-            </Badge>
-          </>
-        }
+        description="Your church's units, event types, settings and features."
       />
 
       {/* Tabs */}
       <Tabs defaultValue="units" className="w-full">
-        <TabsList className="bg-muted/50 p-1 rounded-xl w-full md:w-auto inline-flex overflow-x-auto">
+        <div className="-mx-4 overflow-x-auto px-4 md:mx-0 md:px-0">
+        <TabsList className="bg-muted/50 p-1 rounded-xl w-max inline-flex">
           <TabsTrigger value="units" className="rounded-lg data-[state=active]:bg-background data-[state=active]:shadow-sm px-4">
-            Organizational Units
+            Units
           </TabsTrigger>
           <TabsTrigger value="events" className="rounded-lg data-[state=active]:bg-background data-[state=active]:shadow-sm px-4">
-            Operations
+            Event types
           </TabsTrigger>
           <TabsTrigger value="settings" className="rounded-lg data-[state=active]:bg-background data-[state=active]:shadow-sm px-4">
-            System Core
+            Settings
           </TabsTrigger>
           <TabsTrigger value="flags" className="rounded-lg data-[state=active]:bg-background data-[state=active]:shadow-sm px-4">
-            Feature Flags
+            Features
           </TabsTrigger>
         </TabsList>
+        </div>
 
         <TabsContent value="units" className="mt-6 w-full animate-in fade-in slide-in-from-bottom-2 duration-300">
-          <Card className="glass-card border-border/50 shadow-soft rounded-xl overflow-hidden">
+          <Card className="rounded-xl overflow-hidden">
             <CardHeader className="border-b border-border/50 bg-muted/20 px-6 py-4">
               <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-6">
                 <div className="space-y-1">
-                  <CardTitle className="text-xl tracking-tight text-foreground">Organizational Units</CardTitle>
+                  <CardTitle className="text-lg font-semibold text-foreground">Units</CardTitle>
                   <CardDescription>
-                    Manage all units including functional teams, geographic locations, and administrative divisions
+                    Every unit in your church: ministries and teams, zones and locations, and administrative groups.
                   </CardDescription>
                 </div>
-                <div className="flex items-center gap-3">
+                <div className="flex flex-wrap items-center gap-3">
                   <select
                     value={unitTypeFilter}
                     onChange={(e) => setUnitTypeFilter(e.target.value as any)}
                     className="px-3 py-2 border border-border rounded-lg bg-background text-sm"
                   >
-                    <option value="all">All Types</option>
+                    <option value="all">All types</option>
                     <option value="functional">Functional</option>
                     <option value="geographic">Geographic</option>
                     <option value="administrative">Administrative</option>
@@ -157,7 +154,7 @@ export function AdminContent() {
                     className="bg-primary text-primary-foreground hover:bg-primary/90 shadow-sm rounded-lg"
                   >
                     <Plus className="mr-2 h-4 w-4" />
-                    Add New Unit
+                    New unit
                   </Button>
                 </div>
               </div>
@@ -192,9 +189,11 @@ export function AdminContent() {
                         {unit.description || "-"}
                       </TableCell>
                       <TableCell className="hidden lg:table-cell">
-                        <Badge variant="secondary" className="bg-muted text-muted-foreground font-normal rounded-md text-xs">
-                          {(unit as any).leader_name || "Unassigned"}
-                        </Badge>
+                        {leaderName(unit) ? (
+                          <span className="text-sm text-foreground">{leaderName(unit)}</span>
+                        ) : (
+                          <span className="text-sm text-muted-foreground">Unassigned</span>
+                        )}
                       </TableCell>
                       <TableCell>
                         <Badge
@@ -202,7 +201,7 @@ export function AdminContent() {
                           className={`cursor-pointer px-2.5 py-0.5 rounded-full border text-xs ${unit.active ? "bg-success/10 text-success-strong border-success/20" : "bg-muted text-muted-foreground border-border"}`}
                           onClick={() => handleToggleUnitStatus(unit)}
                         >
-                          {unit.active ? "Active" : "Standby"}
+                          {unit.active ? "Active" : "Inactive"}
                         </Badge>
                       </TableCell>
                       <TableCell className="text-right pr-6">
@@ -241,9 +240,10 @@ export function AdminContent() {
                           icon={Database}
                           title={
                             unitTypeFilter === 'all'
-                              ? "No organizational units found"
-                              : `No ${unitTypeFilter} units found`
+                              ? "No units yet"
+                              : `No ${unitTypeFilter} units`
                           }
+                          description={unitTypeFilter === 'all' ? "Add your first unit with New unit." : "Choose another type to see more units."}
                         />
                       </TableCell>
                     </TableRow>
@@ -256,44 +256,38 @@ export function AdminContent() {
 
         {/* Event Types Tab */}
         <TabsContent value="events" className="mt-6 w-full animate-in fade-in slide-in-from-bottom-2 duration-300">
-          <div className="glass-card border-border/50 shadow-soft rounded-xl overflow-hidden bg-card/50">
-            <div className="border-b border-border/50 bg-muted/20 px-6 py-4">
-              <h2 className="text-xl tracking-tight text-foreground">Operational Protocols</h2>
-              <p className="text-sm text-muted-foreground mt-1">Configure systemic event parameters and reporting categories</p>
-            </div>
-            <div className="p-6">
+          <div className="rounded-xl overflow-hidden bg-card ring-1 ring-foreground/10">
+            <div className="p-2 md:p-4">
               <EventTypesManagement />
             </div>
           </div>
         </TabsContent>
 
         <TabsContent value="settings" className="mt-6 w-full animate-in fade-in slide-in-from-bottom-2 duration-300">
-          <Card className="glass-card border-border/50 shadow-soft rounded-xl overflow-hidden">
+          <Card className="rounded-xl overflow-hidden">
             <CardHeader className="border-b border-border/50 bg-muted/20 px-6 py-4">
               <div className="space-y-1">
-                <CardTitle className="text-xl tracking-tight">System Core Settings</CardTitle>
+                <CardTitle className="text-lg font-semibold">Church settings</CardTitle>
                 <CardDescription>
-                  Configure system-wide parameters and terminology overrides
+                  Your church's details, the words used for your units, branding and AI settings.
                 </CardDescription>
               </div>
             </CardHeader>
-            <CardContent className="p-12">
+            <CardContent className="p-6 md:p-12">
               <div className="flex flex-col items-center justify-center text-center space-y-6">
-                <div className="p-4 bg-muted/50 rounded-full border border-border/50">
-                  <Settings className="h-10 w-10 text-muted-foreground" />
-                </div>
+                <Settings className="h-8 w-8 text-muted-foreground" />
                 <div className="space-y-2 max-w-md">
-                  <h3 className="text-lg font-semibold tracking-tight">System Overrides</h3>
+                  <h3 className="text-base font-semibold">Change how Floc fits your church</h3>
                   <p className="text-sm text-muted-foreground">
-                    Modify global terminology patterns, application behavior, and organizational metadata. Ensure all changes comply with regional reporting standards.
+                    Update your church's name and details, rename units to match the words your church uses, and set your branding.
                   </p>
                 </div>
                 <Button
                   onClick={() => setIsSettingsDialogOpen(true)}
-                  className="h-12 px-8 shadow-md hover:shadow-lg transition-all rounded-lg gap-2"
+                  className="rounded-lg gap-2"
                 >
-                  <Zap className="h-4 w-4" />
-                  Initiate Override
+                  <Settings className="h-4 w-4" />
+                  Open church settings
                 </Button>
               </div>
             </CardContent>
@@ -308,8 +302,8 @@ export function AdminContent() {
       <DeleteConfirmDialog
         open={deleteDialog.open}
         onOpenChange={(open: boolean) => setDeleteDialog({ ...deleteDialog, open })}
-        title="Confirm Deletion"
-        description={`Are you sure you want to delete the unit "${deleteDialog.item?.name}"? All associated data will be removed. This action cannot be undone.`}
+        title="Delete this unit?"
+        description={`"${deleteDialog.item?.name}" and everything linked to it will be deleted. This can't be undone.`}
         onConfirm={() => {
           if (deleteDialog.type === 'unit' && deleteDialog.item) {
             handleDeleteUnit(deleteDialog.item)

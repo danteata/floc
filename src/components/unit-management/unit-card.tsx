@@ -48,45 +48,46 @@ export function UnitCard({ unit, viewMode, memberCount, leaderName, onEdit, onCr
     if (!confirm(`Delete "${unit.name}"? This can't be undone.`)) return;
     try {
       await removeMutation({ id: unit._id as Id<"units"> });
-      toast({ title: "Deleted", description: `${unit.name} removed` });
+      toast({ title: `${unit.name} deleted` });
     } catch (e: any) {
-      toast({ title: "Error", description: e.message, variant: "destructive" });
+      toast({ title: "Couldn't delete the unit", description: e.message, variant: "destructive" });
     }
   }
 
+  const typeLabel = (() => {
+    const t = (unit.type || 'administrative').replace(/[_-]+/g, ' ')
+    return t.charAt(0).toUpperCase() + t.slice(1).toLowerCase()
+  })()
+
   const getUnitIcon = (type: string) => {
-    if (type === 'functional' || type === 'ministry') return <Target className="h-4 w-4 text-success-strong" />
-    return <Briefcase className="h-4 w-4 text-warning-strong" />
+    if (type === 'functional' || type === 'ministry') return <Target className="h-4 w-4 text-muted-foreground" />
+    return <Briefcase className="h-4 w-4 text-muted-foreground" />
   }
 
-  const getIconBackground = (type: string) => {
-    if (type === 'functional' || type === 'ministry') return "bg-success/15 dark:bg-success/30 text-success-strong";
-    return "bg-warning/15 dark:bg-warning/30 text-warning-strong";
-  }
 
   if (viewMode === 'list') {
     return (
-      <div className="flex items-center justify-between p-4 rounded-xl border border-border/50 bg-card/40 backdrop-blur-sm hover:bg-muted/30 transition-all group">
+      <div className="flex items-center justify-between p-4 rounded-xl border border-border/50 bg-card hover:bg-muted/30 transition-all group">
         <div className="flex items-center gap-4">
-          <div className={cn("p-2.5 rounded-lg", getIconBackground(unit.type || 'administrative'))}>
+          <div className="shrink-0">
             {getUnitIcon(unit.type || 'administrative')}
           </div>
           <div>
             <h4 className="font-semibold text-sm tracking-tight text-foreground">{unit.name}</h4>
             <div className="flex items-center gap-2 mt-1 flex-wrap">
-              <Badge variant="outline" className="text-[10px] h-5 px-1.5 text-muted-foreground capitalize">
-                {unit.type || 'Administrative'}
+              <Badge variant="outline" className="text-xs h-5 px-1.5 text-muted-foreground">
+                {typeLabel}
               </Badge>
               {isInherited && (
-                <Badge variant="outline" className="text-[10px] h-5 px-1.5 gap-1 border-primary/30 text-primary">
+                <Badge variant="outline" className="text-xs h-5 px-1.5 gap-1 border-primary/30 text-primary">
                   <Link2 className="h-3 w-3" /> Inherited{hasOverrides ? ' (overridden)' : ''}
                 </Badge>
               )}
-              <span className="inline-flex items-center gap-1 text-[11px] text-muted-foreground">
+              <span className="inline-flex items-center gap-1 text-xs text-muted-foreground">
                 <Users className="h-3 w-3" /> {memberCount ?? 0}
               </span>
               {leaderName && (
-                <span className="inline-flex items-center gap-1 text-[11px] text-muted-foreground">
+                <span className="inline-flex items-center gap-1 text-xs text-muted-foreground">
                   <Crown className="h-3 w-3" /> {leaderName}
                 </span>
               )}
@@ -122,21 +123,21 @@ export function UnitCard({ unit, viewMode, memberCount, leaderName, onEdit, onCr
   }
 
   return (
-    <Card className="glass-card border-border/50 shadow-soft hover:shadow-lg transition-all rounded-xl overflow-visible group">
+    <Card className="rounded-xl overflow-visible group">
       <CardContent className="p-5">
         <div className="flex items-start justify-between mb-4">
           <div className="flex items-center gap-3">
-            <div className={cn("p-2.5 rounded-lg", getIconBackground(unit.type || 'administrative'))}>
+            <div className="shrink-0">
               {getUnitIcon(unit.type || 'administrative')}
             </div>
             <div>
               <h4 className="font-semibold text-base tracking-tight leading-none mb-1.5 text-foreground">{unit.name}</h4>
               <div className="flex items-center gap-2 flex-wrap">
-                <p className="text-xs text-muted-foreground capitalize">
-                  {unit.type || 'Administrative'}
+                <p className="text-xs text-muted-foreground">
+                  {typeLabel}
                 </p>
                 {isInherited && (
-                  <Badge variant="outline" className="text-[10px] h-5 px-1.5 gap-1 border-primary/30 text-primary">
+                  <Badge variant="outline" className="text-xs h-5 px-1.5 gap-1 border-primary/30 text-primary">
                     <Link2 className="h-3 w-3" /> Inherited{hasOverrides ? ' (overridden)' : ''}
                   </Badge>
                 )}
@@ -171,17 +172,17 @@ export function UnitCard({ unit, viewMode, memberCount, leaderName, onEdit, onCr
 
         <div className="space-y-4">
           <p className="text-sm text-muted-foreground line-clamp-2 min-h-[40px]">
-            {unit.description || "No description provided for this unit."}
+            {unit.description || "No description yet."}
           </p>
           <div className="flex items-center gap-3 flex-wrap pt-1 text-xs text-muted-foreground border-t border-border/40 mt-2 pt-3">
             <span className="inline-flex items-center gap-1.5">
               <Users className="h-3.5 w-3.5" /> {memberCount ?? 0} {(memberCount ?? 0) === 1 ? 'member' : 'members'}
             </span>
-            <span className="inline-flex items-center gap-1.5">
+            <span className={cn("inline-flex items-center gap-1.5", !leaderName && "text-muted-foreground/70")}>
               <Crown className="h-3.5 w-3.5" /> {leaderName || 'No leader'}
             </span>
             {unit.category && (
-              <Badge variant="outline" className="text-[10px] bg-muted/50 ml-auto">
+              <Badge variant="outline" className="text-xs bg-muted/50 ml-auto">
                 {unit.category}
               </Badge>
             )}
