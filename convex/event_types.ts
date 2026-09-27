@@ -1,6 +1,6 @@
 
 import { v } from "convex/values";
-import { mutation, query } from "./_generated/server";
+import { mutation, query, type QueryCtx } from "./_generated/server";
 import { Id } from "./_generated/dataModel";
 import { isSuperAdmin, requireSuperAdmin, requireOrgAdmin, resolveOrgId, getUserSafe, normalizeOrgId } from "./auth";
 
@@ -20,7 +20,8 @@ async function assertUnitsBelongToOrg(
     }
 }
 
-function mergeOrgOverrides(types: any[], orgId: Id<"organizations"> | null) {
+/** The event types a church sees: shared defaults, replaced by the church's own copy of the same value. */
+export function mergeOrgOverrides(types: any[], orgId: Id<"organizations"> | null) {
     const visible = types.filter((type) => !type.organization_id || type.organization_id === orgId);
     const byValue = new Map<string, any>();
 
@@ -34,6 +35,25 @@ function mergeOrgOverrides(types: any[], orgId: Id<"organizations"> | null) {
     return Array.from(byValue.values())
         .filter((type) => type.is_active)
         .sort((a, b) => (a.sort_order || 0) - (b.sort_order || 0));
+}
+
+/**
+ * Every event type id a church's records for `value` may be filed under: the
+ * shared default and the church's own copy (made when it edits the default).
+ * Attendance filed before and after that edit must count as one service.
+ */
+export async function eventTypeIdsForValue(
+    ctx: QueryCtx,
+    orgId: Id<"organizations"> | null,
+    value: string,
+): Promise<Set<Id<"event_types">>> {
+    const rows = await ctx.db
+        .query("event_types")
+        .withIndex("by_value", (q) => q.eq("value", value))
+        .collect();
+    return new Set(
+        rows.filter((t) => !t.organization_id || t.organization_id === orgId).map((t) => t._id),
+    );
 }
 
 export const getAll = query({
