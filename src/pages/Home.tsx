@@ -307,7 +307,7 @@ export default function HomePage() {
                                         <ArrowRight className="ml-2 h-4 w-4" />
                                     </Button>
                                 </SignInButton>
-                                <a href="#features">
+                                <a href="#demo">
                                     <Button size="lg" variant="outline" className="px-8 h-12 text-base bg-white border-black/10 text-neutral-800 hover:bg-black/[0.03] hover:text-black">
                                         See how it works
                                     </Button>
@@ -321,6 +321,28 @@ export default function HomePage() {
                         </div>
 
                         <SundayTimelineCard />
+                    </div>
+                </div>
+            </section>
+
+            {/* Demo video: loads only when played, so the page stays light on mobile data */}
+            <section id="demo" className="px-6 pb-24 scroll-mt-20">
+                <div className="max-w-5xl mx-auto">
+                    <div className="text-center mb-8">
+                        <h2 className="font-serif text-3xl md:text-4xl font-medium tracking-tight">See how Floc works</h2>
+                        <p className="mt-3 text-neutral-600 text-lg">A week with Floc, from Sunday check-in to the phone call that brings someone back. Just over a minute, no sound.</p>
+                    </div>
+                    <div className="overflow-hidden rounded-2xl ring-1 ring-black/10 shadow-[0_40px_100px_-40px_rgba(28,25,23,0.4)] bg-white">
+                        <video
+                            className="block w-full aspect-video"
+                            src="/floc-demo.mp4"
+                            poster="/floc-demo-poster.jpg"
+                            controls
+                            playsInline
+                            muted
+                            preload="none"
+                            aria-label="Floc demo: Sunday check-in, the dashboard, the care queue, sharing the absent list and giving"
+                        />
                     </div>
                 </div>
             </section>
