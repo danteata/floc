@@ -1,0 +1,152 @@
+<template>
+  <div id="root" data-composition-id="02-brand" data-start="0" data-duration="4.5" data-width="1920" data-height="1080">
+    <style>
+      @font-face{font-family:"Fraunces";font-weight:400;font-style:normal;font-display:block;src:url("assets/fonts/fraunces-latin-400-normal.woff2") format("woff2");}
+      @font-face{font-family:"Fraunces";font-weight:500;font-style:normal;font-display:block;src:url("assets/fonts/fraunces-latin-500-normal.woff2") format("woff2");}
+      @font-face{font-family:"Inter";font-weight:100 900;font-style:normal;font-display:block;src:url("assets/fonts/inter-latin-wght-normal.woff2") format("woff2");}
+
+      #root {
+        position: relative;
+        width: 1920px;
+        height: 1080px;
+        overflow: hidden;
+      }
+      #root .clip {
+        position: absolute;
+        left: 0;
+        top: 0;
+        width: 1920px;
+        height: 1080px;
+      }
+      .br-ground { background: #FAF7F1; }
+
+      /* Lockup: tile + wordmark, centred on x 960, centre line y 400 */
+      .br-lockup {
+        position: absolute;
+        left: 0;
+        top: 340px;
+        width: 1920px;
+        height: 120px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 36px;
+      }
+      .br-tile {
+        flex: none;
+        width: 120px;
+        height: 120px;
+        border-radius: 26.4px;
+        background: #C1153F;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transform-origin: 50% 50%;
+        will-change: transform, opacity;
+      }
+      .br-tile svg {
+        width: 68px;
+        height: 68px;
+        display: block;
+      }
+      .br-wordmark {
+        font-family: "Fraunces", serif;
+        font-weight: 500;
+        font-size: 110px;
+        line-height: 1;
+        letter-spacing: -0.02em;
+        color: #1C1917;
+        margin-top: -10px;
+        will-change: transform, opacity;
+      }
+
+      /* Crimson rule, drawn from the centre */
+      .br-rule {
+        position: absolute;
+        left: 780px;
+        top: 519px;
+        width: 360px;
+        height: 2px;
+        background: #C1153F;
+        transform-origin: 50% 50%;
+      }
+
+      .br-promise {
+        position: absolute;
+        left: 0;
+        top: 568px;
+        width: 1920px;
+        margin: 0;
+        text-align: center;
+        font-family: "Fraunces", serif;
+        font-weight: 500;
+        font-size: 56px;
+        line-height: 1.05;
+        letter-spacing: -0.02em;
+        color: #1C1917;
+      }
+      .br-word {
+        display: inline-block;
+        will-change: transform, opacity;
+      }
+    </style>
+
+    <div id="02-brand-ground" class="clip br-ground" data-start="0" data-duration="4.5" data-track-index="0"></div>
+
+    <div id="02-brand-stage" class="clip" data-start="0" data-duration="4.5" data-track-index="1">
+      <div class="br-lockup">
+        <div id="02-brand-tile" class="br-tile">
+          <svg viewBox="0 0 24 24" fill="none" stroke="#FAF7F1" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+            <path d="M10 9h4" />
+            <path d="M12 7v5" />
+            <path d="M14 21v-3a2 2 0 0 0-4 0v3" />
+            <path d="m18 9 3.52 2.147a1 1 0 0 1 .48.854V19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2v-6.999a1 1 0 0 1 .48-.854L6 9" />
+            <path d="M6 21V7a1 1 0 0 1 .376-.782l5-3.999a1 1 0 0 1 1.249.001l5 4A1 1 0 0 1 18 7v14" />
+          </svg>
+        </div>
+        <div id="02-brand-wordmark" class="br-wordmark">Floc</div>
+      </div>
+
+      <div id="02-brand-rule" class="br-rule"></div>
+
+      <p class="br-promise"><span class="br-word">Make</span> <span class="br-word">sure</span> <span class="br-word">no</span> <span class="br-word">one</span> <span class="br-word">slips</span> <span class="br-word">away.</span></p>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/gsap@3.12.5/dist/gsap.min.js"></script>
+    <script>
+      (function () {
+        var DURATION = 4.5;
+        var byId = function (id) { return document.getElementById(id); };
+        var root = document.querySelector('[data-composition-id="02-brand"]');
+        var byClass = function (cls) { return Array.prototype.slice.call(root.getElementsByClassName(cls)); };
+
+        var tl = gsap.timeline({ paused: true });
+
+        // Scene 1 (0.2-1.4s): the mark settles from 90%; the wordmark slides in beside it.
+        tl.fromTo(byId("02-brand-tile"),
+          { scale: 0.9, opacity: 0 },
+          { scale: 1, opacity: 1, duration: 1.0, ease: "power3.out" }, 0.2);
+        tl.fromTo(byId("02-brand-wordmark"),
+          { x: -28, opacity: 0 },
+          { x: 0, opacity: 1, duration: 0.9, ease: "power3.out" }, 0.45);
+
+        // Scene 2 (1.4-2.2s): the crimson rule draws out from the centre.
+        tl.fromTo(byId("02-brand-rule"),
+          { scaleX: 0 },
+          { scaleX: 1, duration: 0.8, ease: "power3.out" }, 1.4);
+
+        // Scene 3 (2.2-4.5s): the promise, word by word, then hold.
+        byClass("br-word").forEach(function (el, i) {
+          tl.fromTo(el,
+            { opacity: 0, y: 20 },
+            { opacity: 1, y: 0, duration: 0.8, ease: "power3.out" }, 2.2 + i * 0.1);
+        });
+
+        tl.set({}, {}, DURATION);
+
+        window.__timelines = window.__timelines || {};
+        window.__timelines["02-brand"] = tl;
+      })();
+    </script>
+  </div>
+</template>
