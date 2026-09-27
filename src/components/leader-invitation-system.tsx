@@ -39,7 +39,6 @@ import { Label } from '@/components/ui/label'
 import {
   UserPlus,
   Mail,
-  Send,
   CheckCircle,
   AlertCircle,
   Link,
@@ -137,6 +136,10 @@ export function LeaderInvitationSystem() {
   const [selectedLeaders, setSelectedLeaders] = useState<string[]>([])
   const [isSendingInvites, setIsSendingInvites] = useState(false)
   const [generatedLink, setGeneratedLink] = useState<string | null>(null)
+  // Links made in one go from the selected leaders, shown to copy and share.
+  const [bulkLinks, setBulkLinks] = useState<Array<{ id: string; name: string; link: string }> | null>(null)
+  // Read once per mount: whether an invitation has passed its expiry.
+  const [nowMs] = useState(() => Date.now())
   const [isInviteLinkDialogOpen, setIsInviteLinkDialogOpen] = useState(false)
   const [isAdminInviteDialogOpen, setIsAdminInviteDialogOpen] = useState(false)
   const [adminInviteMode, setAdminInviteMode] = useState<'new' | 'existing'>('new')
@@ -227,7 +230,12 @@ export function LeaderInvitationSystem() {
 
   // Pending invitations (awaiting acceptance) that can still be revoked.
   const unitNameById = new Map<string, string>(allUnits.map((u: any) => [u._id, u.name]))
-  const pendingInvitations = (invitations as any[]).filter((i) => i.status === 'pending')
+  const isExpired = (i: { expires_at?: number }) => typeof i.expires_at === 'number' && i.expires_at < nowMs
+  const pendingInvitations = invitations.filter((i) => i.status === 'pending' && !isExpired(i))
+  const expiredInvitations = invitations.filter((i) => i.status === 'pending' && isExpired(i))
+  // Invite links for leaders with no email carry a stand-in address.
+  const inviteEmailLabel = (email: string | undefined) =>
+    !email || email.endsWith('@placeholder.local') ? 'No email (link only)' : email
 
   const handleSelectLeader = (leaderId: string) => {
     if (selectedLeaders.includes(leaderId)) {
@@ -246,39 +254,63 @@ export function LeaderInvitationSystem() {
     }
   }
 
-  const sendInvitations = async () => {
+  // Create one invitation for a leader and return its link. Floc has no email
+  // provider yet, so nothing is emailed: the link is shared by hand.
+  const createInviteLinkFor = async (leader: PotentialLeader): Promise<string> => {
+    const role = 'unit_admin';
+    const email = leader.email && leader.email.trim().length > 0
+      ? leader.email
+      : `invite+${leader.id}@placeholder.local`;
+    const result = await createInvitation({
+      email,
+      member_id: leader.id as Id<"members">,
+      intended_role: role,
+      intended_units: leader.led_unit_ids as Id<"units">[],
+      organization_id: activeOrganization?._id,
+    });
+
+    trackEvent(AnalyticsEventType.MEMBER_INVITED, {
+      role,
+      delivery: 'link',
+    });
+
+    return `${window.location.origin}/accept-invitation?token=${result.token}`;
+  }
+
+  const createInviteLinks = async () => {
     setIsSendingInvites(true)
+    const created: Array<{ id: string; name: string; link: string }> = []
+    let failed = 0
+    let lastError: string | undefined
     try {
       for (const leaderId of selectedLeaders) {
         const leader = potentialLeaders.find(l => l.id === leaderId);
-        if (!leader || !leader.email) continue;
-
-        const role = 'unit_admin';
-
-        await createInvitation({
-          email: leader.email,
-          member_id: leader.id as Id<"members">,
-          intended_role: role,
-          intended_units: leader.led_unit_ids as Id<"units">[],
-        });
-
-        trackEvent(AnalyticsEventType.MEMBER_INVITED, {
-          role,
-          delivery: 'email',
-        });
+        if (!leader) continue;
+        try {
+          const link = await createInviteLinkFor(leader)
+          created.push({ id: leader.id, name: leader.name, link })
+        } catch (err) {
+          failed++
+          lastError = err instanceof Error ? err.message : undefined
+        }
       }
 
-      toast({
-        title: `${selectedLeaders.length} ${selectedLeaders.length === 1 ? "invitation" : "invitations"} sent`
-      });
-      setSelectedLeaders([]);
-    } catch (err: any) {
-      console.error('Send invitations error:', err);
-      toast({
-        variant: "destructive",
-        title: "Couldn't send the invitations",
-        description: err.message
-      });
+      if (created.length > 0) {
+        toast({
+          title: `${created.length} invite ${created.length === 1 ? "link" : "links"} created`,
+          description: failed > 0
+            ? `${failed} couldn't be created${lastError ? `: ${lastError}` : "."}`
+            : "Copy each link and send it to the leader.",
+        });
+        setBulkLinks(created)
+        setSelectedLeaders(prev => prev.filter(id => !created.some(c => c.id === id)));
+      } else if (failed > 0) {
+        toast({
+          variant: "destructive",
+          title: "Couldn't create the invite links",
+          description: lastError,
+        });
+      }
     } finally {
       setIsSendingInvites(false)
     }
@@ -289,24 +321,7 @@ export function LeaderInvitationSystem() {
     if (!leader) return;
 
     try {
-      const role = 'unit_admin';
-      const email = leader.email && leader.email.trim().length > 0
-        ? leader.email
-        : `invite+${leader.id}@placeholder.local`;
-      const result = await createInvitation({
-        email,
-        member_id: leader.id as Id<"members">,
-        intended_role: role,
-        intended_units: leader.led_unit_ids as Id<"units">[],
-        organization_id: activeOrganization?._id,
-      });
-
-      trackEvent(AnalyticsEventType.MEMBER_INVITED, {
-        role,
-        delivery: 'link',
-      });
-
-      const link = `${window.location.origin}/accept-invitation?token=${result.token}`;
+      const link = await createInviteLinkFor(leader)
       setGeneratedLink(link);
       setIsInviteLinkDialogOpen(true);
       if (!leader.email) {
@@ -505,14 +520,14 @@ export function LeaderInvitationSystem() {
               </SelectContent>
             </Select>
             <Button
-              onClick={sendInvitations}
+              onClick={createInviteLinks}
               disabled={selectedLeaders.length === 0 || isSendingInvites}
               className="flex items-center gap-2"
             >
-              <Send className="h-4 w-4" />
+              <Link className="h-4 w-4" />
               {isSendingInvites
-                ? 'Sending…'
-                : `Email invites (${selectedLeaders.length})`}
+                ? 'Creating…'
+                : `Create invite links (${selectedLeaders.length})`}
             </Button>
           </div>
 
@@ -653,7 +668,7 @@ export function LeaderInvitationSystem() {
                 <TableBody>
                   {pendingInvitations.map((inv: any) => (
                     <TableRow key={inv._id}>
-                      <TableCell className="font-medium">{inv.email}</TableCell>
+                      <TableCell className="font-medium">{inviteEmailLabel(inv.email)}</TableCell>
                       <TableCell>
                         <Badge variant="secondary">
                           {inviteRoleLabel(inv.intended_role)}
@@ -694,6 +709,90 @@ export function LeaderInvitationSystem() {
           </CardContent>
         </Card>
       )}
+
+      {expiredInvitations.length > 0 && (
+        <Card className="mt-6">
+          <CardHeader>
+            <CardTitle className="text-lg font-semibold">Expired</CardTitle>
+            <CardDescription>
+              These links no longer work. Create a new invite link for anyone who still needs one.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="rounded-md border">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Email</TableHead>
+                    <TableHead>Role</TableHead>
+                    <TableHead>Expired</TableHead>
+                    <TableHead>Actions</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {expiredInvitations.map((inv) => (
+                    <TableRow key={inv._id}>
+                      <TableCell className="font-medium">{inviteEmailLabel(inv.email)}</TableCell>
+                      <TableCell>
+                        <Badge variant="secondary">
+                          {inviteRoleLabel(inv.intended_role)}
+                        </Badge>
+                      </TableCell>
+                      <TableCell className="text-muted-foreground">{formatDay(inv.expires_at)}</TableCell>
+                      <TableCell>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleRevokeInvitation(inv._id)}
+                          className="flex items-center gap-1"
+                        >
+                          <XCircle className="h-3 w-3" />
+                          Remove
+                        </Button>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      <Dialog
+        open={bulkLinks !== null}
+        onOpenChange={(open) => { if (!open) setBulkLinks(null) }}
+      >
+        <DialogContent className="sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Invite links ready</DialogTitle>
+            <DialogDescription>
+              Nothing has been emailed. Copy each link and send it to the leader. Each link works for 7 days.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="max-h-[50vh] space-y-3 overflow-y-auto">
+            {(bulkLinks || []).map((item) => (
+              <div key={item.id} className="space-y-1">
+                <Label className="text-sm">{item.name}</Label>
+                <div className="flex items-center space-x-2">
+                  <Input value={item.link} readOnly />
+                  <Button
+                    type="button"
+                    size="sm"
+                    aria-label={`Copy the invite link for ${item.name}`}
+                    onClick={() => {
+                      navigator.clipboard.writeText(item.link)
+                      toast({ title: 'Invite link copied' })
+                    }}
+                  >
+                    <Copy className="h-4 w-4" />
+                  </Button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </DialogContent>
+      </Dialog>
 
       <Dialog
         open={isInviteLinkDialogOpen}

@@ -78,7 +78,7 @@ export function SimulateDialog({ open, onOpenChange, rule }: SimulateDialogProps
             <FlaskConical className="h-4 w-4 text-muted-foreground" />
             Simulate: {rule?.name}
           </DialogTitle>
-          <DialogDescription>Who this would reach right now, and what each person would get. Nothing is sent.</DialogDescription>
+          <DialogDescription>Who this would reach right now, and what each person would get. Archived members and anyone outside the units it is limited to are left out. Nothing is sent.</DialogDescription>
         </DialogHeader>
 
         {loading && <LoadingState message="Running the simulation…" />}

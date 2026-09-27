@@ -12,6 +12,7 @@ import {
     Comparator,
     ConditionNode,
     FactContext,
+    MemberFacts,
 } from "./catalog";
 
 function resolveField(ctx: FactContext, path: string): unknown {
@@ -91,4 +92,23 @@ export function evaluateCondition(
             // Unknown operator → fail closed.
             return false;
     }
+}
+
+/**
+ * Is the rule's subject in scope at all, before its trigger or condition tree is
+ * looked at? Pure, shared by the scanner, event processing and simulate.
+ * - Archived members are out of scope for every rule.
+ * - A rule with unit_ids ("Limit to units") only applies to members in at
+ *   least one of those units. With no member to check (an org-level event) it
+ *   fails closed, so a unit-limited rule never fires for the whole church.
+ */
+export function isInRuleScope(
+    rule: { unit_ids?: readonly string[] | null },
+    member: Pick<MemberFacts, "unit_ids" | "archived"> | undefined | null,
+): boolean {
+    if (member?.archived) return false;
+    const limitTo = rule.unit_ids ?? [];
+    if (limitTo.length === 0) return true;
+    if (!member) return false;
+    return member.unit_ids.some((u) => limitTo.includes(u));
 }

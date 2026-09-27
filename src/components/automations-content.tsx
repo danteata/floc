@@ -23,6 +23,7 @@ import { NoAccess } from "@/components/ui/no-access"
 import { DeleteConfirmDialog } from "@/components/delete-confirm-dialog"
 import { useOrganization } from "@/hooks/use-organization"
 import { useUserRole } from "@/hooks/use-user-role"
+import { useSubscription } from "@/providers/SubscriptionProvider"
 
 import { RuleStatusBadge, OutcomeBadge } from "@/components/automations/badges"
 import { TemplateGalleryDialog } from "@/components/automations/template-gallery-dialog"
@@ -31,6 +32,9 @@ import { SimulateDialog } from "@/components/automations/simulate-dialog"
 import { AutomationTemplate } from "@/components/automations/templates"
 
 const CHANNEL_LABEL: Record<string, string> = { in_app: "In-app", sms: "SMS" }
+// listMessages returns at most this many rows (its default limit).
+const ACTIVITY_LIMIT = 100
+
 const channelLabel = (channel?: string) =>
   channel ? CHANNEL_LABEL[channel] ?? channel.charAt(0).toUpperCase() + channel.slice(1).replace(/_/g, " ") : ""
 
@@ -42,6 +46,7 @@ export function AutomationsContent() {
   const rules = useQuery(api.automation.rules.listRules, orgArg)
   const catalog = useQuery(api.automation.rules.getCatalog, {})
   const messages = useQuery(api.automation.rules.listMessages, orgArg)
+  const { isPro, loading: planLoading } = useSubscription()
 
   const setRuleStatus = useMutation(api.automation.rules.setRuleStatus)
   const deleteRule = useMutation(api.automation.rules.deleteRule)
@@ -81,7 +86,16 @@ export function AutomationsContent() {
   const handleToggleDryRun = async (rule: any) => {
     try {
       await setRuleStatus({ id: rule._id, status: rule.status, dry_run: !rule.dry_run })
-      toast.success(rule.dry_run ? "Switched to live sending" : "Switched to dry run")
+      if (!rule.dry_run) {
+        toast.success("Switched to dry run")
+      } else if (rule.status === "draft") {
+        // Live mode alone doesn't run a draft: it still needs enabling.
+        toast.success("Live, but still a draft", { description: "Enable it to run." })
+      } else if (rule.status === "paused") {
+        toast.success("Live, but paused", { description: "Enable it to run again." })
+      } else {
+        toast.success("Switched to live sending")
+      }
     } catch (e) {
       toast.error("Couldn't switch the mode", { description: e instanceof Error ? e.message : undefined })
     }
@@ -127,8 +141,13 @@ export function AutomationsContent() {
           <Card className="overflow-hidden">
             <CardHeader className="border-b border-border/50 px-6 py-4">
               <CardTitle className="text-lg font-semibold">Rules</CardTitle>
-              <CardDescription>New rules start as drafts in dry run, so nothing is sent. Simulate one, then switch it to live.</CardDescription>
+              <CardDescription>New rules start as drafts in dry run, so nothing is sent. Simulate one, switch it to live, then enable it.</CardDescription>
             </CardHeader>
+            {!planLoading && !isPro && rules?.some((r) => r.status === "enabled") && (
+              <div className="border-b border-border/50 bg-warning/10 px-6 py-3 text-sm text-warning-strong">
+                Your church is on the Free plan, so enabled automations are skipped and nothing is sent. Upgrade to Pro to run them.
+              </div>
+            )}
             <CardContent className="p-0">
               {rules === undefined ? (
                 <LoadingState message="Loading automations…" />
@@ -139,7 +158,7 @@ export function AutomationsContent() {
                       <TableHead className="py-4 pl-6">Name</TableHead>
                       <TableHead className="hidden md:table-cell">Trigger</TableHead>
                       <TableHead>Status</TableHead>
-                      <TableHead className="hidden lg:table-cell">Last run</TableHead>
+                      <TableHead className="hidden lg:table-cell">Last fired</TableHead>
                       <TableHead className="text-right pr-6 w-[140px]">Actions</TableHead>
                     </TableRow>
                   </TableHeader>
@@ -208,7 +227,10 @@ export function AutomationsContent() {
           <Card className="overflow-hidden">
             <CardHeader className="border-b border-border/50 px-6 py-4">
               <CardTitle className="text-lg font-semibold">Recent activity</CardTitle>
-              <CardDescription>Every message your automations sent, skipped or held back in dry run.</CardDescription>
+              <CardDescription>
+                Every message your automations sent, skipped or held back in dry run.
+                {messages && messages.length >= ACTIVITY_LIMIT && ` Showing the latest ${ACTIVITY_LIMIT}.`}
+              </CardDescription>
             </CardHeader>
             <CardContent className="p-0">
               {messages === undefined ? (
@@ -218,6 +240,8 @@ export function AutomationsContent() {
                   <TableHeader>
                     <TableRow className="hover:bg-transparent border-border/50">
                       <TableHead className="py-4 pl-6">When</TableHead>
+                      <TableHead>Member</TableHead>
+                      <TableHead className="hidden lg:table-cell">Automation</TableHead>
                       <TableHead className="hidden sm:table-cell">Channel</TableHead>
                       <TableHead>Outcome</TableHead>
                       <TableHead className="hidden md:table-cell">Message</TableHead>
@@ -229,6 +253,12 @@ export function AutomationsContent() {
                         <TableCell className="py-3 pl-6 text-sm text-muted-foreground whitespace-nowrap">
                           {m.sent_at ? format(new Date(m.sent_at), "d MMM, HH:mm") : "Not sent"}
                         </TableCell>
+                        <TableCell className="text-sm">
+                          {m.member_name ?? <span className="text-muted-foreground">{m.member_id ? "Deleted member" : "No member"}</span>}
+                        </TableCell>
+                        <TableCell className="hidden lg:table-cell text-sm text-muted-foreground">
+                          {m.rule_name ?? (m.rule_id ? "Deleted automation" : "")}
+                        </TableCell>
                         <TableCell className="hidden sm:table-cell text-sm">{channelLabel(m.channel)}</TableCell>
                         <TableCell><OutcomeBadge outcome={m.outcome} /></TableCell>
                         <TableCell className="hidden md:table-cell text-sm text-muted-foreground line-clamp-1 max-w-md">
@@ -238,7 +268,7 @@ export function AutomationsContent() {
                     ))}
                     {messages.length === 0 && (
                       <TableRow>
-                        <TableCell colSpan={4} className="h-40">
+                        <TableCell colSpan={6} className="h-40">
                           <EmptyState icon={FlaskConical} title="No activity yet" description="Once automations run, their sends and skips show up here." />
                         </TableCell>
                       </TableRow>

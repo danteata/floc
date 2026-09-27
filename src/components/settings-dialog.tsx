@@ -274,7 +274,6 @@ export function SettingsDialog({ open, onOpenChange, onSuccess }: SettingsDialog
               {isPro && (
                 <TabsTrigger value="ai" className="rounded-lg data-[state=active]:bg-background data-[state=active]:shadow-sm">AI</TabsTrigger>
               )}
-              <TabsTrigger value="general" className="rounded-lg data-[state=active]:bg-background data-[state=active]:shadow-sm">General</TabsTrigger>
             </TabsList>
 
             <TabsContent value="terminology" className="space-y-6 animate-in fade-in slide-in-from-bottom-2 duration-300">
@@ -467,19 +466,6 @@ export function SettingsDialog({ open, onOpenChange, onSuccess }: SettingsDialog
               </TabsContent>
             )}
 
-            <TabsContent value="general" className="space-y-6 animate-in fade-in slide-in-from-bottom-2 duration-300">
-              <Card className="border border-border/50 shadow-sm overflow-hidden bg-card/50">
-                <CardHeader className="bg-muted/20 border-b border-border/50 px-6 py-4">
-                  <CardTitle className="text-base font-semibold">General</CardTitle>
-                  <CardDescription>Other preferences for your church</CardDescription>
-                </CardHeader>
-                <CardContent className="p-6 space-y-6">
-                  <div className="text-sm text-muted-foreground p-4 bg-muted/50 rounded-lg border border-dashed text-center">
-                    Nothing to set here yet.
-                  </div>
-                </CardContent>
-              </Card>
-            </TabsContent>
           </Tabs>
         </div>
 

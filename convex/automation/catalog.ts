@@ -32,6 +32,8 @@ export type MemberFacts = {
     years_as_member?: number;
     engagement_score?: number; // 0-100, higher = more engaged. Undefined on Free orgs.
     engagement_risk_level?: string; // "low" | "medium" | "high" | "new"
+    // Archived members never trigger automations. Not a condition field.
+    archived?: boolean;
 };
 
 export type StreakFacts = {

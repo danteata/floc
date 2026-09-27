@@ -33,6 +33,7 @@ export function OutcomeBadge({ outcome }: { outcome: string }) {
     quiet_hours_deferred: "bg-warning/15 text-warning-strong",
     throttled: "bg-warning/15 text-warning-strong",
     skipped_no_provider: "bg-muted text-muted-foreground",
+    skipped_no_account: "bg-muted text-muted-foreground",
     failed: "bg-destructive/15 text-destructive",
   }
   const labels: Record<string, string> = {
@@ -43,6 +44,7 @@ export function OutcomeBadge({ outcome }: { outcome: string }) {
     quiet_hours_deferred: "Held for quiet hours",
     throttled: "Sending limit reached",
     skipped_no_provider: "No SMS provider",
+    skipped_no_account: "No Floc account",
     failed: "Failed",
   }
   const plain = outcome.replace(/_/g, " ")

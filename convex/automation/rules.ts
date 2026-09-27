@@ -271,10 +271,14 @@ export const simulateRule = mutation({
             ? await loadOrgAttendanceContext(ctx, rule.organization_id)
             : null;
 
-        const members = await ctx.db
+        const fetched = await ctx.db
             .query("members")
             .withIndex("by_org", (q) => q.eq("organization_id", rule.organization_id))
             .take(SIMULATE_MEMBER_CAP);
+        // Archived members never trigger automations, so they aren't counted.
+        // The unit limit ("Limit to units") is applied per member by
+        // queueRuleActions, the same check real runs use.
+        const members = fetched.filter((m) => !m.archived_at);
 
         let matchedCount = 0;
         const samples: Array<{
@@ -320,7 +324,7 @@ export const simulateRule = mutation({
             supported: true,
             matched_count: matchedCount,
             scanned: members.length,
-            capped: members.length >= SIMULATE_MEMBER_CAP,
+            capped: fetched.length >= SIMULATE_MEMBER_CAP,
             samples,
         };
     },
@@ -353,11 +357,30 @@ export const listMessages = query({
         await requireOrgAccess(ctx, args.organization_id);
         const orgId = await resolveOrgId(ctx, args.organization_id);
         if (!orgId) return [];
-        return await ctx.db
+        const rows = await ctx.db
             .query("message_log")
             .withIndex("by_org_and_sent_at", (q) => q.eq("organization_id", orgId))
             .order("desc")
             .take(args.limit ?? 100);
+
+        // Name the member and the rule on each row (looked up once each).
+        const memberNames = new Map<string, string | null>();
+        const ruleNames = new Map<string, string | null>();
+        for (const row of rows) {
+            if (row.member_id && !memberNames.has(row.member_id)) {
+                const member = await ctx.db.get(row.member_id);
+                memberNames.set(row.member_id, member?.name ?? null);
+            }
+            if (row.rule_id && !ruleNames.has(row.rule_id)) {
+                const rule = await ctx.db.get(row.rule_id);
+                ruleNames.set(row.rule_id, rule?.name ?? null);
+            }
+        }
+        return rows.map((row) => ({
+            ...row,
+            member_name: row.member_id ? memberNames.get(row.member_id) ?? null : null,
+            rule_name: row.rule_id ? ruleNames.get(row.rule_id) ?? null : null,
+        }));
     },
 });
 
