@@ -45,6 +45,11 @@ import { api } from '../../convex/_generated/api'
 import { useOrganization } from '@/hooks/use-organization'
 import { toast } from 'sonner'
 import { CURRENCIES, formatMoney, useCurrency } from '@/lib/money'
+import { formatDayShort, toDate } from '@/lib/display'
+import type { Id } from '../../convex/_generated/dataModel'
+
+// Radix Select can't hold an empty value, so "no event" has its own.
+const NO_EVENT = '__none__'
 
 const serviceSummarySchema = z.object({
     service_date: z.date(),
@@ -64,8 +69,8 @@ const serviceSummarySchema = z.object({
     // Currency
     currency: z.string().min(1, 'Currency is required'),
     // Treasurer tracking
-    counted_by: z.array(z.string()).min(1, 'At least one counter is required'),
-    counted_by_names: z.array(z.string()).min(1, 'At least one counter name is required'),
+    counted_by: z.array(z.string()).min(1, 'Add at least one witness'),
+    counted_by_names: z.array(z.string()).min(1, 'Add at least one witness'),
     notes: z.string().optional(),
 })
 
@@ -75,6 +80,18 @@ interface ServiceFinancialSummaryDialogProps {
     open: boolean
     onOpenChange: (open: boolean) => void
     summary?: ServiceFinancialSummary | null
+}
+
+/** Witnesses are stored as one comma-separated list of names. */
+const WITNESS_SEPARATOR = ', '
+
+function joinWitnesses(names: string[]): string | undefined {
+    const list = names.map((name) => name.trim()).filter(Boolean)
+    return list.length > 0 ? list.join(WITNESS_SEPARATOR) : undefined
+}
+
+function splitWitnesses(value: string | undefined): string[] {
+    return (value ?? '').split(',').map((name) => name.trim()).filter(Boolean)
 }
 
 const SERVICE_TYPES = [
@@ -139,7 +156,7 @@ export function ServiceFinancialSummaryDialog({
     useEffect(() => {
         if (open && summary) {
             form.reset({
-                service_date: new Date(summary.service_date),
+                service_date: toDate(summary.service_date),
                 service_type: summary.service_type,
                 service_name: summary.service_name || '',
                 event_id: summary.event_id || '',
@@ -153,8 +170,8 @@ export function ServiceFinancialSummaryDialog({
                 special_offerings_cash: summary.special_offerings_cash || 0,
                 special_offerings_electronic: summary.special_offerings_electronic || 0,
                 currency: summary.currency || 'GHS',
-                counted_by: summary.witnessed_by ? [summary.witnessed_by] : [],
-                counted_by_names: summary.witnessed_by_name ? [summary.witnessed_by_name] : [],
+                counted_by: splitWitnesses(summary.witnessed_by),
+                counted_by_names: splitWitnesses(summary.witnessed_by_name ?? summary.witnessed_by),
                 notes: summary.notes || '',
             })
         } else if (open && !summary) {
@@ -189,7 +206,7 @@ export function ServiceFinancialSummaryDialog({
             const selectedEvent = events.find(e => e._id === eventId)
             if (selectedEvent) {
                 form.setValue('service_name', selectedEvent.title)
-                form.setValue('service_date', new Date(selectedEvent.date))
+                form.setValue('service_date', toDate(selectedEvent.date))
             }
         } else if (serviceType !== 'event') {
             form.setValue('event_id', '')
@@ -197,7 +214,9 @@ export function ServiceFinancialSummaryDialog({
     }, [form.watch('service_type'), form.watch('event_id'), events, form])
 
     const onSubmit = async (data: ServiceSummaryFormData) => {
-        if (!user?.id || !organization?.id) return
+        // The org document's key is _id; checking `.id` (always undefined)
+        // made every save return here without a word.
+        if (!user?.id || !organization?._id) return
 
         setIsLoading(true)
         try {
@@ -205,11 +224,12 @@ export function ServiceFinancialSummaryDialog({
             const total_offerings = data.offerings_cash + data.offerings_electronic
             const total_special_offerings = (data.special_offerings_cash || 0) + (data.special_offerings_electronic || 0)
 
-            const summaryPayload: any = {
-                service_date: data.service_date.toISOString().split('T')[0],
+            const summaryPayload = {
+                // The calendar day picked, not the UTC day.
+                service_date: format(data.service_date, 'yyyy-MM-dd'),
                 service_type: data.service_type,
                 service_name: data.service_name || '',
-                event_id: data.event_id as any || undefined,
+                event_id: data.event_id ? (data.event_id as Id<'events'>) : undefined,
                 total_attendance: 0,
                 tithe_payers: data.tithe_payers,
                 total_tithes,
@@ -226,22 +246,28 @@ export function ServiceFinancialSummaryDialog({
                 special_offerings_cash: data.special_offerings_cash,
                 special_offerings_electronic: data.special_offerings_electronic,
                 currency: data.currency,
-                witnessed_by: data.counted_by[0] || '',
-                witnessed_by_name: data.counted_by_names[0] || '',
-                recorded_by: user.id,
-                recorded_by_name: user.fullName || user.username || 'System Agent',
+                // Every witness is kept, as one list of names: the table has a
+                // single field, and keeping only the first dropped the rest.
+                witnessed_by: joinWitnesses(data.counted_by),
+                witnessed_by_name: joinWitnesses(data.counted_by_names),
                 notes: data.notes,
-                organization_id: organization._id,
             }
 
             if (summary) {
+                // Only fields updateServiceSummary declares; null unlinks an event.
                 await updateSummary({
-                    id: summary._id as any,
-                    ...summaryPayload
+                    id: summary._id as Id<'service_financial_summaries'>,
+                    ...summaryPayload,
+                    event_id: summaryPayload.event_id ?? null,
                 })
                 toast.success('Service summary updated')
             } else {
-                await createSummary(summaryPayload)
+                await createSummary({
+                    ...summaryPayload,
+                    recorded_by: user.id,
+                    recorded_by_name: user.fullName || user.username || 'System Agent',
+                    organization_id: organization._id,
+                })
                 toast.success('Service summary added')
             }
             onOpenChange(false)
@@ -377,17 +403,17 @@ export function ServiceFinancialSummaryDialog({
                                                 render={({ field }) => (
                                                     <FormItem className="animate-in fade-in slide-in-from-top-2">
                                                         <FormLabel className="text-sm">Linked event</FormLabel>
-                                                        <Select onValueChange={field.onChange} value={field.value}>
+                                                        <Select onValueChange={(value) => field.onChange(value === NO_EVENT ? '' : value)} value={field.value || NO_EVENT}>
                                                             <FormControl>
                                                                 <SelectTrigger className="h-11 rounded-lg bg-background">
                                                                     <SelectValue placeholder="Choose an event" />
                                                                 </SelectTrigger>
                                                             </FormControl>
                                                             <SelectContent className="rounded-lg shadow-soft-lg max-h-[300px]">
-                                                                <SelectItem value="" className="text-muted-foreground">None</SelectItem>
+                                                                <SelectItem value={NO_EVENT} className="text-muted-foreground">None</SelectItem>
                                                                 {events?.map((event) => (
                                                                     <SelectItem key={event._id} value={event._id}>
-                                                                        {event.title} ({format(new Date(event.date), 'd MMM')})
+                                                                        {event.title} ({formatDayShort(event.date)})
                                                                     </SelectItem>
                                                                 ))}
                                                             </SelectContent>
@@ -632,6 +658,9 @@ export function ServiceFinancialSummaryDialog({
                                                 placeholder="Add a witness…"
                                                 className="h-11 rounded-lg"
                                             />
+                                            {(form.formState.errors.counted_by_names || form.formState.errors.counted_by) && (
+                                                <p className="text-sm text-destructive">Add at least one witness</p>
+                                            )}
                                         </div>
                                     </div>
 

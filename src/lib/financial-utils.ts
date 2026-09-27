@@ -1,5 +1,6 @@
 import { DEFAULT_CURRENCY, formatMoney } from '@/lib/money'
-import { formatMonth } from '@/lib/display'
+import { formatMonth, toDayKey } from '@/lib/display'
+import { toCsv } from '@/lib/csv'
 import { FinancialTransaction, TransactionType, TransactionCategory, BudgetCategory } from '@/types/database'
 
 export const TRANSACTION_CATEGORIES: Record<TransactionCategory, { label: string; color: string; icon: string }> = {
@@ -76,36 +77,91 @@ export function calculateTransactionTotals(transactions: FinancialTransaction[])
     return totals
 }
 
+/** The calendar day of a stored transaction date ("2026-09-26" or an ISO timestamp), as "yyyy-mm-dd". */
+export function transactionDay(date: string): string {
+    return (date ?? '').slice(0, 10)
+}
+
+export type ReportingPeriod = 'month' | 'quarter' | 'year'
+
+const MONTHS_IN_PERIOD: Record<ReportingPeriod, number> = { month: 1, quarter: 3, year: 12 }
+
+function periodStart(period: ReportingPeriod, d: Date): Date {
+    if (period === 'month') return new Date(d.getFullYear(), d.getMonth(), 1)
+    if (period === 'quarter') return new Date(d.getFullYear(), Math.floor(d.getMonth() / 3) * 3, 1)
+    return new Date(d.getFullYear(), 0, 1)
+}
+
+/** The same day `months` months earlier, pulled back to the month's last day if it has fewer days (31 Mar -> 28 Feb). */
+function monthsEarlier(d: Date, months: number): Date {
+    const target = new Date(d.getFullYear(), d.getMonth() - months, 1)
+    const lastDay = new Date(target.getFullYear(), target.getMonth() + 1, 0).getDate()
+    return new Date(target.getFullYear(), target.getMonth(), Math.min(d.getDate(), lastDay))
+}
+
 /**
- * This calendar month's total of one type against last month's, from the
- * transactions' own dates. `change` is a whole-number percentage, or null when
- * last month had nothing to compare against (a percentage of zero is meaningless).
+ * This month (quarter, year) so far, and the same span of the one before:
+ * on 5 September that is 1 to 5 September against 1 to 5 August. Comparing a
+ * few days with a whole month would show a steep fall every early month.
+ * Days are local "yyyy-mm-dd" strings, inclusive.
  */
-export function monthOnMonth(
+export function periodToDateRanges(period: ReportingPeriod, now: Date = new Date()) {
+    const sameDayBefore = monthsEarlier(now, MONTHS_IN_PERIOD[period])
+    return {
+        current: { start: toDayKey(periodStart(period, now)), end: toDayKey(now) },
+        previous: { start: toDayKey(periodStart(period, sameDayBefore)), end: toDayKey(sameDayBefore) },
+    }
+}
+
+/**
+ * One type's counted total for this period so far against the same span of
+ * the previous period, from the transactions' own dates. `change` is a
+ * whole-number percentage, or null when the previous span had nothing to
+ * compare against (a percentage of zero is meaningless).
+ */
+export function periodToDate(
     transactions: Array<{ type: string; amount: number; date: string; status?: string }>,
     type: TransactionType,
+    period: ReportingPeriod,
     now: Date = new Date(),
 ): { current: number; previous: number; change: number | null } {
-    const thisMonth = now.getFullYear() * 12 + now.getMonth()
+    const { current: cur, previous: prev } = periodToDateRanges(period, now)
     let current = 0
     let previous = 0
     for (const t of transactions) {
         if (t.type !== type || !isCountedTransaction(t)) continue
-        const d = new Date(t.date)
-        if (Number.isNaN(d.getTime())) continue
-        const month = d.getFullYear() * 12 + d.getMonth()
-        if (month === thisMonth) current += t.amount
-        else if (month === thisMonth - 1) previous += t.amount
+        const day = transactionDay(t.date)
+        if (day >= cur.start && day <= cur.end) current += t.amount
+        else if (day >= prev.start && day <= prev.end) previous += t.amount
     }
     const change = previous > 0 ? Math.round(((current - previous) / previous) * 100) : null
     return { current, previous, change }
 }
 
-/** "12% up on last month", "Level with last month", or null with nothing to compare. */
+/** This month so far against the same days of last month (see periodToDate). */
+export function monthOnMonth(
+    transactions: Array<{ type: string; amount: number; date: string; status?: string }>,
+    type: TransactionType,
+    now: Date = new Date(),
+): { current: number; previous: number; change: number | null } {
+    return periodToDate(transactions, type, 'month', now)
+}
+
+/** "12% up on the same days last month", "Level with the same days last month", or null with nothing to compare. */
 export function describeMonthOnMonth(change: number | null): string | null {
     if (change === null) return null
-    if (change === 0) return 'Level with last month'
-    return `${Math.abs(change)}% ${change > 0 ? 'up' : 'down'} on last month`
+    if (change === 0) return 'Level with the same days last month'
+    return `${Math.abs(change)}% ${change > 0 ? 'up' : 'down'} on the same days last month`
+}
+
+/** Newest transaction date first; rows on the same day newest-entered first. */
+export function sortByTransactionDate<T extends { date: string; _creationTime?: number }>(transactions: T[]): T[] {
+    return [...transactions].sort((a, b) => {
+        const da = transactionDay(a.date)
+        const db = transactionDay(b.date)
+        if (da !== db) return da < db ? 1 : -1
+        return (b._creationTime ?? 0) - (a._creationTime ?? 0)
+    })
 }
 
 export function calculateBudgetVariance(budgets: BudgetCategory[], transactions: FinancialTransaction[]) {
@@ -113,8 +169,7 @@ export function calculateBudgetVariance(budgets: BudgetCategory[], transactions:
         const categoryTransactions = transactions.filter(t =>
             isCountedTransaction(t) &&
             t.category === budget.category &&
-            new Date(t.date).getMonth() === budget.month - 1 &&
-            new Date(t.date).getFullYear() === budget.fiscal_year
+            transactionDay(t.date).slice(0, 7) === `${budget.fiscal_year}-${String(budget.month).padStart(2, '0')}`
         )
 
         const actualAmount = categoryTransactions.reduce((sum, t) => sum + t.amount, 0)
@@ -133,24 +188,9 @@ export function calculateBudgetVariance(budgets: BudgetCategory[], transactions:
     return variances
 }
 
-export function getTransactionsByPeriod(transactions: FinancialTransaction[], period: 'month' | 'quarter' | 'year') {
-    const now = new Date()
-    let startDate: Date
-
-    switch (period) {
-        case 'month':
-            startDate = new Date(now.getFullYear(), now.getMonth(), 1)
-            break
-        case 'quarter':
-            const quarterStart = Math.floor(now.getMonth() / 3) * 3
-            startDate = new Date(now.getFullYear(), quarterStart, 1)
-            break
-        case 'year':
-            startDate = new Date(now.getFullYear(), 0, 1)
-            break
-    }
-
-    return transactions.filter(t => new Date(t.date) >= startDate)
+export function getTransactionsByPeriod(transactions: FinancialTransaction[], period: ReportingPeriod) {
+    const start = toDayKey(periodStart(period, new Date()))
+    return transactions.filter(t => transactionDay(t.date) >= start)
 }
 
 export function getTopTransactionCategories(transactions: FinancialTransaction[], limit = 5) {
@@ -209,11 +249,8 @@ export function getMonthlyTrend(transactions: FinancialTransaction[], months = 1
 
     for (let i = months - 1; i >= 0; i--) {
         const date = new Date(now.getFullYear(), now.getMonth() - i, 1)
-        const monthTransactions = transactions.filter(t => {
-            const transactionDate = new Date(t.date)
-            return transactionDate.getMonth() === date.getMonth() &&
-                transactionDate.getFullYear() === date.getFullYear()
-        })
+        const monthKey = toDayKey(date).slice(0, 7)
+        const monthTransactions = transactions.filter(t => transactionDay(t.date).slice(0, 7) === monthKey)
 
         const totals = calculateTransactionTotals(monthTransactions)
 
@@ -228,36 +265,45 @@ export function getMonthlyTrend(transactions: FinancialTransaction[], months = 1
     return trend
 }
 
+const STATUS_LABELS: Record<string, string> = {
+    completed: 'Completed',
+    pending: 'Pending',
+    failed: 'Failed',
+    voided: 'Voided',
+}
+
+/**
+ * Every row of the ledger as CSV, with a Status column so voided, pending and
+ * failed rows (which no total counts) can be told apart or filtered out.
+ */
 export function exportTransactionsToCSV(transactions: FinancialTransaction[]): string {
     const headers = [
         'Date',
+        'Status',
         'Type',
         'Category',
         'Amount',
         'Description',
-        'Payment Method',
-        'Member',
+        'Payment method',
+        'Member or giver',
         'Event',
-        'Recorded By',
+        'Recorded by',
         'Notes'
     ]
 
     const rows = transactions.map(t => [
-        t.date,
-        t.type,
+        transactionDay(t.date),
+        STATUS_LABELS[t.status ?? 'completed'] ?? t.status,
+        t.type === 'income' ? 'Income' : t.type === 'expense' ? 'Expense' : t.type,
         TRANSACTION_CATEGORIES[t.category as TransactionCategory]?.label || t.category,
         t.amount.toString(),
         t.description,
         PAYMENT_METHODS.find(pm => pm.value === t.payment_method)?.label || t.payment_method,
-        t.member_name || '',
+        t.member_name || t.giver_name || '',
         t.event_name || '',
         t.recorded_by_name,
         t.notes || ''
     ])
 
-    const csvContent = [headers, ...rows]
-        .map(row => row.map(cell => `"${cell}"`).join(','))
-        .join('\n')
-
-    return csvContent
+    return toCsv(headers, rows)
 }

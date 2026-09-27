@@ -10,18 +10,19 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Calendar } from '@/components/ui/calendar'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { format, startOfMonth, endOfMonth, startOfYear, endOfYear, startOfQuarter, endOfQuarter, subMonths, subYears } from 'date-fns'
+import { formatDay, formatMonth, toDayKey } from '@/lib/display'
+import { todayStamp } from '@/lib/csv'
 import { CalendarIcon, Download, TrendingUp, TrendingDown, Wallet, Receipt, PieChart, BarChart3, Loader2 } from 'lucide-react'
 import { TransactionCategory } from '@/types/database'
-import { TRANSACTION_CATEGORIES } from '@/lib/financial-utils'
+import { isCountedTransaction, TRANSACTION_CATEGORIES, transactionDay } from '@/lib/financial-utils'
 import { useMoney } from '@/lib/money'
-import { EmptyState } from '@/components/ui/empty-state'
 import { cn } from '@/lib/utils'
 import { StatCard, StatGrid } from '@/components/ui/stat-card'
 import { useQuery } from 'convex/react'
 import { api } from '../../convex/_generated/api'
 import { useOrganization } from '@/hooks/use-organization'
 
-type ReportType = 'income-statement' | 'expense-breakdown' | 'contribution-analysis' | 'budget-comparison' | 'trend-analysis'
+type ReportType = 'income-statement' | 'expense-breakdown' | 'trend-analysis'
 
 export function FinancialReports() {
     const { organization } = useOrganization()
@@ -44,27 +45,30 @@ export function FinancialReports() {
         { value: 'custom', label: 'Custom dates' }
     ]
 
+    // Custom dates need both ends; with one missing (or the wrong way round)
+    // the report shows nothing and says why, rather than quietly showing all time.
+    const customIncomplete = dateRange === 'custom' && (!customStartDate || !customEndDate)
+    const customReversed = dateRange === 'custom' && !!customStartDate && !!customEndDate && customStartDate > customEndDate
+
     const filteredTransactions = useMemo(() => {
         if (!transactions) return []
 
         let start: Date
         let end: Date
 
-        if (dateRange === 'custom' && customStartDate && customEndDate) {
+        if (dateRange === 'custom') {
+            if (!customStartDate || !customEndDate) return []
             start = customStartDate
             end = customEndDate
         } else {
             const now = new Date()
             switch (dateRange) {
-                case 'this-month':
-                    start = startOfMonth(now)
-                    end = endOfMonth(now)
-                    break
-                case 'last-month':
+                case 'last-month': {
                     const lastMonth = subMonths(now, 1)
                     start = startOfMonth(lastMonth)
                     end = endOfMonth(lastMonth)
                     break
+                }
                 case 'this-quarter':
                     start = startOfQuarter(now)
                     end = endOfQuarter(now)
@@ -73,20 +77,28 @@ export function FinancialReports() {
                     start = startOfYear(now)
                     end = endOfYear(now)
                     break
-                case 'last-year':
+                case 'last-year': {
                     const lastYear = subYears(now, 1)
                     start = startOfYear(lastYear)
                     end = endOfYear(lastYear)
                     break
+                }
+                case 'this-month':
                 default:
-                    start = new Date(0)
-                    end = new Date()
+                    start = startOfMonth(now)
+                    end = endOfMonth(now)
             }
         }
 
+        // Compare calendar days as "yyyy-mm-dd" strings: a stored day parsed
+        // with new Date() is UTC midnight and slips a day west of Greenwich.
+        // Voided, pending and failed rows are money not in hand: left out.
+        const startDay = toDayKey(start)
+        const endDay = toDayKey(end)
         return transactions.filter(transaction => {
-            const transactionDate = new Date(transaction.date)
-            return transactionDate >= start && transactionDate <= end
+            if (!isCountedTransaction(transaction)) return false
+            const day = transactionDay(transaction.date)
+            return day >= startDay && day <= endDay
         })
     }, [transactions, dateRange, customStartDate, customEndDate])
 
@@ -110,8 +122,9 @@ export function FinancialReports() {
         }, {} as Record<string, number>)
 
         // Group by month for trend analysis
-        const monthlyData = filteredTransactions.reduce((acc, t) => {
-            const month = format(new Date(t.date), 'MMM yyyy')
+        // Keyed by "yyyy-mm" from the stored day, then shown oldest first as "Sep 2026".
+        const byMonthKey = filteredTransactions.reduce((acc, t) => {
+            const month = transactionDay(t.date).slice(0, 7)
             if (!acc[month]) {
                 acc[month] = { income: 0, expenses: 0, net: 0 }
             }
@@ -123,6 +136,9 @@ export function FinancialReports() {
             acc[month].net = acc[month].income - acc[month].expenses
             return acc
         }, {} as Record<string, { income: number; expenses: number; net: number }>)
+        const monthlyData = Object.fromEntries(
+            Object.keys(byMonthKey).sort().map((key) => [formatMonth(`${key}-01`), byMonthKey[key]]),
+        )
 
         return {
             totalIncome,
@@ -135,12 +151,16 @@ export function FinancialReports() {
         }
     }, [filteredTransactions])
 
+    const periodLabel = dateRange === 'custom' && customStartDate && customEndDate
+        ? `${formatDay(customStartDate)} to ${formatDay(customEndDate)}`
+        : dateRangeOptions.find(d => d.value === dateRange)?.label
+
     const exportReport = () => {
         let csvContent = ''
 
         switch (reportType) {
             case 'income-statement':
-                csvContent = `Income statement: ${dateRangeOptions.find(d => d.value === dateRange)?.label}\n\n`
+                csvContent = `Income statement: ${periodLabel}\n\n`
                 csvContent += `Total income,"${money(reportData.totalIncome)}"\n`
                 csvContent += `Total expenses,"${money(reportData.totalExpenses)}"\n`
                 csvContent += `Net,"${money(reportData.netIncome)}"\n\n`
@@ -155,26 +175,29 @@ export function FinancialReports() {
                 break
 
             case 'trend-analysis':
-                csvContent = `Monthly trends: ${dateRangeOptions.find(d => d.value === dateRange)?.label}\n\n`
+                csvContent = `Monthly trends: ${periodLabel}\n\n`
                 csvContent += `Month,Income,Expenses,Net\n`
                 Object.entries(reportData.monthlyData).forEach(([month, data]) => {
                     csvContent += `${month},"${money(data.income)}","${money(data.expenses)}","${money(data.net)}"\n`
                 })
                 break
 
-            default:
-                csvContent = `Transactions: ${dateRangeOptions.find(d => d.value === dateRange)?.label}\n\n`
-                csvContent += `Date,Type,Category,Description,Amount,Payment method\n`
-                filteredTransactions.forEach(t => {
-                    csvContent += `${t.date},${t.type},${TRANSACTION_CATEGORIES[t.category as unknown as TransactionCategory]?.label || t.category},"${t.description}","${money(t.amount)}",${t.payment_method}\n`
+            case 'expense-breakdown':
+                csvContent = `Expense breakdown: ${periodLabel}\n\n`
+                csvContent += `Category,Amount,Share\n`
+                Object.entries(reportData.expensesByCategory).forEach(([category, amount]) => {
+                    const share = reportData.totalExpenses > 0 ? ((amount / reportData.totalExpenses) * 100).toFixed(1) : '0.0'
+                    csvContent += `${TRANSACTION_CATEGORIES[category as unknown as TransactionCategory]?.label || category},"${money(amount)}",${share}%\n`
                 })
+                csvContent += `Total expenses,"${money(reportData.totalExpenses)}",\n`
+                break
         }
 
         const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' })
         const link = document.createElement('a')
         const url = URL.createObjectURL(blob)
         link.setAttribute('href', url)
-        link.setAttribute('download', `financial-report-${reportType}-${dateRange}-${new Date().toISOString().split('T')[0]}.csv`)
+        link.setAttribute('download', `financial-report-${reportType}-${dateRange}-${todayStamp()}.csv`)
         link.style.visibility = 'hidden'
         document.body.appendChild(link)
         link.click()
@@ -211,8 +234,6 @@ export function FinancialReports() {
                                 <SelectContent className="rounded-xl shadow-lg border-border/50">
                                     <SelectItem value="income-statement">Income statement</SelectItem>
                                     <SelectItem value="expense-breakdown">Expense breakdown</SelectItem>
-                                    <SelectItem value="contribution-analysis">Contributions</SelectItem>
-                                    <SelectItem value="budget-comparison">Budget comparison</SelectItem>
                                     <SelectItem value="trend-analysis">Monthly trends</SelectItem>
                                 </SelectContent>
                             </Select>
@@ -238,6 +259,7 @@ export function FinancialReports() {
                             <label className="text-sm text-muted-foreground ml-1">Download</label>
                             <Button
                                 onClick={exportReport}
+                                disabled={customIncomplete || customReversed}
                                 className="w-full h-11 rounded-lg bg-primary text-primary-foreground shadow-soft hover:shadow-soft-lg transition-all"
                             >
                                 <Download className="h-4 w-4 mr-2" />
@@ -279,6 +301,12 @@ export function FinancialReports() {
                             </div>
                         </div>
                     )}
+                    {customIncomplete && (
+                        <p className="mt-3 text-sm text-muted-foreground">Pick a start and an end date to see this report.</p>
+                    )}
+                    {customReversed && (
+                        <p className="mt-3 text-sm text-destructive">The start date is after the end date.</p>
+                    )}
                 </CardContent>
             </Card>
 
@@ -287,7 +315,6 @@ export function FinancialReports() {
                 <TabsList className="bg-muted/50 p-1 rounded-xl w-full md:w-auto inline-flex overflow-x-auto">
                     <TabsTrigger value="income-statement" className="rounded-lg data-[state=active]:bg-background data-[state=active]:shadow-sm px-4">Income statement</TabsTrigger>
                     <TabsTrigger value="expense-breakdown" className="rounded-lg data-[state=active]:bg-background data-[state=active]:shadow-sm px-4">Expense breakdown</TabsTrigger>
-                    <TabsTrigger value="contribution-analysis" className="rounded-lg data-[state=active]:bg-background data-[state=active]:shadow-sm px-4">Contributions</TabsTrigger>
                     <TabsTrigger value="trend-analysis" className="rounded-lg data-[state=active]:bg-background data-[state=active]:shadow-sm px-4">Trends</TabsTrigger>
                 </TabsList>
 
@@ -401,18 +428,6 @@ export function FinancialReports() {
                                     )}
                                 </TableBody>
                             </Table>
-                        </CardContent>
-                    </Card>
-                </TabsContent>
-
-                <TabsContent value="contribution-analysis" className="animate-in fade-in slide-in-from-bottom-4 duration-500">
-                    <Card className="rounded-xl">
-                        <CardContent className="p-6">
-                            <EmptyState
-                                icon={PieChart}
-                                title="Contribution reports aren't available yet"
-                                description="Giving by member will appear here. Until then, the ledger lists every gift."
-                            />
                         </CardContent>
                     </Card>
                 </TabsContent>

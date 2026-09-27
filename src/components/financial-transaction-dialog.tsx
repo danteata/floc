@@ -48,6 +48,11 @@ import { useOrganization } from '@/hooks/use-organization'
 import { toast } from 'sonner'
 import { Badge } from '@/components/ui/badge'
 import { useCurrency } from '@/lib/money'
+import { toDate } from '@/lib/display'
+import type { Id } from '../../convex/_generated/dataModel'
+
+// Radix Select can't hold an empty value, so "no event" has its own.
+const NO_EVENT = '__none__'
 
 /** The currency's own symbol ("GH₵", "₦", "$") for the amount field. */
 function currencySymbol(currency: string): string {
@@ -131,7 +136,8 @@ export function FinancialTransactionDialog({
                 category: transaction.category,
                 amount: transaction.amount,
                 description: transaction.description,
-                date: new Date(transaction.date),
+                // A stored calendar day read as local midnight, not UTC.
+                date: toDate(transaction.date),
                 payment_method: transaction.payment_method,
                 member_id: (transaction as any).member_id || '',
                 member_name: transaction.member_name || '',
@@ -189,23 +195,27 @@ export function FinancialTransactionDialog({
 
         setIsLoading(true)
         try {
-            // Optional pickers hold "" when nothing is chosen; the server wants the field left out.
-            const optional = Object.fromEntries(
-                Object.entries(data).filter(([, value]) => value !== ''),
-            )
-            const transactionPayload: any = {
-                ...optional,
-                recorded_by: user.id,
-                recorded_by_name: user.fullName || user.primaryEmailAddress?.emailAddress || 'Unknown User',
-                // The calendar day the user picked, not the UTC day (which differs east of Greenwich).
-                date: format(data.date, 'yyyy-MM-dd'),
-                organization_id: organization._id,
-            }
+            // The calendar day the user picked, not the UTC day (which differs east of Greenwich).
+            const date = format(data.date, 'yyyy-MM-dd')
 
             if (transaction) {
+                // Only the fields updateTransaction declares; who recorded it
+                // and which church it belongs to never change on edit. An
+                // empty member or event picker sends null, which clears it.
                 await updateTransaction({
-                    id: transaction._id as any,
-                    ...transactionPayload
+                    id: transaction._id as Id<'financial_transactions'>,
+                    type: data.type,
+                    category: data.category,
+                    amount: data.amount,
+                    description: data.description,
+                    date,
+                    payment_method: data.payment_method,
+                    member_id: data.member_id ? (data.member_id as Id<'members'>) : null,
+                    member_name: data.member_id ? data.member_name || null : null,
+                    event_id: data.event_id ? (data.event_id as Id<'events'>) : null,
+                    event_name: data.event_id ? data.event_name || null : null,
+                    notes: data.notes ?? '',
+                    ...(data.receipt_url ? { receipt_url: data.receipt_url } : {}),
                 })
                 toast.success('Transaction updated')
                 trackEvent(AnalyticsEventType.FINANCIAL_TRANSACTION_UPDATED, {
@@ -213,6 +223,17 @@ export function FinancialTransactionDialog({
                     category: data.category,
                 })
             } else {
+                // Optional pickers hold "" when nothing is chosen; the server wants the field left out.
+                const optional = Object.fromEntries(
+                    Object.entries(data).filter(([, value]) => value !== ''),
+                )
+                const transactionPayload: any = {
+                    ...optional,
+                    recorded_by: user.id,
+                    recorded_by_name: user.fullName || user.primaryEmailAddress?.emailAddress || 'Unknown User',
+                    date,
+                    organization_id: organization._id,
+                }
                 await createTransaction(transactionPayload)
                 toast.success('Transaction added')
                 trackEvent(AnalyticsEventType.FINANCIAL_TRANSACTION_CREATED, {
@@ -472,14 +493,14 @@ export function FinancialTransactionDialog({
                                                     render={({ field }) => (
                                                         <FormItem className="animate-in fade-in slide-in-from-top-2">
                                                             <FormLabel className="text-sm">Event</FormLabel>
-                                                            <Select onValueChange={field.onChange} value={field.value}>
+                                                            <Select onValueChange={(value) => field.onChange(value === NO_EVENT ? '' : value)} value={field.value || NO_EVENT}>
                                                                 <FormControl>
                                                                     <SelectTrigger className="h-11 rounded-lg bg-background">
                                                                         <SelectValue placeholder="Choose an event" />
                                                                     </SelectTrigger>
                                                                 </FormControl>
                                                                 <SelectContent className="rounded-lg shadow-soft-lg max-h-[300px]">
-                                                                    <SelectItem value="">None</SelectItem>
+                                                                    <SelectItem value={NO_EVENT}>None</SelectItem>
                                                                     {events?.map((event) => (
                                                                         <SelectItem key={event._id} value={event._id}>
                                                                             {event.title}
