@@ -310,7 +310,8 @@ export const createOrOpenSession = mutation({
             longitude: args.longitude,
             radius_meters: args.radius_meters,
             display_name:
-                args.display_name ?? `${eventType.label} — ${args.date}`,
+                // The date shows beside the name wherever it appears, so the name is just the event.
+                args.display_name ?? eventType.label,
             check_in_count: 0,
         });
 

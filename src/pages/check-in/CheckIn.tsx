@@ -12,7 +12,7 @@ import { Id } from "../../../convex/_generated/dataModel"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { errorMessage } from "@/lib/errors"
-import { titleCase } from '@/lib/display'
+import { sessionName, titleCase } from '@/lib/display'
 
 type CheckInResult =
     | { status: "loading" }
@@ -169,7 +169,7 @@ function CheckInFlow() {
                         <QrCode className="h-8 w-8 mx-auto mb-2 text-muted-foreground" />
                         <h1 className="text-xl font-semibold">Sign in to check in</h1>
                         <p className="text-sm text-muted-foreground mt-1">
-                            {[titleCase(sessionInfo?.display_name), sessionInfo?.organization_name].filter(Boolean).join(" · ")}
+                            {[sessionName(sessionInfo?.display_name), sessionInfo?.organization_name].filter(Boolean).join(" · ")}
                         </p>
                     </div>
                     <SignIn routing="hash" afterSignInUrl={window.location.href} />
@@ -183,7 +183,7 @@ function CheckInFlow() {
             <Shell>
                 <div className="flex flex-col items-center justify-center py-16 text-muted-foreground">
                     <Loader2 className="h-8 w-8 animate-spin mb-3" />
-                    <p className="text-sm">Checking you in to {titleCase(sessionInfo?.display_name)}…</p>
+                    <p className="text-sm">Checking you in to {sessionName(sessionInfo?.display_name)}…</p>
                 </div>
             </Shell>
         )

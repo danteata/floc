@@ -10,6 +10,7 @@ import { Badge } from "@/components/ui/badge"
 import { Skeleton } from "@/components/ui/skeleton"
 import { EmptyState } from "@/components/ui/empty-state"
 import { checkInSourceLabel, formatDay, formatDayTime, titleCase } from "./format"
+import { sessionName } from '@/lib/display'
 
 export default function PortalDashboard() {
     const upcoming = useQuery(api.check_ins.getMyUpcomingSessions, { limit: 5 })
@@ -32,7 +33,7 @@ export default function PortalDashboard() {
                     {openSession ? (
                         <div className="space-y-1">
                             <div className="flex flex-wrap items-center gap-2">
-                                <p className="font-medium">{titleCase(openSession.display_name)}</p>
+                                <p className="font-medium">{sessionName(openSession.display_name)}</p>
                                 <Badge className="bg-success/15 text-success-strong">Open now</Badge>
                             </div>
                             <p className="text-sm text-muted-foreground">
@@ -68,7 +69,7 @@ export default function PortalDashboard() {
                         upcoming.map((s: any) => (
                             <div key={s.sessionId} className="flex items-center justify-between gap-3 text-sm">
                                 <div className="min-w-0">
-                                    <p className="truncate font-medium">{titleCase(s.display_name)}</p>
+                                    <p className="truncate font-medium">{sessionName(s.display_name)}</p>
                                     <p className="text-xs text-muted-foreground">{formatDay(s.date)}</p>
                                 </div>
                                 {s.status === "open" && (

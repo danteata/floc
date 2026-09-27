@@ -13,7 +13,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { toast } from "sonner"
 import { cn } from "@/lib/utils"
-import { titleCase } from "@/lib/display"
+import { sessionName, titleCase } from '@/lib/display'
 import { EmptyState } from "@/components/ui/empty-state"
 import { SessionQrCode } from "@/components/check-in/session-qr-code"
 
@@ -204,7 +204,7 @@ export function CheckInQrPanel({ eventTypes }: { eventTypes: { _id: string; labe
                     <CardTitle className="flex items-center justify-between gap-2 text-base font-semibold">
                         <span className="flex min-w-0 items-center gap-2">
                             <QrCode className="h-4 w-4 shrink-0 text-muted-foreground" />
-                            <span className="truncate">{session.display_name ?? "QR code"}</span>
+                            <span className="truncate">{session.display_name ? sessionName(session.display_name) : "QR code"}</span>
                         </span>
                         {session.sessionId && (
                             <Badge variant={isOpen ? "default" : "secondary"} className={cn(isOpen && "bg-success/15 text-success-strong border-success/30")}>

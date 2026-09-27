@@ -22,7 +22,7 @@ import type { Id } from "../../convex/_generated/dataModel"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { ScopeBadge } from "@/components/scope-badge"
 import { useState } from "react"
-import { titleCase } from "@/lib/display"
+import { sessionName, titleCase } from "@/lib/display"
 
 export function DashboardContent() {
   const { isAdmin, role } = useUserRole()
@@ -175,7 +175,7 @@ export function DashboardContent() {
         label="Upcoming events"
         value={stats.upcomingEventsCount}
         icon={Calendar}
-        hint={`${stats.upcomingEventsCount > 0 ? `Next: ${titleCase(stats.nextEventName)}` : "Nothing scheduled"}${stats.orgUpcomingEventsCount !== stats.upcomingEventsCount ? ` · of ${stats.orgUpcomingEventsCount} church-wide` : ""}`}
+        hint={`${stats.upcomingEventsCount > 0 ? `Next: ${sessionName(stats.nextEventName)}` : "Nothing scheduled"}${stats.orgUpcomingEventsCount !== stats.upcomingEventsCount ? ` · of ${stats.orgUpcomingEventsCount} church-wide` : ""}`}
       />
     </StatGrid>
     <div className="mt-6 grid gap-6 lg:grid-cols-7">

@@ -26,7 +26,7 @@ import { MemberAvatar } from "@/components/ui/member-avatar"
 import { cn } from "@/lib/utils"
 import { errorMessage } from "@/lib/errors"
 import { toast } from "sonner"
-import { formatDay, titleCase } from '@/lib/display'
+import { formatDay, sessionName, titleCase } from '@/lib/display'
 
 type SearchResult = {
     member_id: string
@@ -201,7 +201,7 @@ export default function KioskPage() {
                         <ArrowLeft className="h-5 w-5" />
                     </Link>
                     <div className="min-w-0">
-                        <h1 className="truncate text-lg font-semibold leading-tight">{titleCase(session.display_name)}</h1>
+                        <h1 className="truncate text-lg font-semibold leading-tight">{sessionName(session.display_name)}</h1>
                         <p className="truncate text-xs text-muted-foreground">
                             {[session.organization_name, formatDay(session.date)].filter(Boolean).join(" · ")}
                         </p>

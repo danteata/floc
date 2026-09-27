@@ -71,3 +71,12 @@ export function formatMonth(value: string | number | Date): string {
     const date = toDate(value)
     return `${MONTHS[date.getMonth()]} ${date.getFullYear()}`
 }
+
+/**
+ * A session or event name as it reads on screen: title case, without the date
+ * older records appended ("sunday service — 2026-09-27"), since the date is
+ * always shown beside it. Display only.
+ */
+export function sessionName(value: string | null | undefined): string {
+    return titleCase((value ?? "").replace(/\s*[-—–]\s*\d{4}-\d{2}-\d{2}\s*$/, ""))
+}

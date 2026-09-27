@@ -12,7 +12,7 @@ import { Button } from "@/components/ui/button"
 import { MultiSelectFilter } from "@/components/multi-select-filter"
 import { BrandProvider } from "@/components/brand-provider"
 import { downloadCsv, slugForFilename, toCsv } from "@/lib/csv"
-import { formatDay } from '@/lib/display'
+import { formatDay, titleCase } from '@/lib/display'
 
 export default function AbsentMembersSharePage() {
   const { token } = useParams<{ token: string }>()
@@ -81,7 +81,7 @@ export default function AbsentMembersSharePage() {
               <div className="min-w-0">
                 <CardTitle className="text-lg font-semibold">Who was missing</CardTitle>
                 <CardDescription>
-                  {[data.event_type_label, formatDay(data.date)].filter(Boolean).join(" · ")}
+                  {[titleCase(data.event_type_label), formatDay(data.date)].filter(Boolean).join(" · ")}
                 </CardDescription>
               </div>
               {filteredMembers.length > 0 && (
