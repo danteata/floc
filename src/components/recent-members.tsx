@@ -1,10 +1,17 @@
 "use client"
 
-import { format } from "date-fns"
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
+import { UserPlus } from "lucide-react"
+import { MemberAvatar } from "@/components/ui/member-avatar"
+import { EmptyState } from "@/components/ui/empty-state"
+import { Skeleton } from "@/components/ui/skeleton"
 import { useQuery } from "convex/react"
 import { api } from "../../convex/_generated/api"
-import { cn } from "@/lib/utils"
+import { formatDayShort } from '@/lib/display'
+
+/** "26 Sep": the day a member was added, as people read it. */
+function addedOn(timestamp: number): string {
+  return formatDayShort(new Date(timestamp))
+}
 
 export function RecentMembers() {
   const members = useQuery(api.members.getRecent, { limit: 5 });
@@ -13,11 +20,11 @@ export function RecentMembers() {
     return (
       <div className="space-y-4">
         {[...Array(5)].map((_, i) => (
-          <div key={i} className="flex items-center animate-pulse px-3 py-2">
-            <div className="h-9 w-9 rounded-full bg-muted"></div>
-            <div className="ml-4 space-y-1">
-              <div className="h-4 w-[200px] rounded bg-muted"></div>
-              <div className="h-3 w-[150px] rounded bg-muted"></div>
+          <div key={i} className="flex items-center gap-3 py-1">
+            <Skeleton className="h-9 w-9 shrink-0 rounded-full" />
+            <div className="min-w-0 flex-1 space-y-1.5">
+              <Skeleton className="h-4 w-3/5" />
+              <Skeleton className="h-3 w-2/5" />
             </div>
           </div>
         ))}
@@ -26,26 +33,28 @@ export function RecentMembers() {
   }
 
   if (members.length === 0) {
-    return <div className="text-sm text-muted-foreground text-center py-8">No recent members found.</div>
+    return (
+      <EmptyState
+        icon={UserPlus}
+        title="No members yet"
+        description="Members you add will show up here."
+        className="py-8"
+      />
+    )
   }
 
   return (
-    <div className="space-y-2">
+    <div className="space-y-1">
       {members.map((member) => (
-        <div key={member.id} className="flex items-center transition-all duration-200 hover:bg-accent/50 p-3 rounded-lg group">
-          <Avatar className="h-10 w-10 ring-2 ring-transparent group-hover:ring-primary/20 transition-all">
-            <AvatarImage src={member.avatar_url || "/placeholder.svg?height=36&width=36"} alt={`${member.name}'s avatar`} />
-            <AvatarFallback className="bg-primary/10 text-primary font-semibold">
-              {member.name.split(' ').map((n: string) => n[0]).join('').toUpperCase()}
-            </AvatarFallback>
-          </Avatar>
-          <div className="ml-4 space-y-1">
-            <p className="text-sm font-semibold leading-none">{member.name}</p>
-            <p className="text-sm text-muted-foreground">{member.email || 'No email'}</p>
+        <div key={member.id} className="flex items-center gap-3 rounded-lg px-2 py-2 transition-colors hover:bg-muted/50">
+          <MemberAvatar name={member.name} src={member.avatar_url} />
+          <div className="min-w-0 flex-1 space-y-1">
+            <p className="truncate text-sm font-medium leading-none">{member.name}</p>
+            <p className="truncate text-sm text-muted-foreground">{member.email || "No email"}</p>
           </div>
-          <div className="ml-auto text-xs bg-secondary text-secondary-foreground px-2.5 py-1 rounded-md">
-            {format(new Date(member._creationTime), "MMM d")}
-          </div>
+          <span className="shrink-0 text-xs text-muted-foreground">
+            {addedOn(member._creationTime)}
+          </span>
         </div>
       ))}
     </div>

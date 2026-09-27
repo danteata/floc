@@ -4,13 +4,14 @@ import { useSearchParams, useNavigate } from "react-router-dom"
 import { useUser } from "@clerk/clerk-react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
-import { Badge } from "@/components/ui/badge"
-import { CheckCircle, AlertCircle, Loader2, UserCheck, ShieldAlert, Key, Mail, Clock, User } from "lucide-react"
+import { CheckCircle, Loader2, ShieldAlert, Mail, Clock, UserRound, UserCheck } from "lucide-react"
 import { useQuery, useMutation } from "convex/react"
 import { api } from "../../../convex/_generated/api"
 import { UserSync } from "@/components/user-sync"
 import { useAnalytics } from "@/hooks/useAnalytics"
 import { AnalyticsEventType } from "@/services/analytics/types"
+import { errorMessage } from "@/lib/errors"
+import { formatDayTime } from '@/lib/display'
 
 export default function AcceptInvitationPage() {
     const [searchParams] = useSearchParams()
@@ -24,6 +25,12 @@ export default function AcceptInvitationPage() {
     const currentUser = useQuery(api.users.current)
     const acceptInvitationMutation = useMutation(api.invitations.accept)
     const { trackEvent } = useAnalytics()
+    // Only the church's name, so the page can say who sent the invitation.
+    const church = useQuery(
+        api.organizations.getPublicGivingInfo,
+        invitation?.organization_id ? { id: invitation.organization_id } : "skip",
+    )
+    const churchName = church?.name
 
     const [isAccepting, setIsAccepting] = useState(false)
     const [error, setError] = useState<string | null>(null)
@@ -32,7 +39,7 @@ export default function AcceptInvitationPage() {
 
     useEffect(() => {
         if (!token) {
-            setError('No invitation token provided')
+            setError("This invitation link is missing part of its address. Open the link from your invitation email again.")
             return
         }
         try {
@@ -45,14 +52,14 @@ export default function AcceptInvitationPage() {
     // Handle invitation status errors (like expired or used)
     useEffect(() => {
         if (invitation === null && token) {
-            setError('Invalid or expired invitation')
+            setError("This invitation has expired or has already been used. Ask the person who invited you to send a new one.")
         }
     }, [invitation, token])
 
     // An invitation may be claimed by a brand-new / org-less account regardless
     // of email (supports placeholder member emails), but must not be accepted by
     // an already-established account (one that belongs to an org) whose email
-    // doesn't match — that mirrors the server-side guard in invitations.accept.
+    // doesn't match: that mirrors the server-side guard in invitations.accept.
     const invitedEmail = invitation?.email?.trim().toLowerCase()
     const myEmail = clerkUser?.primaryEmailAddress?.emailAddress?.trim().toLowerCase()
     const emailMismatch = Boolean(invitation && myEmail && invitedEmail && myEmail !== invitedEmail)
@@ -86,7 +93,7 @@ export default function AcceptInvitationPage() {
             }, 3000)
         } catch (err: any) {
             console.error('Error accepting invitation:', err)
-            setError(err.message || 'Failed to accept invitation')
+            setError(acceptProblem(err))
         } finally {
             setIsAccepting(false)
         }
@@ -100,211 +107,229 @@ export default function AcceptInvitationPage() {
         }
     }, [])
 
+    const churchLabel = churchName ?? "your church"
+
     if (token === "" || (invitation === undefined && !error)) {
         return (
-            <div className="min-h-screen bg-background flex items-center justify-center p-6">
-                <div className="flex flex-col items-center gap-4">
-                    <Loader2 className="h-10 w-10 animate-spin text-primary" />
-                    <span className="text-muted-foreground">Loading invitation...</span>
+            <Page>
+                <div className="flex flex-col items-center gap-4" role="status">
+                    <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+                    <span className="text-sm text-muted-foreground">Opening your invitation…</span>
                 </div>
-            </div>
+            </Page>
         )
     }
 
 
     if (error) {
         return (
-            <div className="min-h-screen bg-background flex items-center justify-center p-6">
+            <Page>
                 <Card className="w-full max-w-md">
-                    <CardHeader className="bg-destructive/10">
-                        <CardTitle className="flex items-center gap-3 text-destructive">
-                            <ShieldAlert className="h-6 w-6" />
-                            Invitation Error
+                    <CardHeader>
+                        <CardTitle className="flex items-center gap-2 text-lg font-semibold">
+                            <ShieldAlert className="h-5 w-5 shrink-0 text-destructive" />
+                            We couldn't open this invitation
                         </CardTitle>
                     </CardHeader>
-                    <CardContent className="p-6 space-y-4">
-                        <div className="p-4 bg-destructive/10 rounded-lg border border-destructive/20">
-                            <p className="text-destructive">{error}</p>
-                        </div>
+                    <CardContent className="space-y-4">
+                        <p role="alert" className="text-sm text-muted-foreground">{error}</p>
                         <Button
                             onClick={() => navigate('/')}
-                            className="w-full"
+                            variant="outline"
+                            className="h-11 w-full"
                         >
-                            Return Home
+                            Go to the home page
                         </Button>
                     </CardContent>
                 </Card>
-            </div>
+            </Page>
         )
     }
 
     if (success) {
         return (
-            <div className="min-h-screen bg-background flex items-center justify-center p-6">
+            <Page>
                 <Card className="w-full max-w-md">
-                    <CardHeader className="bg-primary/10">
-                        <CardTitle className="flex items-center gap-3 text-primary">
-                            <CheckCircle className="h-6 w-6" />
-                            Welcome Aboard!
+                    <CardHeader>
+                        <CardTitle className="flex items-center gap-2 text-lg font-semibold">
+                            <CheckCircle className="h-5 w-5 shrink-0 text-success" />
+                            Welcome to {churchLabel}
                         </CardTitle>
                         <CardDescription>
-                            Your invitation has been accepted successfully.
+                            You've joined as {roleWithArticle(invitation?.intended_role)}.
                         </CardDescription>
                     </CardHeader>
-                    <CardContent className="p-6 space-y-4">
-                        <p className="text-muted-foreground">
-                            You now have access to the organization. Redirecting to your dashboard...
-                        </p>
-                        <div className="flex items-center gap-2">
-                            <Badge variant="secondary">
-                                {invitation?.intended_role?.replace('_', ' ')}
-                            </Badge>
-                            <div className="h-2 w-2 rounded-full bg-green-500 animate-pulse" />
-                        </div>
-                        <div className="pt-4 flex justify-center">
-                            <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                    <CardContent className="space-y-4">
+                        <div className="flex items-center gap-3 text-sm text-muted-foreground" role="status">
+                            <Loader2 className="h-4 w-4 animate-spin" />
+                            Taking you in…
                         </div>
                     </CardContent>
                 </Card>
-            </div>
+            </Page>
         )
     }
 
     if (!isLoaded) {
         return (
-            <div className="min-h-screen bg-background flex items-center justify-center p-6">
-                <Loader2 className="h-10 w-10 animate-spin text-primary" />
-            </div>
+            <Page>
+                <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+            </Page>
         )
     }
 
     if (!clerkUser) {
         return (
-            <div className="min-h-screen bg-background flex items-center justify-center p-6">
+            <Page>
                 <Card className="w-full max-w-md">
                     <CardHeader>
-                        <CardTitle className="flex items-center gap-2">
-                            <User className="h-5 w-5" />
-                            Sign In Required
+                        <CardTitle className="flex items-center gap-2 text-lg font-semibold">
+                            <Mail className="h-5 w-5 shrink-0 text-muted-foreground" />
+                            {churchName ? `${churchName} has invited you` : "You've been invited"}
                         </CardTitle>
                         <CardDescription>
-                            Please sign in or create an account to accept this invitation
+                            Sign in, or create an account, to accept the invitation.
                         </CardDescription>
                     </CardHeader>
-                    <CardContent className="p-6 space-y-4">
+                    <CardContent className="space-y-4">
                         <p className="text-sm text-muted-foreground">
-                            You need to be signed in to accept this invitation and join the organization.
+                            New to Floc? Create an account with{" "}
+                            {invitation?.email ? <span className="font-medium text-foreground break-all">{invitation.email}</span> : "your email"}.
+                            It only takes a minute.
                         </p>
                         <div className="space-y-3">
                             <Button
                                 onClick={() => navigate(`/sign-up?force_redirect_url=${encodeURIComponent(window.location.href)}`)}
-                                className="w-full"
+                                className="h-11 w-full"
                             >
-                                Create Account
+                                Create an account
                             </Button>
                             <Button
                                 variant="outline"
                                 onClick={() => navigate(`/sign-in?force_redirect_url=${encodeURIComponent(window.location.href)}`)}
-                                className="w-full"
+                                className="h-11 w-full"
                             >
-                                Sign In
+                                I already have an account
                             </Button>
                         </div>
                     </CardContent>
                 </Card>
-            </div>
+            </Page>
         )
     }
 
     return (
         <>
             <UserSync />
-            <div className="min-h-screen bg-background flex items-center justify-center p-6">
+            <Page>
                 <Card className="w-full max-w-md">
                     <CardHeader>
-                        <CardTitle className="flex items-center gap-2">
-                            <Mail className="h-5 w-5 text-primary" />
-                            You're Invited!
+                        <CardTitle className="flex items-center gap-2 text-lg font-semibold">
+                            <Mail className="h-5 w-5 shrink-0 text-muted-foreground" />
+                            {churchName ? `${churchName} has invited you` : "You've been invited"}
                         </CardTitle>
                         <CardDescription>
-                            You have been invited to join the organization
+                            Accept to join {churchLabel} on Floc.
                         </CardDescription>
                     </CardHeader>
-                    <CardContent className="p-6 space-y-6">
-                        <div className="space-y-4">
-                            <div className="space-y-2">
-                                <p className="text-sm text-muted-foreground">
-                                    Your Role
-                                </p>
-                                <div className="p-3 rounded-lg border bg-muted/50 flex items-center justify-between">
-                                    <span className="font-medium capitalize">
-                                        {invitation?.intended_role?.replace('_', ' ')}
-                                    </span>
-                                    <Badge variant="secondary">Active</Badge>
-                                </div>
-                            </div>
+                    <CardContent className="space-y-6">
+                        <dl className="space-y-3 text-sm">
+                            <Detail icon={<UserRound className="h-4 w-4" />} label="Your role">
+                                {roleLabel(invitation?.intended_role)}
+                            </Detail>
 
                             {invitation?.member_id && (
-                                <div className="space-y-2">
-                                    <p className="text-sm text-muted-foreground">
-                                        Linked Profile
-                                    </p>
-                                    <div className="p-3 rounded-lg border bg-muted/50">
-                                        <p className="text-sm">Member Profile Connected</p>
-                                        <p className="text-xs text-muted-foreground">Your profile is linked to this invitation</p>
-                                    </div>
-                                </div>
+                                <Detail icon={<UserCheck className="h-4 w-4" />} label="Member record">
+                                    Linked to your member record at {churchLabel}
+                                </Detail>
                             )}
 
-                            <div className="p-3 bg-muted/30 rounded-lg border">
-                                <div className="flex items-center gap-2 mb-1">
-                                    <Clock className="h-4 w-4 text-muted-foreground" />
-                                    <span className="text-sm text-muted-foreground">Expires</span>
-                                </div>
-                                <p className="text-sm">
-                                    {new Date(invitation?.expires_at || 0).toLocaleDateString()} at {new Date(invitation?.expires_at || 0).toLocaleTimeString()}
-                                </p>
-                            </div>
-                        </div>
+                            {invitation?.expires_at && (
+                                <Detail icon={<Clock className="h-4 w-4" />} label="Accept by">
+                                    {formatDayTime(new Date(invitation.expires_at))}
+                                </Detail>
+                            )}
+                        </dl>
 
                         {blockAccept && (
-                            <div className="p-3 rounded-lg border border-destructive/20 bg-destructive/10 space-y-1">
-                                <div className="flex items-center gap-2 text-destructive">
-                                    <ShieldAlert className="h-4 w-4" />
-                                    <span className="text-sm font-medium">This invitation isn't for this account</span>
+                            <div role="alert" className="space-y-1 rounded-lg border border-destructive/20 bg-destructive/10 p-3">
+                                <div className="flex items-center gap-2 text-destructive-strong">
+                                    <ShieldAlert className="h-4 w-4 shrink-0" />
+                                    <span className="text-sm font-medium">This invitation is for a different email</span>
                                 </div>
-                                <p className="text-xs text-muted-foreground">
-                                    It was issued to <span className="font-medium">{invitation?.email}</span>, but you're
-                                    signed in as <span className="font-medium">{clerkUser?.primaryEmailAddress?.emailAddress}</span>.
-                                    Sign in with the invited email to accept it.
+                                <p className="text-sm text-muted-foreground">
+                                    It was sent to <span className="font-medium text-foreground break-all">{invitation?.email}</span>, but you're
+                                    signed in as <span className="font-medium text-foreground break-all">{clerkUser?.primaryEmailAddress?.emailAddress}</span>.
+                                    Sign out, then sign in with the invited email to accept it.
                                 </p>
                             </div>
                         )}
 
-                        <div className="pt-2">
+                        <div className="space-y-3">
                             <Button
                                 onClick={handleAccept}
                                 disabled={isAccepting || blockAccept}
-                                className="w-full"
-                                size="lg"
+                                className="h-11 w-full text-base"
                             >
                                 {isAccepting ? (
                                     <>
                                         <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                                        Accepting...
+                                        Accepting…
                                     </>
                                 ) : (
-                                    'Accept Invitation'
+                                    'Accept invitation'
                                 )}
                             </Button>
+                            <p className="text-center text-xs text-muted-foreground">
+                                You'll join {churchLabel} as {roleWithArticle(invitation?.intended_role)}.
+                            </p>
                         </div>
-
-                        <p className="text-xs text-muted-foreground text-center">
-                            By accepting this invitation, you will join the organization with the role specified above.
-                        </p>
                     </CardContent>
                 </Card>
-            </div>
+            </Page>
         </>
     )
+}
+
+function Page({ children }: { children: React.ReactNode }) {
+    return (
+        <div className="min-h-dvh bg-background flex items-center justify-center px-4 py-8">
+            {children}
+        </div>
+    )
+}
+
+function Detail({ icon, label, children }: { icon: React.ReactNode; label: string; children: React.ReactNode }) {
+    return (
+        <div className="flex items-start gap-3">
+            <div className="mt-0.5 text-muted-foreground">{icon}</div>
+            <div className="min-w-0">
+                <dt className="text-xs text-muted-foreground">{label}</dt>
+                <dd className="font-medium">{children}</dd>
+            </div>
+        </div>
+    )
+}
+
+/** "organization_admin" → "Organization admin". */
+function roleLabel(role?: string | null): string {
+    if (!role) return "Member"
+    const words = role.replace(/_/g, " ").trim()
+    return words.charAt(0).toUpperCase() + words.slice(1)
+}
+
+/** "an organization admin", "a treasurer". */
+function roleWithArticle(role?: string | null): string {
+    const label = roleLabel(role).toLowerCase()
+    return `${/^[aeiou]/.test(label) ? "an" : "a"} ${label}`
+}
+
+/** The server's reason, said plainly with what to do next. */
+function acceptProblem(err: unknown): string {
+    const raw = errorMessage(err, "")
+    if (/expired/i.test(raw)) return "This invitation has expired. Ask the person who invited you to send a new one."
+    if (/already used|revoked/i.test(raw)) return "This invitation has already been used or was withdrawn. Ask the person who invited you to send a new one."
+    if (/invalid token/i.test(raw)) return "We couldn't find this invitation. Check you opened the latest link from your email."
+    if (/logged in/i.test(raw)) return "You've been signed out. Sign in again, then open the invitation link."
+    return "We couldn't accept the invitation just now. Check your connection and try again."
 }

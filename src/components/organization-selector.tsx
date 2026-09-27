@@ -82,8 +82,8 @@ export function OrganizationSelector({ className }: OrganizationSelectorProps) {
           className={`flex items-center gap-2 h-9 px-3 hover:bg-primary/10 border border-transparent hover:border-primary/30 transition-all duration-300 rounded-lg ${className}`}
         >
           <Building2 className="h-4 w-4 text-muted-foreground" />
-          <span className="text-sm truncate max-w-[150px]">
-            {currentOrganization?.name || "Select Organization"}
+          <span className="text-sm font-medium truncate max-w-[16rem]">
+            {currentOrganization?.name || "Choose a church"}
           </span>
           <ChevronDown className={cn("h-3.5 w-3.5 text-muted-foreground transition-transform duration-200", isOpen && "rotate-180")} />
         </Button>

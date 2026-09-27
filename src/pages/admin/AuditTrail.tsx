@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect } from "react";
+import { useState, useEffect } from "react";
 import { useQuery, useMutation } from "convex/react";
 import { api } from "../../../convex/_generated/api";
 import { useAnalytics } from "@/hooks/useAnalytics";
@@ -13,6 +13,7 @@ import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { LayoutWrapper } from "@/components/layout-wrapper";
+import { PageHeader } from "@/components/ui/page-header";
 import {
     Shield,
     Search,
@@ -30,25 +31,105 @@ import { format, parseISO } from "date-fns";
 
 // Action type colors for badges
 const actionColors: Record<string, string> = {
-    "member.created": "bg-green-100 text-green-800",
-    "member.updated": "bg-blue-100 text-blue-800",
-    "member.deleted": "bg-red-100 text-red-800",
-    "user.role_changed": "bg-purple-100 text-purple-800",
-    "user.login": "bg-gray-100 text-gray-800",
-    "event.created": "bg-emerald-100 text-emerald-800",
-    "event.updated": "bg-cyan-100 text-cyan-800",
-    "event.deleted": "bg-rose-100 text-rose-800",
-    "attendance.recorded": "bg-indigo-100 text-indigo-800",
-    "financial.transaction_added": "bg-amber-100 text-amber-800",
-    "financial.transaction_updated": "bg-orange-100 text-orange-800",
-    "financial.transaction_deleted": "bg-red-100 text-red-800",
-    "label.created": "bg-pink-100 text-pink-800",
-    "label.assigned": "bg-violet-100 text-violet-800",
-    "label.removed": "bg-gray-100 text-gray-800",
-    "invitation.sent": "bg-teal-100 text-teal-800",
-    "invitation.accepted": "bg-green-100 text-green-800",
-    "invitation.revoked": "bg-red-100 text-red-800",
+    "member.created": "bg-success/15 text-success-strong",
+    "member.updated": "bg-info/15 text-info-strong",
+    "member.deleted": "bg-destructive/15 text-destructive-strong",
+    "user.role_changed": "bg-primary/15 text-primary",
+    "user.login": "bg-muted text-foreground",
+    "event.created": "bg-success/15 text-success-strong",
+    "event.updated": "bg-info/15 text-info-strong",
+    "event.deleted": "bg-destructive/15 text-destructive-strong",
+    "attendance.recorded": "bg-primary/15 text-primary",
+    "financial.transaction_added": "bg-warning/15 text-warning-strong",
+    "financial.transaction_updated": "bg-warning/15 text-warning-strong",
+    "financial.transaction_deleted": "bg-destructive/15 text-destructive-strong",
+    "label.created": "bg-primary/15 text-primary",
+    "label.assigned": "bg-primary/15 text-primary",
+    "label.removed": "bg-muted text-foreground",
+    "invitation.sent": "bg-success/15 text-success-strong",
+    "invitation.accepted": "bg-success/15 text-success-strong",
+    "invitation.revoked": "bg-destructive/15 text-destructive-strong",
 };
+
+// Readable names for the action keys the backend writes. Anything not listed
+// falls back to the key with its dots and underscores turned into spaces.
+const actionLabels: Record<string, string> = {
+    "member.created": "Member added",
+    "member.updated": "Member updated",
+    "member.deleted": "Member deleted",
+    "member.archived": "Member archived",
+    "member.restored": "Member restored",
+    "member_list_share.created": "Share link created",
+    "member_list_share.revoked": "Share link revoked",
+    "user.role_changed": "Role changed",
+    "user.removed": "Account removed",
+    "user.login": "Signed in",
+    "unit.admin_added": "Unit admin added",
+    "unit.admin_removed": "Unit admin removed",
+    "unit.primary_leader_changed": "Unit leader changed",
+    "unit.merged": "Units merged",
+    "organization.linked_to_parent": "Linked to a parent church",
+    "organization.unlinked_from_parent": "Unlinked from the parent church",
+    "organization.sub_org_removed": "Linked church removed",
+    "event.created": "Event created",
+    "event.updated": "Event updated",
+    "event.deleted": "Event deleted",
+    "attendance.recorded": "Attendance recorded",
+    "financial.transaction_added": "Transaction added",
+    "financial.transaction_created": "Transaction added",
+    "financial.transaction_updated": "Transaction updated",
+    "financial.transaction_deleted": "Transaction deleted",
+    "financial.transaction_voided": "Transaction voided",
+    "financial.giving_confirmed": "Online gift confirmed",
+    "financial.giving_amount_mismatch": "Online gift amount didn't match",
+    "financial.giving_webhook_unknown_reference": "Online gift with an unknown reference",
+    "label.created": "Label created",
+    "label.updated": "Label updated",
+    "label.deleted": "Label deleted",
+    "label.assigned": "Label added to a member",
+    "label.removed": "Label removed from a member",
+    "invitation.sent": "Invitation sent",
+    "invitation.accepted": "Invitation accepted",
+    "invitation.revoked": "Invitation revoked",
+    "automation.rule_created": "Automation created",
+    "automation.rule_deleted": "Automation deleted",
+    "flag.set": "Feature switched",
+    "flag.cleared": "Feature reset to default",
+    "ai.credential.changed": "AI key changed",
+};
+
+const entityLabels: Record<string, string> = {
+    member: "Member",
+    member_list_share: "Share link",
+    user: "Account",
+    unit: "Unit",
+    organization: "Church",
+    event: "Event",
+    financial_transaction: "Transaction",
+    label: "Label",
+    invitation: "Invitation",
+    automation_rule: "Automation",
+    feature_flag: "Feature",
+};
+
+const roleLabels: Record<string, string> = {
+    super_admin: "Super admin",
+    organization_admin: "Organization admin",
+    division_admin: "Division admin",
+    unit_admin: "Unit admin",
+    member: "Member",
+};
+
+/** "member_list_share.created" -> "Member list share created". */
+function humanize(key: string | undefined | null): string {
+    if (!key) return "";
+    const words = key.replace(/[._]+/g, " ").replace(/\s+/g, " ").trim().toLowerCase();
+    return words.charAt(0).toUpperCase() + words.slice(1);
+}
+
+const actionLabel = (action: string) => actionLabels[action] ?? humanize(action);
+const entityLabel = (entityType: string) => entityLabels[entityType] ?? humanize(entityType);
+const roleLabel = (role: string) => roleLabels[role] ?? humanize(role);
 
 // Entity type icons
 const entityIcons: Record<string, React.ReactNode> = {
@@ -88,6 +169,8 @@ export default function AuditTrail() {
     });
     const [selectedLog, setSelectedLog] = useState<AuditLog | null>(null);
     const [isDetailOpen, setIsDetailOpen] = useState(false);
+    // On phones the filters sit behind a button so the log shows first.
+    const [showFilters, setShowFilters] = useState(false);
 
     const limit = 20;
 
@@ -128,14 +211,14 @@ export default function AuditTrail() {
 
     const formatDate = (timestamp: string) => {
         try {
-            return format(parseISO(timestamp), "MMM dd, yyyy HH:mm:ss");
+            return format(parseISO(timestamp), "d MMM yyyy, HH:mm");
         } catch {
             return timestamp;
         }
     };
 
     const getActionColor = (action: string) => {
-        return actionColors[action] || "bg-gray-100 text-gray-800";
+        return actionColors[action] || "bg-muted text-foreground";
     };
 
     const getEntityIcon = (entityType: string) => {
@@ -184,38 +267,46 @@ export default function AuditTrail() {
     return (
         <LayoutWrapper>
             <div className="container mx-auto py-6 space-y-6">
-                <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                        <Shield className="h-8 w-8 text-primary" />
-                        <div>
-                            <h1 className="text-2xl font-bold">Audit Trail</h1>
-                            <p className="text-muted-foreground">Monitor all system activities and changes</p>
-                        </div>
-                    </div>
-                    <div className="flex items-center gap-2">
-                        <Button variant="outline" onClick={exportToCSV} disabled={!auditData?.logs?.length}>
-                            <Download className="h-4 w-4 mr-2" />
-                            Export CSV
-                        </Button>
-                        <Button variant="outline" onClick={() => setPage(0)}>
-                            <RefreshCw className="h-4 w-4 mr-2" />
-                            Refresh
-                        </Button>
-                    </div>
-                </div>
+                <PageHeader
+                    title="Audit trail"
+                    description="Every change made in Floc: who made it, and when."
+                    actions={
+                        <>
+                            <Button variant="outline" onClick={exportToCSV} disabled={!auditData?.logs?.length}>
+                                <Download className="h-4 w-4 mr-2" />
+                                Export CSV
+                            </Button>
+                            <Button variant="outline" onClick={() => setPage(0)}>
+                                <RefreshCw className="h-4 w-4 mr-2" />
+                                Refresh
+                            </Button>
+                        </>
+                    }
+                />
 
                 {/* Filters */}
                 <Card>
                     <CardHeader>
-                        <CardTitle className="flex items-center gap-2">
-                            <Filter className="h-5 w-5" />
-                            Filters
-                        </CardTitle>
+                        <div className="flex items-center justify-between gap-2">
+                            <CardTitle className="flex items-center gap-2 text-base font-semibold">
+                                <Filter className="h-4 w-4 text-muted-foreground" />
+                                Filters
+                            </CardTitle>
+                            <Button
+                                variant="outline"
+                                size="sm"
+                                className="md:hidden"
+                                onClick={() => setShowFilters((v) => !v)}
+                                aria-expanded={showFilters}
+                            >
+                                {showFilters ? "Hide" : "Show"}
+                            </Button>
+                        </div>
                     </CardHeader>
-                    <CardContent>
+                    <CardContent className={showFilters ? undefined : "hidden md:block"}>
                         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
                             <div className="space-y-2">
-                                <Label>Action Type</Label>
+                                <Label>Action</Label>
                                 <Select
                                     value={filters.action || "all"}
                                     onValueChange={(value) => handleFilterChange("action", value === "all" ? "" : value)}
@@ -227,7 +318,7 @@ export default function AuditTrail() {
                                         <SelectItem value="all">All actions</SelectItem>
                                         {actionTypes?.map((action) => (
                                             <SelectItem key={action} value={action}>
-                                                {action}
+                                                {actionLabel(action)}
                                             </SelectItem>
                                         ))}
                                     </SelectContent>
@@ -235,19 +326,19 @@ export default function AuditTrail() {
                             </div>
 
                             <div className="space-y-2">
-                                <Label>Entity Type</Label>
+                                <Label>Record type</Label>
                                 <Select
                                     value={filters.entity_type || "all"}
                                     onValueChange={(value) => handleFilterChange("entity_type", value === "all" ? "" : value)}
                                 >
                                     <SelectTrigger>
-                                        <SelectValue placeholder="All entities" />
+                                        <SelectValue placeholder="All records" />
                                     </SelectTrigger>
                                     <SelectContent>
-                                        <SelectItem value="all">All entities</SelectItem>
+                                        <SelectItem value="all">All records</SelectItem>
                                         {entityTypes?.map((type) => (
                                             <SelectItem key={type} value={type}>
-                                                {type}
+                                                {entityLabel(type)}
                                             </SelectItem>
                                         ))}
                                     </SelectContent>
@@ -255,16 +346,16 @@ export default function AuditTrail() {
                             </div>
 
                             <div className="space-y-2">
-                                <Label>Performed By</Label>
+                                <Label>Changed by</Label>
                                 <Input
-                                    placeholder="User name or ID"
+                                    placeholder="Name"
                                     value={filters.performed_by}
                                     onChange={(e) => handleFilterChange("performed_by", e.target.value)}
                                 />
                             </div>
 
                             <div className="space-y-2">
-                                <Label>Start Date</Label>
+                                <Label>From</Label>
                                 <Input
                                     type="date"
                                     value={filters.start_date}
@@ -273,7 +364,7 @@ export default function AuditTrail() {
                             </div>
 
                             <div className="space-y-2">
-                                <Label>End Date</Label>
+                                <Label>To</Label>
                                 <Input
                                     type="date"
                                     value={filters.end_date}
@@ -283,7 +374,7 @@ export default function AuditTrail() {
                         </div>
                         <div className="mt-4 flex justify-end">
                             <Button variant="ghost" onClick={clearFilters}>
-                                Clear Filters
+                                Clear filters
                             </Button>
                         </div>
                     </CardContent>
@@ -292,31 +383,31 @@ export default function AuditTrail() {
                 {/* Audit Logs Table */}
                 <Card>
                     <CardHeader>
-                        <div className="flex items-center justify-between">
-                            <CardTitle className="flex items-center gap-2">
-                                <Activity className="h-5 w-5" />
-                                Activity Log
+                        <div className="flex items-center justify-between gap-2">
+                            <CardTitle className="flex items-center gap-2 text-base font-semibold">
+                                <Activity className="h-4 w-4 text-muted-foreground" />
+                                Changes
                             </CardTitle>
                             {auditData && (
                                 <Badge variant="secondary">
-                                    {auditData.total} total records
+                                    {auditData.total} {auditData.total === 1 ? "change" : "changes"}
                                 </Badge>
                             )}
                         </div>
                     </CardHeader>
                     <CardContent>
-                        <ScrollArea className="h-[600px]">
-                            <Table>
+                        <ScrollArea className="h-[600px] max-w-full">
+                            <Table className="min-w-[760px]">
                                 <TableHeader>
                                     <TableRow>
-                                        <TableHead className="w-[180px]">Timestamp</TableHead>
+                                        <TableHead className="w-[160px]">When</TableHead>
                                         <TableHead className="w-[200px]">Action</TableHead>
-                                        <TableHead className="w-[120px]">Entity</TableHead>
+                                        <TableHead className="w-[130px]">Record</TableHead>
                                         <TableHead>Details</TableHead>
-                                        <TableHead className="w-[150px]">Performed By</TableHead>
-                                        <TableHead className="w-[80px]">Role</TableHead>
+                                        <TableHead className="w-[150px]">Changed by</TableHead>
+                                        <TableHead className="w-[140px]">Role</TableHead>
                                         <TableHead className="w-[80px]">IP</TableHead>
-                                        <TableHead className="w-[60px]">View</TableHead>
+                                        <TableHead className="w-[60px]"><span className="sr-only">View</span></TableHead>
                                     </TableRow>
                                 </TableHeader>
                                 <TableBody>
@@ -327,19 +418,19 @@ export default function AuditTrail() {
                                             </TableCell>
                                             <TableCell>
                                                 <Badge className={getActionColor(log.action)}>
-                                                    {log.action}
+                                                    {actionLabel(log.action)}
                                                 </Badge>
                                             </TableCell>
                                             <TableCell>
                                                 <div className="flex items-center gap-2">
                                                     {getEntityIcon(log.entity_type)}
-                                                    <span className="capitalize text-sm">{log.entity_type}</span>
+                                                    <span className="text-sm">{entityLabel(log.entity_type)}</span>
                                                 </div>
                                             </TableCell>
                                             <TableCell>
                                                 <div className="max-w-[300px]">
                                                     <p className="font-medium truncate">
-                                                        {log.entity_name || log.entity_id || "—"}
+                                                        {log.entity_name || log.entity_id || <span className="text-muted-foreground">Not recorded</span>}
                                                     </p>
                                                     {log.changes && (
                                                         <p className="text-xs text-muted-foreground truncate">
@@ -353,17 +444,18 @@ export default function AuditTrail() {
                                             </TableCell>
                                             <TableCell>
                                                 <Badge variant="outline" className="text-xs">
-                                                    {log.performed_by_role.replace("_", " ")}
+                                                    {roleLabel(log.performed_by_role)}
                                                 </Badge>
                                             </TableCell>
                                             <TableCell className="text-xs text-muted-foreground">
-                                                {log.ip_address || "—"}
+                                                {log.ip_address || ""}
                                             </TableCell>
                                             <TableCell>
                                                 <Button
                                                     variant="ghost"
                                                     size="sm"
                                                     onClick={() => viewDetails(log)}
+                                                    aria-label="View details"
                                                 >
                                                     <Eye className="h-4 w-4" />
                                                 </Button>
@@ -373,7 +465,7 @@ export default function AuditTrail() {
                                     {(!auditData?.logs || auditData.logs.length === 0) && (
                                         <TableRow>
                                             <TableCell colSpan={8} className="text-center py-8 text-muted-foreground">
-                                                No audit logs found. Try adjusting your filters.
+                                                No changes found. Try different filters.
                                             </TableCell>
                                         </TableRow>
                                     )}
@@ -383,7 +475,7 @@ export default function AuditTrail() {
 
                         {/* Pagination */}
                         {auditData && auditData.total > limit && (
-                            <div className="flex items-center justify-between mt-4 pt-4 border-t">
+                            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between mt-4 pt-4 border-t">
                                 <p className="text-sm text-muted-foreground">
                                     Showing {page * limit + 1} to {Math.min((page + 1) * limit, auditData.total)} of {auditData.total}
                                 </p>
@@ -416,44 +508,44 @@ export default function AuditTrail() {
                 <Dialog open={isDetailOpen} onOpenChange={setIsDetailOpen}>
                     <DialogContent className="max-w-2xl max-h-[80vh] overflow-auto">
                         <DialogHeader>
-                            <DialogTitle>Audit Log Details</DialogTitle>
+                            <DialogTitle>Change details</DialogTitle>
                         </DialogHeader>
                         {selectedLog && (
                             <div className="space-y-4">
-                                <div className="grid grid-cols-2 gap-4">
+                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                     <div>
-                                        <Label className="text-muted-foreground">Timestamp</Label>
+                                        <Label className="text-muted-foreground">When</Label>
                                         <p className="font-medium">{formatDate(selectedLog.timestamp)}</p>
                                     </div>
                                     <div>
                                         <Label className="text-muted-foreground">Action</Label>
                                         <Badge className={getActionColor(selectedLog.action)}>
-                                            {selectedLog.action}
+                                            {actionLabel(selectedLog.action)}
                                         </Badge>
                                     </div>
                                     <div>
-                                        <Label className="text-muted-foreground">Entity Type</Label>
-                                        <p className="font-medium capitalize">{selectedLog.entity_type}</p>
+                                        <Label className="text-muted-foreground">Record type</Label>
+                                        <p className="font-medium">{entityLabel(selectedLog.entity_type)}</p>
                                     </div>
                                     <div>
-                                        <Label className="text-muted-foreground">Entity ID</Label>
-                                        <p className="font-medium font-mono text-sm">{selectedLog.entity_id || "—"}</p>
+                                        <Label className="text-muted-foreground">Record ID</Label>
+                                        <p className="font-medium font-mono text-sm break-all">{selectedLog.entity_id || "Not recorded"}</p>
                                     </div>
                                     <div>
-                                        <Label className="text-muted-foreground">Entity Name</Label>
-                                        <p className="font-medium">{selectedLog.entity_name || "—"}</p>
+                                        <Label className="text-muted-foreground">Name</Label>
+                                        <p className="font-medium">{selectedLog.entity_name || "Not recorded"}</p>
                                     </div>
                                     <div>
-                                        <Label className="text-muted-foreground">Performed By</Label>
+                                        <Label className="text-muted-foreground">Changed by</Label>
                                         <p className="font-medium">{selectedLog.performed_by_name}</p>
                                     </div>
                                     <div>
                                         <Label className="text-muted-foreground">Role</Label>
-                                        <Badge variant="outline">{selectedLog.performed_by_role.replace("_", " ")}</Badge>
+                                        <Badge variant="outline">{roleLabel(selectedLog.performed_by_role)}</Badge>
                                     </div>
                                     <div>
-                                        <Label className="text-muted-foreground">IP Address</Label>
-                                        <p className="font-medium font-mono text-sm">{selectedLog.ip_address || "—"}</p>
+                                        <Label className="text-muted-foreground">IP address</Label>
+                                        <p className="font-medium font-mono text-sm">{selectedLog.ip_address || "Not recorded"}</p>
                                     </div>
                                 </div>
 
@@ -468,7 +560,7 @@ export default function AuditTrail() {
 
                                 {selectedLog.metadata && (
                                     <div>
-                                        <Label className="text-muted-foreground">Metadata</Label>
+                                        <Label className="text-muted-foreground">More details</Label>
                                         <pre className="mt-2 p-4 bg-muted rounded-lg text-sm overflow-auto">
                                             {JSON.stringify(selectedLog.metadata, null, 2)}
                                         </pre>

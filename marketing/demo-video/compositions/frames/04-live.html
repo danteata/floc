@@ -1,0 +1,114 @@
+<template>
+  <div id="root" data-composition-id="04-live" data-start="0" data-duration="6.5" data-width="1920" data-height="1080">
+    <style>
+      @font-face{font-family:"Fraunces";font-weight:400;font-style:normal;font-display:block;src:url("assets/fonts/fraunces-latin-400-normal.woff2") format("woff2");}
+      @font-face{font-family:"Fraunces";font-weight:500;font-style:normal;font-display:block;src:url("assets/fonts/fraunces-latin-500-normal.woff2") format("woff2");}
+      @font-face{font-family:"Inter";font-weight:100 900;font-style:normal;font-display:block;src:url("assets/fonts/inter-latin-wght-normal.woff2") format("woff2");}
+
+      #root { position: relative; width: 1920px; height: 1080px; overflow: hidden; }
+      .clip { position: absolute; inset: 0; }
+      .lv-ground { background: #FAF7F1; }
+      .lv-stage { overflow: hidden; }
+
+      /* statement */
+      .lv-statement { position: absolute; left: 96px; top: 290px; width: 460px; margin: 0;
+        font-family: "Fraunces", serif; font-weight: 500; font-size: 62px; line-height: 1.05; letter-spacing: -0.02em; color: #1C1917; }
+      .lv-word { display: inline-block; }
+
+      /* depth layer behind the window */
+      .lv-panel { position: absolute; left: 560px; top: 76px; width: 1224px; height: 765px;
+        background: #F3EEE4; border: 1px solid #E7E0D4; border-radius: 16px; }
+
+      /* screen-window */
+      .lv-persp { position: absolute; left: 600px; top: 116px; width: 1224px; height: 765px; perspective: 1800px; }
+      .lv-window { position: absolute; inset: 0; border-radius: 16px; border: 1px solid #E7E0D4; overflow: hidden;
+        background: #FAF7F1; box-shadow: 0 40px 100px -40px rgba(28,25,23,0.40); transform-origin: 50% 100%; }
+      .lv-cam-outer { position: absolute; left: 0; top: 0; width: 1224px; height: 765px; transform-origin: 50% 50%; will-change: transform; }
+      .lv-cam-inner { position: absolute; left: 0; top: 0; width: 1224px; height: 765px; will-change: transform; }
+      .lv-shot { position: absolute; left: 0; top: 0; width: 1224px; height: 765px; display: block; }
+
+      /* callouts (world coords = source px x 0.425) */
+      .lv-leader { position: absolute; background: #C1153F; }
+      .lv-tagwrap { position: absolute; transform-origin: 0 0; }
+      .lv-tag { display: inline-block; white-space: nowrap; padding: 6px 12px; background: #FAF7F1; border: 1px solid #E7E0D4; border-radius: 6px;
+        font-family: "Inter", sans-serif; font-weight: 600; font-size: 17px; line-height: 20px; color: #1C1917;
+        box-shadow: 0 6px 18px -10px rgba(28,25,23,0.35); }
+    </style>
+
+    <div id="04-live-ground" class="clip lv-ground" data-start="0" data-duration="6.5" data-track-index="0"></div>
+
+    <div id="04-live-stage" class="clip lv-stage" data-start="0" data-duration="6.5" data-track-index="1">
+      <h1 class="lv-statement" id="04-live-statement"><span class="lv-word">Leaders</span> <span class="lv-word">see</span> <span class="lv-word">who</span> <span class="lv-word">has</span> <span class="lv-word">arrived,</span> <span class="lv-word">as</span> <span class="lv-word">it</span> <span class="lv-word">happens.</span></h1>
+
+      <div class="lv-panel" id="04-live-panel"></div>
+
+      <div class="lv-persp">
+        <div class="lv-window" id="04-live-window">
+          <div class="lv-cam-outer" id="04-live-cam-outer">
+            <div class="lv-cam-inner" id="04-live-cam-inner" data-layout-allow-overflow>
+              <img class="lv-shot" src="assets/cc-live.png" alt="" />
+
+              <!-- Checked in today card src x 560-1104, y 356-572. Camera S 2.0 on src (832, 464).
+                   Leader down from the card's bottom edge at src (1000, 572) to y 632; tag below (clear of "Failed check-ins", which ends at src x 842) -->
+              <div class="lv-leader" id="04-live-lead-today" style="left:424.5px; top:243.1px; width:1px; height:25.5px; transform-origin:50% 0;"></div>
+              <div class="lv-tagwrap" style="left:417px; top:268.6px; transform:scale(0.5);">
+                <span class="lv-tag" id="04-live-tag-today">Updates as people check in</span>
+              </div>
+
+              <!-- Absent link button src x 946-1174, centre (1060, 1015). Camera S 2.0 on src (1000, 936).
+                   Leader right from src x 1180 to 1320 at y 1015, past the session card edge (x 1303); tag to its right -->
+              <div class="lv-leader" id="04-live-lead-absent" style="left:501.5px; top:430.9px; width:59.5px; height:1px; transform-origin:0 50%;"></div>
+              <div class="lv-tagwrap" style="left:561px; top:422.9px; transform:scale(0.5);">
+                <span class="lv-tag" id="04-live-tag-absent">The absent list, ready to share</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/gsap@3.12.5/dist/gsap.min.js"></script>
+    <script>
+      (function () {
+        var ID = "04-live";
+        var DURATION = 6.5;
+        // ids start with a digit, so resolve them by getElementById (not a CSS #selector)
+        var q = function (s) { return document.getElementById(s.charAt(0) === "#" ? s.slice(1) : s); };
+        var qa = function (s) { return document.querySelectorAll('[data-composition-id="' + ID + '"] ' + s); };
+        var tl = gsap.timeline({ paused: true });
+
+        // Scene 1 (0.2-1.4): statement, window rises
+        tl.fromTo(qa(".lv-statement .lv-word"), { opacity: 0, y: 28 }, { opacity: 1, y: 0, duration: 0.8, ease: "power3.out", stagger: 0.06 }, 0.2);
+        tl.fromTo(q("#04-live-panel"), { opacity: 0, y: 60 }, { opacity: 1, y: 0, duration: 1.2, ease: "power3.out" }, 0.3);
+        tl.fromTo(q("#04-live-window"), { opacity: 0, y: 200, rotationX: 16 }, { opacity: 1, y: 0, rotationX: 0, duration: 1.3, ease: "power3.out" }, 0.35);
+
+        // Camera: outer scales, inner counter-translates (T = centre - target, world px)
+        var cam = function (S, tx, ty, at, dur) {
+          tl.to(q("#04-live-cam-outer"), { scale: S, duration: dur, ease: "power3.inOut" }, at);
+          tl.to(q("#04-live-cam-inner"), { x: tx, y: ty, duration: dur, ease: "power3.inOut" }, at);
+        };
+        var callout = function (lead, tag, at, axis) {
+          var from = {}, to = { duration: 0.35, ease: "power3.out" };
+          from[axis] = 0; to[axis] = 1;
+          tl.fromTo(q(lead), from, to, at);
+          tl.fromTo(q(tag), { opacity: 0, y: 8 }, { opacity: 1, y: 0, duration: 0.45, ease: "power3.out" }, at + 0.18);
+        };
+
+        // Scene 2 (1.6-3.4): push S 2.0 to Checked in today, src (832, 464) = world (353.6, 197.2)
+        cam(2.0, 258.4, 185.3, 1.6, 0.95);
+        callout("#04-live-lead-today", "#04-live-tag-today", 2.6, "scaleY");
+
+        // Scene 3 (3.6-5.4): first callout clears, pan down to the session card, src (1000, 936) = world (425, 397.8)
+        tl.to([q("#04-live-lead-today"), q("#04-live-tag-today")], { opacity: 0, duration: 0.35, ease: "power2.out" }, 3.2);
+        cam(2.0, 187, -15.3, 3.3, 0.9);
+        callout("#04-live-lead-absent", "#04-live-tag-absent", 4.15, "scaleX");
+
+        // Scene 4 (5.4-6.5): hold
+        tl.set({}, {}, DURATION);
+
+        window.__timelines = window.__timelines || {};
+        window.__timelines[ID] = tl;
+      })();
+    </script>
+  </div>
+</template>

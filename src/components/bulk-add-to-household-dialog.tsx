@@ -57,7 +57,7 @@ export function BulkAddToHouseholdDialog({
 
             toast({
                 title: "Members added to household",
-                description: `${result.added} member${result.added !== 1 ? 's' : ''} added. ${result.skipped > 0 ? `${result.skipped} already in a household.` : ''}`,
+                description: `${result.added} member${result.added !== 1 ? 's' : ''} added to ${selectedHousehold?.name ?? "the household"}.${result.skipped > 0 ? ` ${result.skipped} skipped because they're already in a household.` : ''}`,
             })
 
             setOpen(false)
@@ -65,8 +65,8 @@ export function BulkAddToHouseholdDialog({
             onSuccess?.()
         } catch (error) {
             toast({
-                title: "Error",
-                description: error instanceof Error ? error.message : "Failed to add members to household",
+                title: "Couldn't add members to the household",
+                description: error instanceof Error ? error.message : "Something went wrong. Try again.",
                 variant: "destructive",
             })
         } finally {
@@ -82,31 +82,26 @@ export function BulkAddToHouseholdDialog({
                 {trigger || (
                     <Button variant="outline" size="sm" className="gap-2">
                         <Home className="w-4 h-4" />
-                        Add to Household
+                        Add to household
                     </Button>
                 )}
             </DialogTrigger>
-            <DialogContent className="sm:max-w-[500px] glass-card border-border/50 shadow-soft">
+            <DialogContent className="sm:max-w-md">
                 <DialogHeader>
-                    <DialogTitle className="flex items-center gap-2 text-xl">
-                        <div className="p-2 bg-primary/10 rounded-lg text-primary">
-                            <Home className="h-5 w-5" />
-                        </div>
-                        Add Members to Household
+                    <DialogTitle>
+                        Add to a household
                     </DialogTitle>
                     <DialogDescription>
                         Add {selectedMembers.length} selected member{selectedMembers.length !== 1 ? 's' : ''} to a
-                        household. Members already in a household are skipped — remove them from their current
-                        household first to move them.
+                        household. Anyone already in a household is skipped. To move them, remove them from their
+                        current household first.
                     </DialogDescription>
                 </DialogHeader>
 
                 <div className="space-y-6 py-4">
                     <div className="space-y-2">
-                        <label className="text-xs font-semibold text-muted-foreground tracking-wider">
-                            Selected Members
-                        </label>
-                        <div className="flex items-center gap-2 p-3 bg-muted/30 rounded-lg border border-border/50">
+                        <p className="text-sm font-medium">Selected</p>
+                        <div className="flex items-center gap-2 rounded-lg bg-muted/40 p-3">
                             <Users className="h-4 w-4 text-muted-foreground" />
                             <span className="text-sm">
                                 {selectedMembers.length} member{selectedMembers.length !== 1 ? 's' : ''} selected
@@ -115,8 +110,8 @@ export function BulkAddToHouseholdDialog({
                     </div>
 
                     <div className="space-y-2">
-                        <label className="text-xs font-semibold text-muted-foreground tracking-wider">
-                            Select Household *
+                        <label className="text-sm font-medium">
+                            Household
                         </label>
                         <HouseholdCombobox
                             households={households}
@@ -127,10 +122,10 @@ export function BulkAddToHouseholdDialog({
                     </div>
 
                     {selectedHousehold && (
-                        <div className="p-4 bg-primary/5 rounded-lg border border-primary/20">
+                        <div className="rounded-lg p-4 ring-1 ring-foreground/10">
                             <div className="flex items-start gap-3">
-                                <div className="p-2 bg-primary/10 rounded-lg">
-                                    <Home className="h-4 w-4 text-primary" />
+                                <div className="pt-0.5">
+                                    <Home className="h-4 w-4 text-muted-foreground" />
                                 </div>
                                 <div>
                                     <h4 className="font-semibold text-sm">{selectedHousehold.name}</h4>
@@ -160,17 +155,16 @@ export function BulkAddToHouseholdDialog({
                     <Button
                         onClick={handleAddToHousehold}
                         disabled={isLoading || !selectedHouseholdId}
-                        className="shadow-soft hover:shadow-lg transition-all"
                     >
                         {isLoading ? (
                             <>
                                 <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                                Adding...
+                                Adding…
                             </>
                         ) : (
                             <>
                                 <Home className="h-4 w-4 mr-2" />
-                                Add to Household
+                                Add to household
                             </>
                         )}
                     </Button>

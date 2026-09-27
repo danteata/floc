@@ -8,8 +8,9 @@ import { Id } from "../../convex/_generated/dataModel"
 import {
   Dialog,
   DialogContent,
+  DialogTitle,
 } from "@/components/ui/dialog"
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
+import { MemberAvatar } from "@/components/ui/member-avatar"
 import { Badge } from "@/components/ui/badge"
 import { Separator } from "@/components/ui/separator"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
@@ -17,7 +18,9 @@ import { MemberLabels } from "./label-selector"
 import type { Member } from "@/types/database"
 import { useUserRole } from "@/hooks/use-user-role"
 import { hasCapability } from "@/lib/permissions"
-import { formatGHS } from "@/lib/financial-utils"
+import { useMoney } from "@/lib/money"
+import { cn } from "@/lib/utils"
+import { titleCase } from '@/lib/display'
 
 interface MemberProfileDialogProps {
   member: Member | null
@@ -25,35 +28,41 @@ interface MemberProfileDialogProps {
   onOpenChange: (open: boolean) => void
 }
 
+const STATUS_TONE: Record<string, { label: string; className: string }> = {
+  active: { label: "Active", className: "bg-success/15 text-success-strong" },
+  inactive: { label: "Inactive", className: "bg-warning/15 text-warning-strong" },
+  visitor: { label: "Visitor", className: "bg-info/15 text-info-strong" },
+}
+
+
+/** "resolved" → "Resolved". */
+function sentenceCase(value?: string | null): string {
+  const text = (value ?? "").replace(/[_-]+/g, " ")
+  return text.charAt(0).toUpperCase() + text.slice(1)
+}
+
+/** "26 Sep 2026" for a readable date, or the raw value if it isn't one. */
+function formatDay(value?: string | number | null): string {
+  if (value === null || value === undefined || value === "") return ""
+  const d = new Date(value)
+  return Number.isNaN(d.getTime()) ? String(value) : format(d, "d MMM yyyy")
+}
+
 function StatusBadge({ status }: { status: string }) {
-  switch (status) {
-    case "active":
-      return <Badge className="bg-green-500 text-white rounded-md text-[10px] py-0 px-2 tracking-wider capitalize">Active</Badge>
-    case "visitor":
-      return <Badge variant="secondary" className="rounded-md text-[10px] py-0 px-2 tracking-wider capitalize">Visitor</Badge>
-    default:
-      return (
-        <Badge variant="outline" className="rounded-md text-[10px] py-0 px-2 tracking-wider capitalize text-amber-600 dark:text-amber-400 border-amber-500/30 bg-amber-500/10">
-          {status}
-        </Badge>
-      )
-  }
+  const tone = STATUS_TONE[status] ?? { label: sentenceCase(status), className: "bg-muted text-muted-foreground" }
+  return <Badge className={tone.className}>{tone.label}</Badge>
 }
 
 function RiskBadge({ level }: { level: string }) {
   switch (level) {
     case "low":
-      return <Badge className="bg-green-500 text-white rounded-md text-[10px] py-0 px-2 tracking-wider">Low risk</Badge>
+      return <Badge className="bg-success/15 text-success-strong">Low risk</Badge>
     case "medium":
-      return (
-        <Badge variant="outline" className="rounded-md text-[10px] py-0 px-2 tracking-wider text-amber-600 dark:text-amber-400 border-amber-500/30 bg-amber-500/10">
-          Medium risk
-        </Badge>
-      )
+      return <Badge className="bg-warning/15 text-warning-strong">Medium risk</Badge>
     case "high":
-      return <Badge variant="destructive" className="rounded-md text-[10px] py-0 px-2 tracking-wider">High risk</Badge>
+      return <Badge className="bg-destructive/15 text-destructive-strong">High risk</Badge>
     case "new":
-      return <Badge variant="secondary" className="rounded-md text-[10px] py-0 px-2 tracking-wider">New member</Badge>
+      return <Badge className="bg-muted text-muted-foreground">New member</Badge>
     default:
       return null
   }
@@ -80,17 +89,17 @@ function parseEngagementBreakdown(raw?: string): EngagementBreakdown | null {
 
 function SectionLabel({ icon: Icon, children }: { icon: React.ElementType; children: React.ReactNode }) {
   return (
-    <h3 className="text-xs text-muted-foreground tracking-widest mb-3 flex items-center gap-2 font-medium">
-      <Icon className="h-3 w-3" /> {children}
+    <h3 className="mb-3 flex items-center gap-2 text-sm font-semibold text-foreground">
+      <Icon className="h-4 w-4 text-muted-foreground" aria-hidden="true" /> {children}
     </h3>
   )
 }
 
 const ENGAGEMENT_METRICS = {
   Recency: { weight: "35%", description: "Days since the member last attended." },
-  Trend: { weight: "30%", description: "Attendance in the last 8 weeks vs. the 8 weeks before that — catches a member sliding from weekly to monthly before they'd ever miss 3 in a row." },
+  Trend: { weight: "30%", description: "Attendance in the last 8 weeks compared with the 8 weeks before. It spots a member slipping from weekly to monthly before they miss 3 in a row." },
   Consistency: { weight: "20%", description: "Attendance rate over roughly the last 12 weeks." },
-  Involvement: { weight: "15%", description: "How many active groups/units the member belongs to." },
+  Involvement: { weight: "15%", description: "How many active units the member belongs to." },
 } as const
 
 /** A metric label with a click-to-open (works on touch too, unlike a hover-only
@@ -103,7 +112,7 @@ function MetricLabel({ metric }: { metric: keyof typeof ENGAGEMENT_METRICS }) {
       <Popover>
         <PopoverTrigger asChild>
           <button type="button" className="text-muted-foreground/50 hover:text-foreground transition-colors">
-            <Info className="h-2.5 w-2.5" />
+            <Info className="h-3 w-3" />
             <span className="sr-only">What does {metric} mean?</span>
           </button>
         </PopoverTrigger>
@@ -147,6 +156,7 @@ export function MemberProfileDialog({
   )
 
   const { role } = useUserRole()
+  const money = useMoney()
   const canViewGiving = hasCapability(role, "financial")
   const giving = useQuery(api.financial.listMemberGiving,
     open && member?._id && canViewGiving ? { member_id: member._id as Id<"members"> } : "skip"
@@ -180,24 +190,15 @@ export function MemberProfileDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-2xl max-h-[90vh] overflow-x-hidden overflow-y-auto p-0 border border-border/50 shadow-soft-lg">
-        {/* Header Background */}
-        <div className="h-24 sm:h-28 rounded-t-xl bg-gradient-to-br from-primary/20 via-primary/10 to-transparent" />
-
-        <div className="px-6 pb-8 -mt-10 space-y-6">
+      <DialogContent className="max-w-2xl max-h-[90vh] overflow-x-hidden overflow-y-auto p-0">
+        <div className="px-4 pt-6 pb-8 space-y-6 sm:px-6">
           {/* Header Section */}
-          <div className="flex flex-col sm:flex-row items-end sm:items-center gap-4">
-            <div className="relative">
-              <Avatar className="h-20 w-20 border-4 border-background shadow-soft">
-                <AvatarImage src={member.avatar_url || member.avatar} alt={member.name} />
-                <AvatarFallback className="text-xl bg-muted text-muted-foreground">{member.initials}</AvatarFallback>
-              </Avatar>
-              <div className="absolute bottom-0.5 right-0.5 h-4 w-4 bg-emerald-500 border-2 border-background rounded-full shadow-sm" />
-            </div>
+          <div className="flex items-center gap-4 pr-8">
+            <MemberAvatar name={member.name} src={member.avatar_url || member.avatar} size="lg" className="size-16 text-lg" />
 
-            <div className="flex-1 min-w-0 pb-1">
+            <div className="flex-1 min-w-0">
               <div className="flex flex-wrap items-center gap-2 mb-1">
-                <h2 className="text-xl text-foreground tracking-tight font-semibold break-words">{member.name}</h2>
+                <DialogTitle className="text-xl text-foreground tracking-tight font-semibold break-words">{member.name}</DialogTitle>
                 <StatusBadge status={member.status} />
               </div>
               <div className="flex flex-col gap-1">
@@ -222,39 +223,38 @@ export function MemberProfileDialog({
 
           <Separator />
 
-          {/* Activity Summary Cards */}
-          <div className="grid grid-cols-3 gap-3">
-            <div className="bg-primary text-primary-foreground p-4 rounded-xl shadow-soft">
+          {/* Activity summary */}
+          <div className="grid grid-cols-3 gap-2 sm:gap-3">
+            <div className="rounded-xl bg-card p-3 ring-1 ring-foreground/10 sm:p-4">
               <div className="flex items-center justify-between mb-1">
-                <span className="text-2xl font-semibold">
-                  {loading ? <Loader2 className="h-5 w-5 animate-spin" /> : attendanceSummary?.total_attendance || 0}
+                <span className="text-xl font-semibold text-foreground tabular-nums">
+                  {loading ? <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" /> : attendanceSummary?.total_attendance || 0}
                 </span>
-                <CheckCircle2 className="h-4 w-4 opacity-60" />
+                <CheckCircle2 className="h-4 w-4 text-muted-foreground" aria-hidden="true" />
               </div>
-              <div className="text-[9px] opacity-70 tracking-widest">TIMES PRESENT</div>
+              <div className="text-xs text-muted-foreground">Times present</div>
             </div>
-            <div className="bg-muted/40 p-4 rounded-xl border border-border">
+            <div className="rounded-xl bg-card p-3 ring-1 ring-foreground/10 sm:p-4">
               <div className="flex items-center justify-between mb-1">
-                <span className="text-lg font-semibold text-foreground truncate">
+                <span className="text-xl font-semibold text-foreground truncate">
                   {loading ? <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" /> :
-                    attendanceSummary?.last_attendance_date ? format(new Date(attendanceSummary.last_attendance_date), 'MMM d') : 'None'}
+                    attendanceSummary?.last_attendance_date ? format(new Date(attendanceSummary.last_attendance_date), 'd MMM') : 'Never'}
                 </span>
-                <Calendar className="h-4 w-4 text-muted-foreground" />
+                <Calendar className="h-4 w-4 text-muted-foreground" aria-hidden="true" />
               </div>
-              <div className="text-[9px] text-muted-foreground tracking-widest">LAST ATTENDED</div>
+              <div className="text-xs text-muted-foreground">Last attended</div>
             </div>
-            <div className={`p-4 rounded-xl border ${
-              hasAbsenceStreak
-                ? 'bg-amber-500/10 border-amber-500/30'
-                : 'bg-muted/40 border-border'
-            }`}>
+            <div className={cn(
+              "rounded-xl p-3 ring-1 sm:p-4",
+              hasAbsenceStreak ? "bg-warning/10 ring-warning/30" : "bg-card ring-foreground/10",
+            )}>
               <div className="flex items-center justify-between mb-1">
-                <span className={`text-lg font-semibold ${hasAbsenceStreak ? 'text-amber-600 dark:text-amber-400' : 'text-foreground'}`}>
+                <span className={cn("text-xl font-semibold tabular-nums", hasAbsenceStreak ? "text-warning-strong" : "text-foreground")}>
                   {loading ? <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" /> : consecutiveAbsences}
                 </span>
-                <AlertTriangle className={`h-4 w-4 ${hasAbsenceStreak ? 'text-amber-600 dark:text-amber-400' : 'text-muted-foreground'}`} />
+                <AlertTriangle className={cn("h-4 w-4", hasAbsenceStreak ? "text-warning-strong" : "text-muted-foreground")} aria-hidden="true" />
               </div>
-              <div className={`text-[9px] tracking-widest ${hasAbsenceStreak ? 'text-amber-600/80 dark:text-amber-400/80' : 'text-muted-foreground'}`}>CONSECUTIVE ABSENT</div>
+              <div className={cn("text-xs", hasAbsenceStreak ? "text-warning-strong" : "text-muted-foreground")}>Missed in a row</div>
             </div>
           </div>
 
@@ -262,22 +262,22 @@ export function MemberProfileDialog({
             {/* Left Column: Demographics & Groups */}
             <div className="space-y-6">
               <section>
-                <SectionLabel icon={Award}>DEMOGRAPHICS</SectionLabel>
-                <div className="space-y-3 bg-muted/30 p-4 rounded-xl border border-border">
+                <SectionLabel icon={Award}>About</SectionLabel>
+                <div className="space-y-3 rounded-xl bg-muted/30 p-4 ring-1 ring-foreground/10">
                   <div className="flex justify-between items-center text-sm">
                     <span className="text-muted-foreground">Gender</span>
                     <span className="font-medium text-foreground capitalize">{member.gender || 'Not specified'}</span>
                   </div>
                   <div className="flex justify-between items-center text-sm">
-                    <span className="text-muted-foreground">Joined Date</span>
+                    <span className="text-muted-foreground">Joined</span>
                     <span className="font-medium text-foreground">
-                      {member.joined_date ? format(new Date(member.joined_date), 'MMM d, yyyy') : 'N/A'}
+                      {member.joined_date ? format(new Date(member.joined_date), 'd MMM yyyy') : 'Not recorded'}
                     </span>
                   </div>
                   {member.dob && (
                     <div className="flex justify-between items-center text-sm">
                       <span className="text-muted-foreground">Birthday</span>
-                      <span className="font-medium text-foreground">{format(new Date(member.dob), 'MMMM d')}</span>
+                      <span className="font-medium text-foreground">{format(new Date(member.dob), 'd MMMM')}</span>
                     </div>
                   )}
                   {member.title && (
@@ -288,7 +288,7 @@ export function MemberProfileDialog({
                   )}
                   {(member as any).skills && (
                     <div className="flex flex-col text-sm">
-                      <span className="text-muted-foreground">Skills / Talents</span>
+                      <span className="text-muted-foreground">Skills and talents</span>
                       <span className="font-medium text-foreground">{(member as any).skills}</span>
                     </div>
                   )}
@@ -296,10 +296,10 @@ export function MemberProfileDialog({
               </section>
 
               <section>
-                <SectionLabel icon={Shield}>GROUPS</SectionLabel>
+                <SectionLabel icon={Shield}>Units and labels</SectionLabel>
                 <div className="space-y-3">
-                  <div className="bg-card p-4 rounded-xl border border-border shadow-sm">
-                    <p className="text-[10px] text-muted-foreground mb-2 tracking-wider">Unit Assignments</p>
+                  <div className="rounded-xl bg-card p-4 ring-1 ring-foreground/10">
+                    <p className="text-xs text-muted-foreground mb-2">Units</p>
                     <div className="flex flex-wrap gap-1.5">
                       {memberUnits.length > 0 ? (
                         memberUnits.map(unit => (
@@ -308,15 +308,15 @@ export function MemberProfileDialog({
                           </Badge>
                         ))
                       ) : (
-                        <span className="text-xs text-muted-foreground italic">No units assigned</span>
+                        <span className="text-xs text-muted-foreground">Not in any unit yet</span>
                       )}
                     </div>
                   </div>
 
                   {ledUnits.length > 0 && (
-                    <div className="bg-primary/5 p-4 rounded-xl border border-primary/15 shadow-sm">
-                      <p className="text-[10px] text-primary/80 mb-2 tracking-wider flex items-center gap-1">
-                        <Crown className="h-3 w-3" /> Units Led
+                    <div className="rounded-xl bg-card p-4 ring-1 ring-foreground/10">
+                      <p className="text-xs text-muted-foreground mb-2 flex items-center gap-1">
+                        <Crown className="h-3 w-3" aria-hidden="true" /> Leads
                       </p>
                       <div className="flex flex-wrap gap-1.5">
                         {ledUnits.map(unit => (
@@ -328,8 +328,8 @@ export function MemberProfileDialog({
                     </div>
                   )}
 
-                  <div className="bg-card p-4 rounded-xl border border-border shadow-sm">
-                    <p className="text-[10px] text-muted-foreground mb-2 tracking-wider">Assigned Labels</p>
+                  <div className="rounded-xl bg-card p-4 ring-1 ring-foreground/10">
+                    <p className="text-xs text-muted-foreground mb-2">Labels</p>
                     <MemberLabels labels={(memberLabels || []) as any} />
                   </div>
                 </div>
@@ -337,10 +337,10 @@ export function MemberProfileDialog({
 
               {member.engagement_score !== undefined && (
                 <section>
-                  <SectionLabel icon={Activity}>ENGAGEMENT</SectionLabel>
-                  <div className="bg-card p-4 rounded-xl border border-border shadow-sm space-y-3">
+                  <SectionLabel icon={Activity}>Engagement</SectionLabel>
+                  <div className="rounded-xl bg-card p-4 ring-1 ring-foreground/10 space-y-3">
                     <div className="flex items-center justify-between">
-                      <span className="text-2xl font-semibold text-foreground">{member.engagement_score}</span>
+                      <span className="text-2xl font-semibold text-foreground tabular-nums">{member.engagement_score}</span>
                       {member.engagement_risk_level && <RiskBadge level={member.engagement_risk_level} />}
                     </div>
                     {engagementBreakdown && (
@@ -360,11 +360,11 @@ export function MemberProfileDialog({
                     )}
                     <p className="text-xs text-muted-foreground flex items-center gap-1.5">
                       <HeartHandshake className="h-3 w-3" />
-                      Last care contact: {lastResolvedCareContact ? format(new Date(lastResolvedCareContact), 'MMM d, yyyy') : 'None yet'}
+                      Last care contact: {lastResolvedCareContact ? format(new Date(lastResolvedCareContact), 'd MMM yyyy') : 'none yet'}
                     </p>
-                    <p className="text-xs text-muted-foreground/60 flex items-center gap-1.5 italic">
+                    <p className="text-xs text-muted-foreground flex items-center gap-1.5">
                       <CircleDollarSign className="h-3 w-3" />
-                      Giving signal: not yet factored into this score
+                      Giving isn't part of this score yet
                     </p>
                   </div>
                 </section>
@@ -372,26 +372,26 @@ export function MemberProfileDialog({
 
               {canViewGiving && (
                 <section>
-                  <SectionLabel icon={CircleDollarSign}>GIVING</SectionLabel>
-                  <div className="bg-card p-4 rounded-xl border border-border shadow-sm">
+                  <SectionLabel icon={CircleDollarSign}>Giving</SectionLabel>
+                  <div className="rounded-xl bg-card p-4 ring-1 ring-foreground/10">
                     {giving === undefined ? (
                       <div className="flex items-center justify-center py-4">
                         <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
                       </div>
                     ) : giving.length === 0 ? (
-                      <span className="text-xs text-muted-foreground italic">No gifts recorded yet</span>
+                      <span className="text-xs text-muted-foreground">No gifts recorded yet</span>
                     ) : (
                       <>
                         <p className="text-sm font-medium text-foreground">
-                          {formatGHS(giving.reduce((sum, g) => sum + g.amount, 0))} total
+                          {money(giving.reduce((sum, g) => sum + g.amount, 0))} in total
                         </p>
                         <div className="mt-3 space-y-2 max-h-40 overflow-y-auto">
                           {giving.slice(0, 10).map((g) => (
                             <div key={g._id} className="flex items-center justify-between text-xs">
                               <span className="text-muted-foreground capitalize">
-                                {g.category} &middot; {g.date}
+                                {g.category} &middot; {formatDay(g.date)}
                               </span>
-                              <span className="font-medium text-foreground">{formatGHS(g.amount)}</span>
+                              <span className="font-medium text-foreground tabular-nums">{money(g.amount)}</span>
                             </div>
                           ))}
                         </div>
@@ -403,8 +403,8 @@ export function MemberProfileDialog({
 
               {households !== undefined && (
                 <section>
-                  <SectionLabel icon={Home}>HOUSEHOLD</SectionLabel>
-                  <div className="bg-card p-4 rounded-xl border border-border shadow-sm">
+                  <SectionLabel icon={Home}>Household</SectionLabel>
+                  <div className="rounded-xl bg-card p-4 ring-1 ring-foreground/10">
                     {household ? (
                       <>
                         <p className="text-sm font-medium text-foreground">
@@ -417,9 +417,9 @@ export function MemberProfileDialog({
                         )}
                         <div className="flex flex-wrap gap-1.5 mt-3">
                           {household.members.map((m) => (
-                            <Badge key={m._id} variant="outline" className="text-[10px] gap-1">
+                            <Badge key={m._id} variant="outline" className="gap-1 font-normal">
                               {m._id === household.head_of_household_id && (
-                                <Star className="h-2.5 w-2.5" />
+                                <Star className="h-3 w-3 text-muted-foreground" aria-label="Head of household" />
                               )}
                               {m.name}
                             </Badge>
@@ -428,13 +428,13 @@ export function MemberProfileDialog({
                         {household.head_anniversary && (
                           <p className="text-xs text-muted-foreground mt-3 flex items-center gap-1.5">
                             <HeartHandshake className="h-3 w-3" />
-                            Anniversary: {household.head_anniversary}
+                            Anniversary: {formatDay(household.head_anniversary)}
                           </p>
                         )}
                       </>
                     ) : (
-                      <span className="text-xs text-muted-foreground italic">
-                        Not part of a household yet
+                      <span className="text-xs text-muted-foreground">
+                        Not in a household yet
                       </span>
                     )}
                   </div>
@@ -445,25 +445,25 @@ export function MemberProfileDialog({
             {/* Right Column: Contact & Attendance History */}
             <div className="space-y-6">
               <section>
-                <SectionLabel icon={MapPin}>CONTACT</SectionLabel>
-                <div className="space-y-3 bg-muted/30 p-4 rounded-xl border border-border">
+                <SectionLabel icon={MapPin}>Contact</SectionLabel>
+                <div className="space-y-3 rounded-xl bg-muted/30 p-4 ring-1 ring-foreground/10">
                   <div className="flex items-start gap-3">
                     <Phone className="h-4 w-4 text-muted-foreground mt-0.5" />
                     <div>
-                      <p className="text-[10px] text-muted-foreground">Primary Phone</p>
-                      <p className="text-sm text-foreground">{member.phone || 'None'}</p>
+                      <p className="text-xs text-muted-foreground">Phone</p>
+                      <p className="text-sm text-foreground">{member.phone || 'No phone number'}</p>
                     </div>
                   </div>
                   <div className="flex items-start gap-3">
                     <MapPin className="h-4 w-4 text-muted-foreground mt-0.5" />
                     <div>
-                      <p className="text-[10px] text-muted-foreground">Physical Address</p>
+                      <p className="text-xs text-muted-foreground">Address</p>
                       <p className="text-sm text-foreground leading-snug">
                         {member.address ? (
                           <>
                             {member.address}<br />
-                            {member.city}, {member.state} {member.zip}<br />
-                            {member.country}
+                            {[member.city, [member.state, member.zip].filter(Boolean).join(" ")].filter(Boolean).join(", ")}
+                            {member.country && <><br />{member.country}</>}
                           </>
                         ) : 'No address on file'}
                       </p>
@@ -473,7 +473,7 @@ export function MemberProfileDialog({
                     <div className="flex items-start gap-3">
                       <Hash className="h-4 w-4 text-muted-foreground mt-0.5" />
                       <div>
-                        <p className="text-[10px] text-muted-foreground">Digital Coordinates</p>
+                        <p className="text-xs text-muted-foreground">Plus code</p>
                         <p className="text-xs font-mono text-muted-foreground">{member.plus_code}</p>
                       </div>
                     </div>
@@ -483,8 +483,8 @@ export function MemberProfileDialog({
 
               {/* Attendance History */}
               <section>
-                <SectionLabel icon={Calendar}>ATTENDANCE HISTORY</SectionLabel>
-                <div className="bg-card rounded-xl border border-border shadow-sm overflow-hidden">
+                <SectionLabel icon={Calendar}>Attendance history</SectionLabel>
+                <div className="overflow-hidden rounded-xl bg-card ring-1 ring-foreground/10">
                   {loading ? (
                     <div className="p-4 flex items-center justify-center">
                       <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
@@ -496,24 +496,17 @@ export function MemberProfileDialog({
                         return (
                           <div key={index} className="px-4 py-2.5 flex items-center justify-between hover:bg-muted/50 transition-colors">
                             <div className="flex items-center gap-3">
-                              <div className={`h-7 w-7 rounded-full flex items-center justify-center ${
-                                isPresent ? 'bg-emerald-500/10' : 'bg-destructive/10'
-                              }`}>
-                                {isPresent ? (
-                                  <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400" />
-                                ) : (
-                                  <XCircle className="h-3.5 w-3.5 text-destructive" />
-                                )}
-                              </div>
+                              {isPresent ? (
+                                <CheckCircle2 className="h-4 w-4 shrink-0 text-success-strong" aria-hidden="true" />
+                              ) : (
+                                <XCircle className="h-4 w-4 shrink-0 text-destructive-strong" aria-hidden="true" />
+                              )}
                               <div>
-                                <p className="text-sm font-medium text-foreground">{record.event_type_label}</p>
-                                <p className="text-xs text-muted-foreground">{format(new Date(record.date), 'MMM d, yyyy')}</p>
+                                <p className="text-sm font-medium text-foreground">{titleCase(record.event_type_label)}</p>
+                                <p className="text-xs text-muted-foreground">{format(new Date(record.date), 'd MMM yyyy')}</p>
                               </div>
                             </div>
-                            <Badge
-                              variant={isPresent ? "outline" : "destructive"}
-                              className={isPresent ? "text-xs text-emerald-600 dark:text-emerald-400 border-emerald-500/30 bg-emerald-500/10" : "text-xs"}
-                            >
+                            <Badge className={isPresent ? "bg-success/15 text-success-strong" : "bg-destructive/15 text-destructive-strong"}>
                               {isPresent ? 'Present' : 'Absent'}
                             </Badge>
                           </div>
@@ -522,7 +515,7 @@ export function MemberProfileDialog({
                     </div>
                   ) : (
                     <div className="p-4 text-center">
-                      <XCircle className="h-8 w-8 text-muted-foreground/50 mx-auto mb-2" />
+                      <Calendar className="h-8 w-8 text-muted-foreground/30 mx-auto mb-2" aria-hidden="true" />
                       <p className="text-sm text-muted-foreground">No attendance records yet</p>
                     </div>
                   )}
@@ -531,8 +524,8 @@ export function MemberProfileDialog({
 
               {/* Follow-up History */}
               <section>
-                <SectionLabel icon={HeartHandshake}>FOLLOW-UP HISTORY</SectionLabel>
-                <div className="bg-card rounded-xl border border-border shadow-sm overflow-hidden">
+                <SectionLabel icon={HeartHandshake}>Follow-up history</SectionLabel>
+                <div className="overflow-hidden rounded-xl bg-card ring-1 ring-foreground/10">
                   {careTasks === undefined ? (
                     <div className="p-4 flex items-center justify-center">
                       <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
@@ -549,14 +542,19 @@ export function MemberProfileDialog({
                               )}
                             </p>
                             <Badge
-                              variant={task.status === "resolved" ? "default" : task.status === "contacted" ? "secondary" : "outline"}
-                              className="text-[10px] capitalize"
+                              className={
+                                task.status === "resolved"
+                                  ? "bg-success/15 text-success-strong"
+                                  : task.status === "contacted"
+                                    ? "bg-info/15 text-info-strong"
+                                    : "bg-muted text-muted-foreground"
+                              }
                             >
-                              {task.status}
+                              {sentenceCase(task.status)}
                             </Badge>
                           </div>
                           <p className="text-xs text-muted-foreground mt-0.5">
-                            {format(new Date(task.created_at), 'MMM d, yyyy')}
+                            {format(new Date(task.created_at), 'd MMM yyyy')}
                           </p>
                           {task.notes?.length > 0 && (
                             <div className="mt-2 space-y-1.5 pl-3 border-l border-border">
@@ -564,7 +562,7 @@ export function MemberProfileDialog({
                                 <div key={n._id} className="text-xs">
                                   {n.note && <p className="text-foreground">{n.note}</p>}
                                   <p className="text-muted-foreground">
-                                    {n.created_by_name || "Someone"} · {format(new Date(n.created_at), 'MMM d, yyyy')}
+                                    {n.created_by_name || "Someone"} · {format(new Date(n.created_at), 'd MMM yyyy')}
                                   </p>
                                 </div>
                               ))}
@@ -575,8 +573,8 @@ export function MemberProfileDialog({
                     </div>
                   ) : (
                     <div className="p-4 text-center">
-                      <HeartHandshake className="h-8 w-8 text-muted-foreground/50 mx-auto mb-2" />
-                      <p className="text-sm text-muted-foreground">No follow-up tasks yet</p>
+                      <HeartHandshake className="h-8 w-8 text-muted-foreground/30 mx-auto mb-2" aria-hidden="true" />
+                      <p className="text-sm text-muted-foreground">No follow-ups yet</p>
                     </div>
                   )}
                 </div>

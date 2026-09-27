@@ -623,11 +623,15 @@ export const update = mutation({
             level3_plural: v.optional(v.string()),
             level4_singular: v.optional(v.string()),
             level4_plural: v.optional(v.string()),
+            currency: v.optional(v.string()),
         }),
     },
     handler: async (ctx, args) => {
         await requireOrgAdmin(ctx);
         await requireOrgAccess(ctx, args.id);
+        if (args.updates.currency !== undefined && !/^[A-Z]{3}$/.test(args.updates.currency)) {
+            throw new Error("Currency must be a three-letter code, such as GHS or USD.");
+        }
         await ctx.db.patch(args.id, args.updates);
         return true;
     },

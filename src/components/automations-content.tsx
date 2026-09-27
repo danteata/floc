@@ -10,6 +10,7 @@ import {
 } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
+import { PageHeader } from "@/components/ui/page-header"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
@@ -18,6 +19,7 @@ import {
 } from "@/components/ui/dropdown-menu"
 import { EmptyState } from "@/components/ui/empty-state"
 import { LoadingState } from "@/components/ui/loading-state"
+import { NoAccess } from "@/components/ui/no-access"
 import { DeleteConfirmDialog } from "@/components/delete-confirm-dialog"
 import { useOrganization } from "@/hooks/use-organization"
 import { useUserRole } from "@/hooks/use-user-role"
@@ -27,6 +29,10 @@ import { TemplateGalleryDialog } from "@/components/automations/template-gallery
 import { RuleEditorDialog } from "@/components/automations/rule-editor-dialog"
 import { SimulateDialog } from "@/components/automations/simulate-dialog"
 import { AutomationTemplate } from "@/components/automations/templates"
+
+const CHANNEL_LABEL: Record<string, string> = { in_app: "In-app", sms: "SMS" }
+const channelLabel = (channel?: string) =>
+  channel ? CHANNEL_LABEL[channel] ?? channel.charAt(0).toUpperCase() + channel.slice(1).replace(/_/g, " ") : ""
 
 export function AutomationsContent() {
   const { organization } = useOrganization()
@@ -68,16 +74,16 @@ export function AutomationsContent() {
       await setRuleStatus({ id: rule._id, status: next })
       toast.success(next === "enabled" ? "Automation enabled" : "Automation paused")
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Failed to update status")
+      toast.error("Couldn't change the automation", { description: e instanceof Error ? e.message : undefined })
     }
   }
 
   const handleToggleDryRun = async (rule: any) => {
     try {
       await setRuleStatus({ id: rule._id, status: rule.status, dry_run: !rule.dry_run })
-      toast.success(rule.dry_run ? "Switched to live sending" : "Switched to dry-run")
+      toast.success(rule.dry_run ? "Switched to live sending" : "Switched to dry run")
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Failed to update mode")
+      toast.error("Couldn't switch the mode", { description: e instanceof Error ? e.message : undefined })
     }
   }
 
@@ -88,33 +94,27 @@ export function AutomationsContent() {
       toast.success(`"${deleteTarget.name}" deleted`)
       setDeleteTarget(null)
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Failed to delete")
+      toast.error("Couldn't delete the automation", { description: e instanceof Error ? e.message : undefined })
     }
   }
 
   if (!roleLoading && !isAdmin) {
-    return <EmptyState icon={Zap} title="Admins only" description="You don't have access to automations." className="py-24" />
+    return <NoAccess what="set up automations" />
   }
 
   return (
     <div className="w-full space-y-8 animate-in fade-in duration-500">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-6 border-b border-border/40 pb-8">
-        <div className="space-y-2">
-          <div className="flex items-center gap-3">
-            <div className="p-2.5 bg-[#5b21b6] text-white rounded-xl shadow-md">
-              <Zap className="h-6 w-6" />
-            </div>
-            <h1 className="text-3xl tracking-tight text-foreground">Automations</h1>
-          </div>
-          <p className="text-muted-foreground text-sm pl-12">
-            If-this-then-that rules — follow up on absences, greet birthdays, welcome new members, and more.
-          </p>
-        </div>
-        <Button onClick={() => setGalleryOpen(true)} className="shadow-sm rounded-lg gap-2">
-          <Plus className="h-4 w-4" /> New automation
-        </Button>
-      </div>
+      <PageHeader
+        title="Automations"
+        description="Rules that act for you: follow up on absences, greet birthdays, welcome new members."
+        actions={
+          <>
+            <Button onClick={() => setGalleryOpen(true)} className="shadow-sm rounded-lg gap-2">
+              <Plus className="h-4 w-4" /> New automation
+            </Button>
+          </>
+        }
+      />
 
       <Tabs defaultValue="rules" className="w-full">
         <TabsList className="bg-muted/50 p-1 rounded-xl w-full md:w-auto inline-flex">
@@ -124,14 +124,14 @@ export function AutomationsContent() {
 
         {/* Rules */}
         <TabsContent value="rules" className="mt-6 w-full animate-in fade-in slide-in-from-bottom-2 duration-300">
-          <Card className="glass-card border-border/50 shadow-soft rounded-xl overflow-hidden">
-            <CardHeader className="border-b border-border/50 bg-muted/20 px-6 py-4">
-              <CardTitle className="text-xl tracking-tight">Rules</CardTitle>
-              <CardDescription>New rules start as a draft in dry-run. Simulate, then switch to live.</CardDescription>
+          <Card className="overflow-hidden">
+            <CardHeader className="border-b border-border/50 px-6 py-4">
+              <CardTitle className="text-lg font-semibold">Rules</CardTitle>
+              <CardDescription>New rules start as drafts in dry run, so nothing is sent. Simulate one, then switch it to live.</CardDescription>
             </CardHeader>
             <CardContent className="p-0">
               {rules === undefined ? (
-                <LoadingState message="Loading automations..." />
+                <LoadingState message="Loading automations…" />
               ) : (
                 <Table>
                   <TableHeader>
@@ -164,7 +164,7 @@ export function AutomationsContent() {
                             </Button>
                             <DropdownMenu>
                               <DropdownMenuTrigger asChild>
-                                <Button variant="ghost" size="sm" className="h-8 w-8 p-0"><MoreHorizontal className="h-4 w-4" /></Button>
+                                <Button variant="ghost" size="sm" className="h-8 w-8 p-0" aria-label="More actions"><MoreHorizontal className="h-4 w-4" /></Button>
                               </DropdownMenuTrigger>
                               <DropdownMenuContent align="end">
                                 <DropdownMenuItem onClick={() => openEdit(rule)}><Pencil className="h-4 w-4 mr-2" /> Edit</DropdownMenuItem>
@@ -172,7 +172,7 @@ export function AutomationsContent() {
                                   {rule.status === "enabled" ? <><Pause className="h-4 w-4 mr-2" /> Pause</> : <><Play className="h-4 w-4 mr-2" /> Enable</>}
                                 </DropdownMenuItem>
                                 <DropdownMenuItem onClick={() => handleToggleDryRun(rule)}>
-                                  {rule.dry_run ? <><Radio className="h-4 w-4 mr-2" /> Switch to live</> : <><Beaker className="h-4 w-4 mr-2" /> Switch to dry-run</>}
+                                  {rule.dry_run ? <><Radio className="h-4 w-4 mr-2" /> Switch to live</> : <><Beaker className="h-4 w-4 mr-2" /> Switch to dry run</>}
                                 </DropdownMenuItem>
                                 <DropdownMenuSeparator />
                                 <DropdownMenuItem className="text-destructive focus:text-destructive" onClick={() => setDeleteTarget(rule)}>
@@ -190,7 +190,7 @@ export function AutomationsContent() {
                           <EmptyState
                             icon={Zap}
                             title="No automations yet"
-                            description="Create your first rule — like following up when a member misses a few services."
+                            description="Start with a template, like following up when a member misses a few services."
                             action={<Button onClick={() => setGalleryOpen(true)} className="gap-2"><Plus className="h-4 w-4" /> New automation</Button>}
                           />
                         </TableCell>
@@ -205,14 +205,14 @@ export function AutomationsContent() {
 
         {/* Activity */}
         <TabsContent value="activity" className="mt-6 w-full animate-in fade-in slide-in-from-bottom-2 duration-300">
-          <Card className="glass-card border-border/50 shadow-soft rounded-xl overflow-hidden">
-            <CardHeader className="border-b border-border/50 bg-muted/20 px-6 py-4">
-              <CardTitle className="text-xl tracking-tight">Recent activity</CardTitle>
-              <CardDescription>Every send, skip, and dry-run the engine has logged.</CardDescription>
+          <Card className="overflow-hidden">
+            <CardHeader className="border-b border-border/50 px-6 py-4">
+              <CardTitle className="text-lg font-semibold">Recent activity</CardTitle>
+              <CardDescription>Every message your automations sent, skipped or held back in dry run.</CardDescription>
             </CardHeader>
             <CardContent className="p-0">
               {messages === undefined ? (
-                <LoadingState message="Loading activity..." />
+                <LoadingState message="Loading activity…" />
               ) : (
                 <Table>
                   <TableHeader>
@@ -227,12 +227,12 @@ export function AutomationsContent() {
                     {messages.map((m: any) => (
                       <TableRow key={m._id} className="border-border/50">
                         <TableCell className="py-3 pl-6 text-sm text-muted-foreground whitespace-nowrap">
-                          {m.sent_at ? format(new Date(m.sent_at), "MMM d, HH:mm") : "-"}
+                          {m.sent_at ? format(new Date(m.sent_at), "d MMM, HH:mm") : "Not sent"}
                         </TableCell>
-                        <TableCell className="hidden sm:table-cell text-sm capitalize">{m.channel}</TableCell>
+                        <TableCell className="hidden sm:table-cell text-sm">{channelLabel(m.channel)}</TableCell>
                         <TableCell><OutcomeBadge outcome={m.outcome} /></TableCell>
                         <TableCell className="hidden md:table-cell text-sm text-muted-foreground line-clamp-1 max-w-md">
-                          {m.rendered_preview || m.error || "—"}
+                          {m.rendered_preview || m.error || "No preview"}
                         </TableCell>
                       </TableRow>
                     ))}

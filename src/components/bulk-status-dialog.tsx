@@ -34,9 +34,9 @@ interface BulkStatusDialogProps {
 }
 
 const STATUS_OPTIONS = [
-    { value: "active", label: "Active", badge: "default" as const },
-    { value: "inactive", label: "Inactive", badge: "outline" as const },
-    { value: "visitor", label: "Visitor", badge: "secondary" as const },
+    { value: "active", label: "Active", tone: "bg-success/15 text-success-strong", hint: "Attending and part of church life." },
+    { value: "inactive", label: "Inactive", tone: "bg-warning/15 text-warning-strong", hint: "Still a member, but not attending at the moment." },
+    { value: "visitor", label: "Visitor", tone: "bg-info/15 text-info-strong", hint: "Visiting and not yet a member." },
 ]
 
 export function BulkStatusDialog({
@@ -63,7 +63,7 @@ export function BulkStatusDialog({
 
             toast({
                 title: "Status updated",
-                description: `Updated ${result.updated} member${result.updated !== 1 ? "s" : ""}.`,
+                description: `${result.updated} member${result.updated !== 1 ? "s are" : " is"} now ${(selectedStatusMeta?.label ?? selectedStatus).toLowerCase()}.`,
             })
 
             setOpen(false)
@@ -71,8 +71,8 @@ export function BulkStatusDialog({
             onSuccess?.()
         } catch (error) {
             toast({
-                title: "Error",
-                description: error instanceof Error ? error.message : "Failed to update status",
+                title: "Couldn't update the status",
+                description: error instanceof Error ? error.message : "Something went wrong. Try again.",
                 variant: "destructive",
             })
         } finally {
@@ -88,17 +88,14 @@ export function BulkStatusDialog({
                 {trigger || (
                     <Button variant="outline" size="sm" className="gap-2">
                         <ShieldAlert className="w-4 h-4" />
-                        Set Status
+                        Set status
                     </Button>
                 )}
             </DialogTrigger>
-            <DialogContent className="sm:max-w-[500px] glass-card border-border/50 shadow-soft">
+            <DialogContent className="sm:max-w-md">
                 <DialogHeader>
-                    <DialogTitle className="flex items-center gap-2 text-xl">
-                        <div className="p-2 bg-primary/10 rounded-lg text-primary">
-                            <ShieldAlert className="h-5 w-5" />
-                        </div>
-                        Set Member Status
+                    <DialogTitle>
+                        Set status
                     </DialogTitle>
                     <DialogDescription>
                         Apply a status to {selectedMembers.length} selected member{selectedMembers.length !== 1 ? "s" : ""}.
@@ -107,10 +104,8 @@ export function BulkStatusDialog({
 
                 <div className="space-y-6 py-4">
                     <div className="space-y-2">
-                        <label className="text-xs font-semibold text-muted-foreground tracking-wider">
-                            Selected Members
-                        </label>
-                        <div className="flex items-center gap-2 p-3 bg-muted/30 rounded-lg border border-border/50">
+                        <p className="text-sm font-medium">Selected</p>
+                        <div className="flex items-center gap-2 rounded-lg bg-muted/40 p-3">
                             <Users className="h-4 w-4 text-muted-foreground" />
                             <span className="text-sm">
                                 {selectedMembers.length} member{selectedMembers.length !== 1 ? "s" : ""} selected
@@ -119,22 +114,17 @@ export function BulkStatusDialog({
                     </div>
 
                     <div className="space-y-2">
-                        <label className="text-xs font-semibold text-muted-foreground tracking-wider">
-                            Select Status *
+                        <label className="text-sm font-medium">
+                            New status
                         </label>
                         <Select value={selectedStatus} onValueChange={setSelectedStatus}>
-                            <SelectTrigger className="bg-background/50 border-input-border">
-                                <SelectValue placeholder="Choose a status..." />
+                            <SelectTrigger className="w-full">
+                                <SelectValue placeholder="Choose a status…" />
                             </SelectTrigger>
                             <SelectContent>
                                 {STATUS_OPTIONS.map((status) => (
                                     <SelectItem key={status.value} value={status.value}>
-                                        <div className="flex items-center gap-2">
-                                            <span>{status.label}</span>
-                                            <Badge variant={status.badge} className="text-[10px] ml-2">
-                                                {status.value}
-                                            </Badge>
-                                        </div>
+                                        <Badge className={status.tone}>{status.label}</Badge>
                                     </SelectItem>
                                 ))}
                             </SelectContent>
@@ -142,18 +132,11 @@ export function BulkStatusDialog({
                     </div>
 
                     {selectedStatusMeta && (
-                        <div className="p-4 bg-primary/5 rounded-lg border border-primary/20">
-                            <div className="flex items-start gap-3">
-                                <div className="p-2 bg-primary/10 rounded-lg">
-                                    <ShieldAlert className="h-4 w-4 text-primary" />
-                                </div>
-                                <div>
-                                    <h4 className="font-semibold text-sm">{selectedStatusMeta.label}</h4>
-                                    <p className="text-xs text-muted-foreground mt-1">
-                                        This will update status for all selected members.
-                                    </p>
-                                </div>
-                            </div>
+                        <div className="rounded-lg p-4 ring-1 ring-foreground/10">
+                            <h4 className="font-semibold text-sm">{selectedStatusMeta.label}</h4>
+                            <p className="text-xs text-muted-foreground mt-1">
+                                {selectedStatusMeta.hint} Every selected member will be set to this.
+                            </p>
                         </div>
                     )}
                 </div>
@@ -169,17 +152,15 @@ export function BulkStatusDialog({
                     <Button
                         onClick={handleUpdateStatus}
                         disabled={isLoading || !selectedStatus}
-                        className="shadow-soft hover:shadow-lg transition-all"
                     >
                         {isLoading ? (
                             <>
                                 <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                                Updating...
+                                Updating…
                             </>
                         ) : (
                             <>
-                                <ShieldAlert className="h-4 w-4 mr-2" />
-                                Update Status
+                                Set status
                             </>
                         )}
                     </Button>

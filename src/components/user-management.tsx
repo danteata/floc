@@ -35,7 +35,7 @@ import {
 } from '@/components/ui/dialog'
 import { Label } from '@/components/ui/label'
 import { Checkbox } from '@/components/ui/checkbox'
-import { Shield, Users, Edit, UserPlus, Trash2, UserX, UserCheck } from 'lucide-react'
+import { Users, Edit, UserPlus, Trash2, UserX, UserCheck } from 'lucide-react'
 import {
   AlertDialog,
   AlertDialogAction,
@@ -55,9 +55,37 @@ import { useTerminology } from '@/hooks/use-terminology'
 import { LeaderInvitationSystem } from '@/components/leader-invitation-system'
 import type { UserRole } from '@/types/database'
 import { Id } from "../../convex/_generated/dataModel"
+import { PageHeader } from "@/components/ui/page-header"
+import { formatDay } from "@/lib/display"
+import { NoAccess } from "@/components/ui/no-access"
+import { LoadingState } from "@/components/ui/loading-state"
+
+const ROLE_LABELS: Record<string, string> = {
+  super_admin: 'Super admin',
+  organization_admin: 'Organization admin',
+  division_admin: 'Division admin',
+  unit_admin: 'Unit admin',
+  member: 'Member',
+}
+
+/** "organization_admin" reads "Organization admin"; unknown roles fall back to sentence case. */
+function roleLabel(role: string | undefined): string {
+  if (!role) return 'Member'
+  if (ROLE_LABELS[role]) return ROLE_LABELS[role]
+  const words = role.replace(/[_.-]+/g, ' ').trim().toLowerCase()
+  return words.charAt(0).toUpperCase() + words.slice(1)
+}
+
+const ROLE_TONES: Record<string, string> = {
+  super_admin: 'bg-primary/15 text-primary',
+  organization_admin: 'bg-info/15 text-info-strong',
+  division_admin: 'bg-warning/15 text-warning-strong',
+  unit_admin: 'bg-success/15 text-success-strong',
+  member: 'bg-muted text-muted-foreground',
+}
 
 export function UserManagement() {
-  const { isAdmin, user: currentUser } = useUserRole()
+  const { isAdmin, user: currentUser, isLoading: roleLoading } = useUserRole()
   const { toast } = useToast()
   const { terminology } = useTerminology()
   const { organization } = useOrganization()
@@ -166,8 +194,10 @@ export function UserManagement() {
       setIsDialogOpen(false)
       setEditingUser(null)
       setEditingMemberId(null)
+      toast({ title: 'Changes saved' })
     } catch (error) {
       console.error('Error saving user:', error)
+      toast({ title: "Couldn't save the changes", description: error instanceof Error ? error.message : undefined, variant: 'destructive' })
     }
   }
 
@@ -193,9 +223,9 @@ export function UserManagement() {
   const handleToggleActive = async (user: any) => {
     try {
       await setUserActive({ id: user._id, active: !user.active })
-      toast({ title: user.active ? 'User deactivated' : 'User reactivated' })
+      toast({ title: user.active ? 'Account deactivated' : 'Account reactivated' })
     } catch (error: any) {
-      toast({ title: 'Error', description: error.message, variant: 'destructive' })
+      toast({ title: "Couldn't change the account", description: error.message, variant: 'destructive' })
     }
   }
 
@@ -203,9 +233,9 @@ export function UserManagement() {
     if (!userToRemove) return
     try {
       await removeUser({ id: userToRemove._id })
-      toast({ title: 'User removed', description: 'The account was removed; the member profile was kept.' })
+      toast({ title: 'Account removed', description: 'Their member profile was kept.' })
     } catch (error: any) {
-      toast({ title: 'Error', description: error.message, variant: 'destructive' })
+      toast({ title: "Couldn't remove the account", description: error.message, variant: 'destructive' })
     } finally {
       setUserToRemove(null)
     }
@@ -225,52 +255,36 @@ export function UserManagement() {
     return allUnits.filter((u: any) => adminUnitIds.has(u._id) || u.leader_id === member._id)
   }
 
-  if (!isAdmin) {
-    return (
-      <div className="container p-4 md:p-6">
-        <Card>
-          <CardContent className="pt-6">
-            <div className="text-center">
-              <Shield className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-              <h3 className="text-lg font-semibold mb-2">Access Denied</h3>
-              <p className="text-muted-foreground">
-                You don't have permission to access user management.
-              </p>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-    )
+  if (roleLoading) return <LoadingState message="Checking your access…" />
+    if (!isAdmin) {
+    return <NoAccess what="manage users and roles" who="administrators" />
   }
 
   return (
     <div className="container p-4 md:p-6">
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
-        <div>
-          <h1 className="text-2xl tracking-tight">User Management</h1>
-          <p className="text-muted-foreground">
-            Manage user roles, permissions, and invite leaders
-          </p>
-        </div>
-      </div>
+      <PageHeader
+        className="mb-6"
+        title="User management"
+        description="Who can sign in, their roles, and leader invitations."
+      />
 
       {/* Tab Navigation */}
-      <div className="flex space-x-1 mb-6">
+      <div className="-mx-4 mb-6 flex gap-1 overflow-x-auto px-4 md:mx-0 md:px-0">
         <Button
           variant={activeTab === 'users' ? 'default' : 'outline'}
           onClick={() => setActiveTab('users')}
-          className="flex items-center gap-2"
+          className="flex shrink-0 items-center gap-2"
         >
           <Users className="h-4 w-4" />
-          Existing Users
+          Users
         </Button>
         <Button
           variant={activeTab === 'invitations' ? 'default' : 'outline'}
           onClick={() => setActiveTab('invitations')}
-          className="flex items-center gap-2"
+          className="flex shrink-0 items-center gap-2"
         >
           <UserPlus className="h-4 w-4" />
-          Invite Leaders
+          Invite leaders
         </Button>
       </div>
 
@@ -278,9 +292,9 @@ export function UserManagement() {
       {activeTab === 'users' ? (
         <Card>
           <CardHeader>
-            <CardTitle>System Users</CardTitle>
+            <CardTitle className="text-lg font-semibold">People who can sign in</CardTitle>
             <CardDescription>
-              Assign roles and manage user permissions for existing accounts
+              Change what each person can see and do, or turn off their access.
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -288,22 +302,22 @@ export function UserManagement() {
             <div className="flex flex-col sm:flex-row gap-4 mb-4">
               <div className="flex-1">
                 <Input
-                  placeholder="Search users..."
+                  placeholder="Search by name or email…"
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   className="max-w-sm"
                 />
               </div>
               <Select value={roleFilter} onValueChange={setRoleFilter}>
-                <SelectTrigger className="w-[180px]">
+                <SelectTrigger className="w-full sm:w-[200px]">
                   <SelectValue placeholder="Filter by role" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="all">All Roles</SelectItem>
-                  <SelectItem value="super_admin">Super Admin</SelectItem>
-                  <SelectItem value="organization_admin">Organization Admin</SelectItem>
-                  <SelectItem value="division_admin">Division Admin</SelectItem>
-                  <SelectItem value="unit_admin">Unit Admin</SelectItem>
+                  <SelectItem value="all">All roles</SelectItem>
+                  <SelectItem value="super_admin">Super admin</SelectItem>
+                  <SelectItem value="organization_admin">Organization admin</SelectItem>
+                  <SelectItem value="division_admin">Division admin</SelectItem>
+                  <SelectItem value="unit_admin">Unit admin</SelectItem>
                   <SelectItem value="member">Member</SelectItem>
                 </SelectContent>
               </Select>
@@ -315,31 +329,30 @@ export function UserManagement() {
                 <TableHeader>
                   <TableRow>
                     <TableHead>Name</TableHead>
-                    <TableHead>Email</TableHead>
                     <TableHead>Role</TableHead>
                     <TableHead>Units</TableHead>
                     <TableHead>Status</TableHead>
-                    <TableHead>Created</TableHead>
+                    <TableHead>Added</TableHead>
                     <TableHead className="text-right">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {isLoading ? (
                     <TableRow>
-                      <TableCell colSpan={7} className="h-24 text-center">
+                      <TableCell colSpan={6} className="h-24 text-center">
                         <div className="flex items-center justify-center">
                           <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary mr-2"></div>
-                          Loading users...
+                          Loading people…
                         </div>
                       </TableCell>
                     </TableRow>
                   ) : filteredUsers.length === 0 ? (
                     <TableRow>
                       <TableCell
-                        colSpan={7}
+                        colSpan={6}
                         className="h-24 text-center text-muted-foreground"
                       >
-                        No users found
+                        {searchQuery || roleFilter !== 'all' ? 'No one matches your search.' : 'No one can sign in yet.'}
                       </TableCell>
                     </TableRow>
                   ) : (
@@ -350,34 +363,20 @@ export function UserManagement() {
                       <TableRow key={user._id}>
                         <TableCell className="font-medium">
                           <div className="flex items-center gap-2">
-                            <span>{user.name}</span>
+                            <span>{user.name || user.email || 'Unnamed account'}</span>
                             {!hasProfile(user) && (
-                              <Badge variant="outline" className="text-[10px] text-muted-foreground">
-                                No profile
+                              <Badge variant="outline" className="text-xs font-normal text-muted-foreground">
+                                No member profile
                               </Badge>
                             )}
                           </div>
+                          {user.email && user.name && (
+                            <div className="text-xs font-normal text-muted-foreground">{user.email}</div>
+                          )}
                         </TableCell>
-                        <TableCell>{user.email || '-'}</TableCell>
                         <TableCell>
-                          <Badge
-                            variant={
-                              user.role === 'super_admin'
-                                ? 'destructive'
-                                : user.role === 'organization_admin'
-                                  ? 'destructive'
-                                  : 'default'
-                            }
-                          >
-                            {user.role === 'super_admin'
-                              ? 'Super Admin'
-                              : user.role === 'organization_admin'
-                                ? 'Organization Admin'
-                                : user.role === 'division_admin'
-                                  ? 'Division Admin'
-                                  : user.role === 'unit_admin'
-                                    ? 'Unit Admin'
-                                    : 'Member'}
+                          <Badge variant="secondary" className={ROLE_TONES[user.role] ?? ROLE_TONES.member}>
+                            {roleLabel(user.role)}
                           </Badge>
                         </TableCell>
                         <TableCell>
@@ -390,18 +389,19 @@ export function UserManagement() {
                               ))}
                             </div>
                           ) : (
-                            <span className="text-xs text-muted-foreground">-</span>
+                            <span className="text-xs text-muted-foreground">None</span>
                           )}
                         </TableCell>
                         <TableCell>
                           <Badge
-                            variant={user.active ? 'default' : 'secondary'}
+                            variant="secondary"
+                            className={user.active ? 'bg-success/15 text-success-strong' : 'bg-muted text-muted-foreground'}
                           >
                             {user.active ? 'Active' : 'Inactive'}
                           </Badge>
                         </TableCell>
                         <TableCell>
-                          {user._creationTime ? new Date(user._creationTime).toLocaleDateString() : 'N/A'}
+                          {user._creationTime ? formatDay(user._creationTime) : <span className="text-muted-foreground">Unknown</span>}
                         </TableCell>
                         <TableCell className="text-right">
                           <div className="flex items-center justify-end gap-1">
@@ -409,7 +409,8 @@ export function UserManagement() {
                               variant="ghost"
                               size="sm"
                               onClick={() => handleEditUser(user)}
-                              title="Edit user"
+                              title="Edit role"
+                              aria-label={`Edit role for ${user.name || user.email || 'this account'}`}
                             >
                               <Edit className="h-4 w-4" />
                             </Button>
@@ -419,11 +420,12 @@ export function UserManagement() {
                               onClick={() => handleToggleActive(user)}
                               disabled={!canModifyUser(user)}
                               title={user.active ? 'Deactivate account' : 'Reactivate account'}
+                              aria-label={user.active ? 'Deactivate account' : 'Reactivate account'}
                             >
                               {user.active ? (
                                 <UserX className="h-4 w-4" />
                               ) : (
-                                <UserCheck className="h-4 w-4 text-green-600" />
+                                <UserCheck className="h-4 w-4 text-success-strong" />
                               )}
                             </Button>
                             <Button
@@ -432,6 +434,7 @@ export function UserManagement() {
                               onClick={() => setUserToRemove(user)}
                               disabled={!canModifyUser(user)}
                               title="Remove account"
+                              aria-label="Remove account"
                               className="text-destructive hover:text-destructive"
                             >
                               <Trash2 className="h-4 w-4" />
@@ -474,9 +477,9 @@ export function UserManagement() {
           <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
             <DialogContent className="max-w-md">
               <DialogHeader>
-                <DialogTitle>Edit User Role</DialogTitle>
+                <DialogTitle>Edit role</DialogTitle>
                 <DialogDescription>
-                  Assign roles and permissions for {editingUser?.name}
+                  Choose what {editingUser?.name || editingUser?.email || 'this person'} can see and do.
                 </DialogDescription>
               </DialogHeader>
 
@@ -492,10 +495,10 @@ export function UserManagement() {
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="member">Member</SelectItem>
-                      <SelectItem value="unit_admin">Unit Admin</SelectItem>
-                      <SelectItem value="division_admin">Division Admin</SelectItem>
-                      <SelectItem value="organization_admin">Organization Admin</SelectItem>
-                      <SelectItem value="super_admin">Super Admin</SelectItem>
+                      <SelectItem value="unit_admin">Unit admin</SelectItem>
+                      <SelectItem value="division_admin">Division admin</SelectItem>
+                      <SelectItem value="organization_admin">Organization admin</SelectItem>
+                      <SelectItem value="super_admin">Super admin</SelectItem>
 
                     </SelectContent>
                   </Select>
@@ -505,7 +508,7 @@ export function UserManagement() {
                   selectedRole === 'division_admin' ||
                   selectedRole === 'unit_admin') && (
                     <div>
-                      <Label>Unit Leadership</Label>
+                      <Label>Units they lead</Label>
                       <div className="space-y-2 max-h-32 overflow-y-auto">
                         {allUnits.map((unit: any) => (
                           <div
@@ -546,7 +549,7 @@ export function UserManagement() {
                   >
                     Cancel
                   </Button>
-                  <Button onClick={handleSaveUser}>Save Changes</Button>
+                  <Button onClick={handleSaveUser}>Save changes</Button>
                 </div>
               </div>
             </DialogContent>

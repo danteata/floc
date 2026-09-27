@@ -5,6 +5,8 @@ import { useQuery } from "convex/react"
 import { api } from "../../convex/_generated/api"
 import type { Id } from "../../convex/_generated/dataModel"
 import { Skeleton } from "@/components/ui/skeleton"
+import { EmptyState } from "@/components/ui/empty-state"
+import { BarChart3 } from "lucide-react"
 
 interface OverviewProps {
   className?: string
@@ -28,7 +30,18 @@ export function Overview({ className, unitId }: OverviewProps) {
     )
   }
 
-  const chartData = data.length > 0 ? data : [{ name: 'No Data', total: 0 }];
+  if (data.length === 0) {
+    return (
+      <EmptyState
+        icon={BarChart3}
+        title="No attendance recorded yet"
+        description="Check members in at a service or event and the weekly totals will show here."
+        className="h-[350px]"
+      />
+    )
+  }
+
+  const chartData = data;
 
   return (
     <div className={className}>
@@ -36,19 +49,21 @@ export function Overview({ className, unitId }: OverviewProps) {
         <BarChart data={chartData}>
           <XAxis
             dataKey="name"
-            stroke="#888888"
+            stroke="var(--muted-foreground)"
             fontSize={12}
             tickLine={false}
             axisLine={false}
             tickMargin={10}
           />
           <YAxis
-            stroke="#888888"
+            stroke="var(--muted-foreground)"
             fontSize={12}
             tickLine={false}
             axisLine={false}
             tickFormatter={(value) => `${value}`}
             tickMargin={10}
+            width={40}
+            allowDecimals={false}
           />
           <Tooltip
             cursor={{ fill: 'var(--muted)', opacity: 0.4 }}
@@ -64,10 +79,11 @@ export function Overview({ className, unitId }: OverviewProps) {
           />
           <Bar
             dataKey="total"
+            name="Attendance"
             fill="var(--primary)"
             radius={[4, 4, 0, 0]}
             className="hover:opacity-80 transition-opacity"
-            barSize={32}
+            maxBarSize={32}
           />
         </BarChart>
       </ResponsiveContainer>

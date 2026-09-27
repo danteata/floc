@@ -1,0 +1,175 @@
+<template>
+  <div id="root" data-composition-id="11-close" data-start="0" data-duration="6.5" data-width="1920" data-height="1080">
+    <style>
+      @font-face{font-family:"Fraunces";font-weight:400;font-style:normal;font-display:block;src:url("assets/fonts/fraunces-latin-400-normal.woff2") format("woff2");}
+      @font-face{font-family:"Fraunces";font-weight:500;font-style:normal;font-display:block;src:url("assets/fonts/fraunces-latin-500-normal.woff2") format("woff2");}
+      @font-face{font-family:"Inter";font-weight:100 900;font-style:normal;font-display:block;src:url("assets/fonts/inter-latin-wght-normal.woff2") format("woff2");}
+
+      #root {
+        position: relative;
+        width: 1920px;
+        height: 1080px;
+        overflow: hidden;
+      }
+      #root .clip {
+        position: absolute;
+        left: 0;
+        top: 0;
+        width: 1920px;
+        height: 1080px;
+      }
+      .cl-ground { background: #1C1917; }
+
+      /* Lockup centred on x 960, centre line y 380 */
+      .cl-lockup {
+        position: absolute;
+        left: 0;
+        top: 320px;
+        width: 1920px;
+        height: 120px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 36px;
+      }
+      .cl-tile {
+        flex: none;
+        width: 120px;
+        height: 120px;
+        border-radius: 26.4px;
+        background: #C1153F;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transform-origin: 50% 50%;
+        will-change: transform, opacity;
+      }
+      .cl-tile svg {
+        width: 68px;
+        height: 68px;
+        display: block;
+      }
+      .cl-wordmark {
+        font-family: "Fraunces", serif;
+        font-weight: 500;
+        font-size: 110px;
+        line-height: 1;
+        letter-spacing: -0.02em;
+        color: #FAF7F1;
+        margin-top: -10px;
+        will-change: transform, opacity;
+      }
+
+      .cl-promise {
+        position: absolute;
+        left: 0;
+        top: 500px;
+        width: 1920px;
+        margin: 0;
+        text-align: center;
+        font-family: "Fraunces", serif;
+        font-weight: 500;
+        font-size: 64px;
+        line-height: 1.05;
+        letter-spacing: -0.02em;
+        color: #FAF7F1;
+      }
+      .cl-word {
+        display: inline-block;
+        will-change: transform, opacity;
+      }
+
+      .cl-chips {
+        position: absolute;
+        left: 0;
+        top: 640px;
+        width: 1920px;
+        display: flex;
+        justify-content: center;
+        gap: 20px;
+      }
+      .cl-chip {
+        display: inline-flex;
+        align-items: center;
+        height: 60px;
+        padding: 0 30px;
+        border-radius: 999px;
+        background: rgba(250, 247, 241, 0.08);
+        border: 1px solid rgba(250, 247, 241, 0.2);
+        box-sizing: border-box;
+        font-family: "Inter", sans-serif;
+        font-weight: 500;
+        font-size: 24px;
+        line-height: 1;
+        color: #FAF7F1;
+        white-space: nowrap;
+        will-change: transform, opacity;
+      }
+    </style>
+
+    <div id="11-close-ground" class="clip cl-ground" data-start="0" data-duration="6.5" data-track-index="0"></div>
+
+    <div id="11-close-content" class="clip" data-start="0" data-duration="6.5" data-track-index="1">
+      <div class="cl-lockup">
+        <div id="11-close-tile" class="cl-tile">
+          <svg viewBox="0 0 24 24" fill="none" stroke="#FAF7F1" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+            <path d="M10 9h4" />
+            <path d="M12 7v5" />
+            <path d="M14 21v-3a2 2 0 0 0-4 0v3" />
+            <path d="m18 9 3.52 2.147a1 1 0 0 1 .48.854V19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2v-6.999a1 1 0 0 1 .48-.854L6 9" />
+            <path d="M6 21V7a1 1 0 0 1 .376-.782l5-3.999a1 1 0 0 1 1.249.001l5 4A1 1 0 0 1 18 7v14" />
+          </svg>
+        </div>
+        <div id="11-close-wordmark" class="cl-wordmark">Floc</div>
+      </div>
+
+      <p class="cl-promise"><span class="cl-word">Make</span> <span class="cl-word">sure</span> <span class="cl-word">no</span> <span class="cl-word">one</span> <span class="cl-word">slips</span> <span class="cl-word">away.</span></p>
+
+      <div class="cl-chips">
+        <span id="11-close-chip-0" class="cl-chip">Free for up to 200 members</span>
+        <span id="11-close-chip-1" class="cl-chip">No card needed</span>
+        <span id="11-close-chip-2" class="cl-chip">Set up the same day</span>
+      </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/gsap@3.12.5/dist/gsap.min.js"></script>
+    <script>
+      (function () {
+        var DURATION = 6.5;
+        var byId = function (id) { return document.getElementById(id); };
+        var root = document.querySelector('[data-composition-id="11-close"]');
+        var byClass = function (cls) { return Array.prototype.slice.call(root.getElementsByClassName(cls)); };
+
+        var tl = gsap.timeline({ paused: true });
+
+        // Scene 1 (0.4-1.4s): the mark settles; the wordmark slides in beside it.
+        tl.fromTo(byId("11-close-tile"),
+          { scale: 0.9, opacity: 0 },
+          { scale: 1, opacity: 1, duration: 1.0, ease: "power3.out" }, 0.4);
+        tl.fromTo(byId("11-close-wordmark"),
+          { x: -28, opacity: 0 },
+          { x: 0, opacity: 1, duration: 0.9, ease: "power3.out" }, 0.6);
+
+        // Scene 2 (1.4-2.6s): the promise, word by word.
+        byClass("cl-word").forEach(function (el, i) {
+          tl.fromTo(el,
+            { opacity: 0, y: 24 },
+            { opacity: 1, y: 0, duration: 0.9, ease: "power3.out" }, 1.4 + i * 0.1);
+        });
+
+        // Scene 3 (2.8-4.2s): three chips, 0.25s apart.
+        for (var c = 0; c < 3; c++) {
+          tl.fromTo(byId("11-close-chip-" + c),
+            { opacity: 0, y: 18 },
+            { opacity: 1, y: 0, duration: 0.8, ease: "power3.out" }, 2.8 + c * 0.25);
+        }
+
+        // Scene 4 (4.2-6.5s): dead-still hold.
+        tl.set({}, {}, DURATION);
+
+        window.__timelines = window.__timelines || {};
+        window.__timelines["11-close"] = tl;
+      })();
+    </script>
+  </div>
+</template>

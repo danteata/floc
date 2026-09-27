@@ -20,7 +20,7 @@ const navigationItems = [
   { href: "/organization", label: "Organization", icon: Building2, public: false },
   { href: "/attendance", label: "Attendance", icon: Calendar, public: false },
   { href: "/events", label: "Events", icon: Calendar, public: false },
-  { href: "/financial", label: "Financial", icon: DollarSign, public: false },
+  { href: "/financial", label: "Finance", icon: DollarSign, public: false },
   { href: "/giving", label: "Giving", icon: Heart, public: false },
   { href: "/communication", label: "Communication", icon: MessageSquare, public: false },
   { href: "/reports", label: "Reports", icon: PieChart, public: false },

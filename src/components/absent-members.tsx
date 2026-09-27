@@ -1,9 +1,9 @@
 "use client"
 
 import { useCallback, useState, useMemo } from "react"
-import { Download, Mail, Phone, CalendarIcon, ArrowUpDown } from "lucide-react"
+import { Download, Mail, Phone, CalendarIcon, ArrowUpDown, UserCheck } from "lucide-react"
 
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
+import { MemberAvatar } from "@/components/ui/member-avatar"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -14,6 +14,8 @@ import { useEventTypes } from "@/hooks/use-event-types"
 import { Calendar } from "@/components/ui/calendar"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { cn } from "@/lib/utils"
+import { titleCase, formatDay } from "@/lib/display"
+import { EmptyState } from "@/components/ui/empty-state"
 import { useQuery } from "convex/react"
 import { api } from "../../convex/_generated/api"
 import { useAnalytics } from "@/hooks/useAnalytics"
@@ -265,24 +267,24 @@ export function AbsentMembers({ unitId, unitName }: AbsentMembersProps = {}) {
         <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
           <div className="flex flex-1 gap-4 flex-col sm:flex-row">
             <Input
-              placeholder="Search members..."
+              placeholder="Search members…"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="max-w-[300px]"
+              className="w-full sm:max-w-[300px]"
             />
             <Select value={effectiveEventType || undefined} onValueChange={setEventType}>
-              <SelectTrigger className="w-[180px]" disabled={eventTypesLoading || eventTypes.length === 0}>
-                <SelectValue placeholder={eventTypesLoading ? "Loading..." : eventTypes.length === 0 ? "No event types" : "Select event type"} />
+              <SelectTrigger className="w-full sm:w-[180px]" disabled={eventTypesLoading || eventTypes.length === 0}>
+                <SelectValue placeholder={eventTypesLoading ? "Loading…" : eventTypes.length === 0 ? "No event types" : "Choose an event type"} />
               </SelectTrigger>
               <SelectContent>
                 {eventTypesLoading ? (
-                  <SelectItem value="loading" disabled>Loading event types...</SelectItem>
+                  <SelectItem value="loading" disabled>Loading event types…</SelectItem>
                 ) : eventTypes.length === 0 ? (
-                  <SelectItem value="no-types" disabled>No event types configured</SelectItem>
+                  <SelectItem value="no-types" disabled>No event types yet</SelectItem>
                 ) : (
                   eventTypes.map((type) => (
                     <SelectItem key={type.value} value={type.value}>
-                      {type.label}
+                      {titleCase(type.label)}
                     </SelectItem>
                   ))
                 )}
@@ -293,10 +295,10 @@ export function AbsentMembers({ unitId, unitName }: AbsentMembersProps = {}) {
               <PopoverTrigger asChild>
                 <Button
                   variant="outline"
-                  className={cn("w-[180px] justify-start text-left font-normal", !selectedDate && "text-muted-foreground")}
+                  className={cn("w-full sm:w-[180px] justify-start text-left font-normal", !selectedDate && "text-muted-foreground")}
                 >
                   <CalendarIcon className="mr-2 h-4 w-4" />
-                  {selectedDate ? format(selectedDate, "PPP") : <span>Pick a date</span>}
+                  {selectedDate ? format(selectedDate, "d MMM yyyy") : <span>Choose a date</span>}
                 </Button>
               </PopoverTrigger>
               <PopoverContent className="w-auto p-0">
@@ -310,20 +312,20 @@ export function AbsentMembers({ unitId, unitName }: AbsentMembersProps = {}) {
             </Popover>
 
             <Select value={absenceFilter} onValueChange={setAbsenceFilter}>
-              <SelectTrigger className="w-[180px]">
-                <SelectValue placeholder="Filter by absences" />
+              <SelectTrigger className="w-full sm:w-[180px]">
+                <SelectValue placeholder="Missed in a row" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">All Absences</SelectItem>
-                <SelectItem value="1+">1+ Consecutive</SelectItem>
-                <SelectItem value="2+">2+ Consecutive</SelectItem>
-                <SelectItem value="3+">3+ Consecutive</SelectItem>
-                <SelectItem value="5+">5+ Consecutive</SelectItem>
+                <SelectItem value="all">Any number missed</SelectItem>
+                <SelectItem value="1+">Missed 1 or more in a row</SelectItem>
+                <SelectItem value="2+">Missed 2 or more in a row</SelectItem>
+                <SelectItem value="3+">Missed 3 or more in a row</SelectItem>
+                <SelectItem value="5+">Missed 5 or more in a row</SelectItem>
               </SelectContent>
             </Select>
 
             <Select value={statusFilter} onValueChange={setStatusFilter}>
-              <SelectTrigger className="w-[180px]">
+              <SelectTrigger className="w-full sm:w-[180px]">
                 <SelectValue placeholder="Member status" />
               </SelectTrigger>
               <SelectContent>
@@ -340,7 +342,7 @@ export function AbsentMembers({ unitId, unitName }: AbsentMembersProps = {}) {
             size="sm"
             onClick={() => {
               if (absentMembers.length === 0) {
-                toast.error("No absent members to export")
+                toast.error("Nothing to export", { description: "The absent list is empty for this service and date." })
                 return
               }
 
@@ -380,17 +382,17 @@ export function AbsentMembers({ unitId, unitName }: AbsentMembersProps = {}) {
                 status_filter: statusFilter,
               });
 
-              toast.success("Export completed!")
+              toast.success("Absent list downloaded")
             }}
           >
             <Download className="mr-2 h-4 w-4" />
-            Export List
+            Export list
           </Button>
           {organization?._id && effectiveEventType && selectedDate && (
             <ShareAbsentLinkDialog
               organizationId={organization._id}
               eventType={effectiveEventType}
-              eventTypeLabel={eventTypes.find((t) => t.value === effectiveEventType)?.label ?? effectiveEventType}
+              eventTypeLabel={titleCase(eventTypes.find((t) => t.value === effectiveEventType)?.label ?? effectiveEventType)}
               date={selectedDate}
             />
           )}
@@ -400,15 +402,15 @@ export function AbsentMembers({ unitId, unitName }: AbsentMembersProps = {}) {
           <div className="text-sm text-muted-foreground">
             <strong className="text-foreground">{absentMembers.length}</strong> absent
             {unitName && <> in <strong className="text-foreground">{unitName}</strong></>} for{" "}
-            <strong>{selectedAttendanceRecord.event_type_label}</strong> on{" "}
-            <strong>{format(new Date(selectedAttendanceRecord.date), "PPP")}</strong>
-            {" — "}
-            <strong className="text-foreground">{selectedAttendanceRecord.members.length}</strong> marked present
+            <strong>{titleCase(selectedAttendanceRecord.event_type_label)}</strong> on{" "}
+            <strong>{formatDay(selectedAttendanceRecord.date)}</strong>
+            {". "}
+            <strong className="text-foreground">{selectedAttendanceRecord.members.length}</strong> marked present.
           </div>
         )}
       </div>
 
-      <div className="rounded-md border">
+      <div className="rounded-xl border border-border overflow-x-auto">
         <Table>
           <TableHeader>
             <TableRow>
@@ -427,13 +429,13 @@ export function AbsentMembers({ unitId, unitName }: AbsentMembersProps = {}) {
               </TableHead>
               <TableHead className="cursor-pointer select-none" onClick={() => handleSort("lastAttendance")}>
                 <div className="flex items-center gap-1">
-                  Last Attendance
+                  Last attended
                   <ArrowUpDown className="h-3 w-3" />
                 </div>
               </TableHead>
               <TableHead className="cursor-pointer select-none" onClick={() => handleSort("consecutiveAbsences")}>
                 <div className="flex items-center gap-1">
-                  Consecutive Absences
+                  Missed in a row
                   <ArrowUpDown className="h-3 w-3" />
                 </div>
               </TableHead>
@@ -444,18 +446,27 @@ export function AbsentMembers({ unitId, unitName }: AbsentMembersProps = {}) {
             {loading ? (
               <TableRow>
                 <TableCell colSpan={6} className="h-24 text-center text-muted-foreground">
-                  Loading...
+                  Loading…
                 </TableCell>
               </TableRow>
             ) : absentMembers.length === 0 ? (
               <TableRow>
-                <TableCell
-                  colSpan={6}
-                  className="h-24 text-center text-muted-foreground"
-                >
-                  {!selectedAttendanceRecord
-                    ? "Select an event to view absent members"
-                    : "No absent members found for this event"}
+                <TableCell colSpan={6}>
+                  {!selectedAttendanceRecord ? (
+                    <EmptyState
+                      icon={CalendarIcon}
+                      className="py-6"
+                      title="No attendance for this day"
+                      description="Choose an event type and a date where attendance was taken."
+                    />
+                  ) : (
+                    <EmptyState
+                      icon={UserCheck}
+                      className="py-6"
+                      title="No one missing"
+                      description="Everyone on this list was marked present, or the filters are hiding them."
+                    />
+                  )}
                 </TableCell>
               </TableRow>
             ) : (
@@ -463,41 +474,41 @@ export function AbsentMembers({ unitId, unitName }: AbsentMembersProps = {}) {
                 <TableRow key={member.id}>
                   <TableCell>
                     <button
+                      type="button"
                       className="flex items-center gap-3 hover:opacity-80 transition-opacity text-left"
                       onClick={() => setViewingMember(member)}
                     >
-                      <Avatar>
-                        <AvatarImage
-                          src={member.avatar_url ?? member.avatar ?? ""}
-                          alt={member.name}
-                        />
-                        <AvatarFallback>
-                          {member.initials ?? member.name.slice(0, 2).toUpperCase()}
-                        </AvatarFallback>
-                      </Avatar>
+                      <MemberAvatar name={member.name} src={member.avatar_url || member.avatar} />
                       <div className="font-medium">{member.name}</div>
                     </button>
                   </TableCell>
                   <TableCell>
                     <div className="flex flex-col">
-                      <div className="text-sm text-muted-foreground flex items-center">
-                        <Mail className="mr-1 h-3 w-3" />
-                        <span>{member.email}</span>
-                      </div>
-                      <div className="text-sm text-muted-foreground flex items-center">
-                        <Phone className="mr-1 h-3 w-3" />
-                        <span>{member.phone}</span>
-                      </div>
+                      {member.email && (
+                        <div className="text-sm text-muted-foreground flex items-center">
+                          <Mail className="mr-1 h-3 w-3" />
+                          <span>{member.email}</span>
+                        </div>
+                      )}
+                      {member.phone && (
+                        <div className="text-sm text-muted-foreground flex items-center">
+                          <Phone className="mr-1 h-3 w-3" />
+                          <span>{member.phone}</span>
+                        </div>
+                      )}
+                      {!member.email && !member.phone && (
+                        <span className="text-sm text-muted-foreground">No contact details</span>
+                      )}
                     </div>
                   </TableCell>
                   <TableCell>
                     {member.status === "active" && (
-                      <Badge className="bg-green-500">Active</Badge>
+                      <Badge className="bg-success/15 text-success-strong">Active</Badge>
                     )}
                     {member.status === "inactive" && (
                       <Badge
                         variant="outline"
-                        className="border-amber-500 text-amber-500"
+                        className="border-warning text-warning-strong"
                       >
                         Inactive
                       </Badge>
@@ -508,8 +519,8 @@ export function AbsentMembers({ unitId, unitName }: AbsentMembersProps = {}) {
                   </TableCell>
                   <TableCell>
                     {member.lastAttendance
-                      ? format(new Date(member.lastAttendance), "MMM dd, yyyy")
-                      : "N/A"}
+                      ? formatDay(member.lastAttendance)
+                      : <span className="text-muted-foreground">Never recorded</span>}
                   </TableCell>
                   <TableCell>
                     {(() => {
@@ -525,7 +536,7 @@ export function AbsentMembers({ unitId, unitName }: AbsentMembersProps = {}) {
                           }
                           className={
                             absences >= 2 && absences < 4
-                              ? "text-amber-500 border-amber-500"
+                              ? "text-warning-strong border-warning"
                               : ""
                           }
                         >
@@ -555,13 +566,13 @@ export function AbsentMembers({ unitId, unitName }: AbsentMembersProps = {}) {
       </div>
 
       <div className="flex flex-col gap-2">
-        <h3 className="text-sm">Follow-up Actions</h3>
+        <h3 className="text-base font-semibold">Follow up</h3>
         <div className="flex flex-wrap gap-2">
           <Button size="sm" variant="outline">
-            Send Email to All
+            Email everyone
           </Button>
           <Button size="sm" variant="outline">
-            Send Text Message
+            Send a text
           </Button>
           {organization?._id && (
             <AssignFollowUpDialog
@@ -570,7 +581,7 @@ export function AbsentMembers({ unitId, unitName }: AbsentMembersProps = {}) {
             />
           )}
           <Button size="sm" variant="outline">
-            Print Contact List
+            Print contact list
           </Button>
         </div>
       </div>

@@ -42,9 +42,11 @@ export function SessionQrCode({ qrUrl }: { qrUrl: string | null }) {
         )
     }
 
+    // Always white behind the code, in dark mode too: phone cameras read a
+    // dark-on-light QR code far more reliably.
     return (
         <div className="rounded-lg border border-border/50 bg-white p-4">
-            <img src={qrDataUrl} alt="Check-in QR code" className="w-56 h-56" />
+            <img src={qrDataUrl} alt="Check-in QR code" className="h-56 w-56 max-w-full" />
         </div>
     )
 }

@@ -103,33 +103,31 @@ export function CreateUnitDialog({
 
   return (
     <Dialog open={open} onOpenChange={(o) => { if (!o) resetForm(); onOpenChange(o); }}>
-      <DialogContent className="sm:max-w-[500px] glass-card border-border/50 shadow-soft">
+      <DialogContent className="sm:max-w-[500px]">
         <DialogHeader>
-          <DialogTitle className="flex items-center gap-2 text-xl">
-            <div className="p-2 bg-primary/10 rounded-lg text-primary">
-              <Layers className="h-5 w-5" />
-            </div>
-            Create Unit
+          <DialogTitle className="flex items-center gap-2 text-lg">
+            <Layers className="h-4 w-4 text-muted-foreground" />
+            New unit
           </DialogTitle>
           <DialogDescription>
-            Add a new group, team, or department to your organization.
+            Add a group, team or department to your church.
           </DialogDescription>
         </DialogHeader>
 
         <div className="space-y-6 py-4">
           <div className="space-y-2">
-            <Label className="text-xs font-semibold text-muted-foreground tracking-wider">Name *</Label>
+            <Label className="text-sm font-medium">Name *</Label>
             <Input
               value={name}
               onChange={(e) => setName(e.target.value)}
-              placeholder="e.g. Operations Team, Youth Dept"
+              placeholder="e.g. Ushers, youth ministry"
               className="bg-background/50 border-input-border focus:ring-primary/20"
               disabled={creating}
             />
           </div>
 
           <div className="space-y-2">
-            <Label className="text-xs font-semibold text-muted-foreground tracking-wider">Description</Label>
+            <Label className="text-sm font-medium">Description</Label>
             <Input
               value={description}
               onChange={(e) => setDescription(e.target.value)}
@@ -141,13 +139,13 @@ export function CreateUnitDialog({
 
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label className="text-xs font-semibold text-muted-foreground tracking-wider">Parent Unit</Label>
+              <Label className="text-sm font-medium">Parent unit</Label>
               <Select value={unitId} onValueChange={setUnitId} disabled={creating}>
                 <SelectTrigger className="bg-background/50 border-input-border">
-                  <SelectValue placeholder="Select unit (optional)" />
+                  <SelectValue placeholder="Choose a unit (optional)" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="none">None (Root Level)</SelectItem>
+                  <SelectItem value="none">None (top level)</SelectItem>
                   {availableUnits.map((unit) => (
                     <SelectItem key={unit._id} value={unit._id}>
                       {unit.name}
@@ -158,7 +156,7 @@ export function CreateUnitDialog({
             </div>
 
             <div className="space-y-2">
-              <Label className="text-xs font-semibold text-muted-foreground tracking-wider">Type *</Label>
+              <Label className="text-sm font-medium">Type *</Label>
               <Select
                 value={type}
                 onValueChange={(value: any) => setType(value)}
@@ -177,23 +175,23 @@ export function CreateUnitDialog({
           </div>
 
           <div className="space-y-2">
-            <Label className="text-xs font-semibold text-muted-foreground tracking-wider">Unit Category / Tag</Label>
+            <Label className="text-sm font-medium">Category</Label>
             <Input
               value={category}
               onChange={(e) => setCategory(e.target.value)}
-              placeholder="e.g. Outreach, Internal, Regional..."
+              placeholder="e.g. Outreach, youth, regional…"
               className="bg-background/50 border-input-border focus:ring-primary/20"
               disabled={creating}
             />
           </div>
 
           <div className="space-y-2">
-            <Label className="text-xs font-semibold text-muted-foreground tracking-wider">Unit Leader</Label>
+            <Label className="text-sm font-medium">Leader</Label>
             <MemberCombobox
               members={availableMembers}
               value={leaderId}
               onValueChange={(value) => setLeaderId(value === "none" ? undefined : value)}
-              placeholder="Select unit leader..."
+              placeholder="Choose a leader…"
               disabled={creating}
             />
           </div>
@@ -217,7 +215,7 @@ export function CreateUnitDialog({
             ) : (
               <Plus className="h-4 w-4 mr-2" />
             )}
-            Create Unit
+            Create unit
           </Button>
         </DialogFooter>
       </DialogContent>

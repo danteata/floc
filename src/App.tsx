@@ -46,6 +46,7 @@ const PortalLink = lazy(() => import("@/pages/portal/PortalLink"));
 const PortalGiving = lazy(() => import("@/pages/portal/PortalGiving"));
 
 import { Church } from "lucide-react";
+import { PrivacyPage, TermsPage } from './pages/legal/Legal'
 
 function PageLoader() {
   return (
@@ -74,8 +75,8 @@ function SyncPending({ error, retry }: { error: boolean; retry: () => void }) {
       <div className="max-w-sm w-full text-center space-y-4">
         <h2 className="text-lg font-semibold">Something went wrong</h2>
         <p className="text-sm text-muted-foreground">
-          We couldn't finish setting up your account. Please try again — if the
-          problem persists, contact support.
+          We couldn't finish setting up your account. Try again, and if it
+          keeps happening, contact support.
         </p>
         <button
           onClick={retry}
@@ -150,6 +151,8 @@ export default function App() {
       <Routes>
         {/* Public Routes */}
         <Route path="/" element={<HomePage />} />
+        <Route path="/privacy" element={<PrivacyPage />} />
+        <Route path="/terms" element={<TermsPage />} />
 
         {/* Auth Routes */}
         <Route path="/sign-in/*" element={<SignInPage />} />

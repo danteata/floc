@@ -117,13 +117,13 @@ export function ShareMembersLinkDialog({
       toast({
         title: "Link created",
         description: result.truncated
-          ? `Copied to your clipboard. Only the first ${result.limit.toLocaleString()} members were included — narrow the filters to share the rest.`
-          : `${result.count.toLocaleString()} member${result.count === 1 ? "" : "s"} — the link was copied to your clipboard.`,
+          ? `Copied to your clipboard. It holds the first ${result.limit.toLocaleString()} members; narrow the filters to share the rest.`
+          : `${result.count.toLocaleString()} member${result.count === 1 ? "" : "s"}. The link is copied to your clipboard.`,
       })
     } catch (err) {
       toast({
-        title: "Couldn't create link",
-        description: err instanceof Error ? err.message : "Please try again.",
+        title: "Couldn't create the link",
+        description: err instanceof Error ? err.message : "Something went wrong. Try again.",
         variant: "destructive",
       })
     } finally {
@@ -133,17 +133,17 @@ export function ShareMembersLinkDialog({
 
   const handleCopy = async (token: string) => {
     await navigator.clipboard.writeText(buildUrl(token))
-    toast({ title: "Link copied" })
+    toast({ title: "Link copied", description: "Paste it wherever you want to share the list." })
   }
 
   const handleRevoke = async (id: Id<"member_list_shares">) => {
     try {
       await revokeShare({ id })
-      toast({ title: "Link revoked" })
+      toast({ title: "Link turned off", description: "Anyone opening it now sees that it's no longer available." })
     } catch (err) {
       toast({
-        title: "Couldn't revoke link",
-        description: err instanceof Error ? err.message : "Please try again.",
+        title: "Couldn't turn off the link",
+        description: err instanceof Error ? err.message : "Something went wrong. Try again.",
         variant: "destructive",
       })
     }
@@ -151,13 +151,12 @@ export function ShareMembersLinkDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
+      <DialogContent className="sm:max-w-lg max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Share this list</DialogTitle>
           <DialogDescription>
-            Anyone with the link can view the list &mdash; no login required. The people on it are
-            fixed when you create the link; their details stay up to date. Treat it like a phone
-            list.
+            Anyone with the link can view the list without signing in. The people on it are fixed
+            when you create the link, and their details stay up to date. Treat it like a phone list.
           </DialogDescription>
         </DialogHeader>
 
@@ -252,12 +251,14 @@ export function ShareMembersLinkDialog({
                     </span>
                   </div>
                   <div className="flex items-center gap-2">
-                    <Input readOnly value={buildUrl(share.token)} className="text-xs" />
-                    <Button variant="outline" size="icon" onClick={() => handleCopy(share.token)}>
+                    <Input readOnly value={buildUrl(share.token)} aria-label={`Link for ${share.title}`} className="min-w-0 text-xs" />
+                    <Button variant="outline" size="icon" className="shrink-0" onClick={() => handleCopy(share.token)}>
                       <Copy className="h-4 w-4" />
+                      <span className="sr-only">Copy link</span>
                     </Button>
-                    <Button variant="outline" size="icon" onClick={() => handleRevoke(share._id)}>
+                    <Button variant="outline" size="icon" className="shrink-0" onClick={() => handleRevoke(share._id)}>
                       <Trash2 className="h-4 w-4 text-destructive" />
+                      <span className="sr-only">Turn off link</span>
                     </Button>
                   </div>
                 </div>

@@ -1,0 +1,173 @@
+<template>
+  <div id="root" data-composition-id="01-hook" data-start="0" data-duration="7" data-width="1920" data-height="1080">
+    <style>
+      @font-face{font-family:"Fraunces";font-weight:400;font-style:normal;font-display:block;src:url("assets/fonts/fraunces-latin-400-normal.woff2") format("woff2");}
+      @font-face{font-family:"Fraunces";font-weight:500;font-style:normal;font-display:block;src:url("assets/fonts/fraunces-latin-500-normal.woff2") format("woff2");}
+      @font-face{font-family:"Inter";font-weight:100 900;font-style:normal;font-display:block;src:url("assets/fonts/inter-latin-wght-normal.woff2") format("woff2");}
+
+      #root {
+        position: relative;
+        width: 1920px;
+        height: 1080px;
+        overflow: hidden;
+      }
+      #root .clip {
+        position: absolute;
+        left: 0;
+        top: 0;
+        width: 1920px;
+        height: 1080px;
+      }
+      .hk-ground { background: #1C1917; }
+
+      /* Scene 1: two lines, block centred on y ~330 */
+      .hk-headline {
+        position: absolute;
+        left: 160px;
+        top: 236px;
+        margin: 0;
+        font-family: "Fraunces", serif;
+        font-weight: 500;
+        font-size: 88px;
+        line-height: 1.05;
+        letter-spacing: -0.02em;
+        color: #FAF7F1;
+        white-space: nowrap;
+        will-change: opacity;
+      }
+      .hk-line { display: block; }
+      .hk-word {
+        display: inline-block;
+        will-change: transform, opacity;
+      }
+
+      /* Scene 2 */
+      .hk-sub {
+        position: absolute;
+        left: 160px;
+        top: 460px;
+        margin: 0;
+        font-family: "Inter", sans-serif;
+        font-weight: 400;
+        font-size: 32px;
+        line-height: 1.4;
+        color: #A8A29E;
+        white-space: nowrap;
+        will-change: transform, opacity;
+      }
+
+      /* Scene 3 */
+      .hk-turn {
+        position: absolute;
+        left: 160px;
+        top: 572px;
+        margin: 0;
+        font-family: "Fraunces", serif;
+        font-weight: 400;
+        font-size: 60px;
+        line-height: 1.05;
+        letter-spacing: -0.02em;
+        color: #E8567A;
+        white-space: nowrap;
+      }
+
+      /* Ambient: nine Sundays */
+      .hk-sundays {
+        position: absolute;
+        left: 160px;
+        top: 746px;
+        width: 740px;
+        height: 28px;
+        opacity: 0.3;
+      }
+      .hk-sunday {
+        position: absolute;
+        top: 0;
+        width: 28px;
+        height: 28px;
+        border-radius: 50%;
+        border: 2px solid #FAF7F1;
+        box-sizing: border-box;
+        transform-origin: 50% 50%;
+        will-change: transform, opacity;
+      }
+    </style>
+
+    <div id="01-hook-ground" class="clip hk-ground" data-start="0" data-duration="7" data-track-index="0"></div>
+
+    <div id="01-hook-sundays-layer" class="clip" data-start="0" data-duration="7" data-track-index="1">
+      <div class="hk-sundays">
+        <span id="01-hook-sun-0" class="hk-sunday" style="left:0px"></span>
+        <span id="01-hook-sun-1" class="hk-sunday" style="left:89px"></span>
+        <span id="01-hook-sun-2" class="hk-sunday" style="left:178px"></span>
+        <span id="01-hook-sun-3" class="hk-sunday" style="left:267px"></span>
+        <span id="01-hook-sun-4" class="hk-sunday" style="left:356px"></span>
+        <span id="01-hook-sun-5" class="hk-sunday" style="left:445px"></span>
+        <span id="01-hook-sun-6" class="hk-sunday" style="left:534px"></span>
+        <span id="01-hook-sun-7" class="hk-sunday" style="left:623px"></span>
+        <span id="01-hook-sun-8" class="hk-sunday" style="left:712px"></span>
+      </div>
+    </div>
+
+    <div id="01-hook-content" class="clip" data-start="0" data-duration="7" data-track-index="2">
+      <h1 id="01-hook-headline" class="hk-headline">
+        <span class="hk-line"><span class="hk-word hk-w1">Nine</span> <span class="hk-word hk-w1">Sundays</span> <span class="hk-word hk-w1">ago,</span></span>
+        <span class="hk-line"><span class="hk-word hk-w1">someone</span> <span class="hk-word hk-w1">stopped</span> <span class="hk-word hk-w1">coming.</span></span>
+      </h1>
+
+      <p id="01-hook-sub" class="hk-sub">No one meant to miss it.</p>
+
+      <p id="01-hook-turn" class="hk-turn"><span class="hk-word hk-w3">In</span> <span class="hk-word hk-w3">a</span> <span class="hk-word hk-w3">church</span> <span class="hk-word hk-w3">of</span> <span class="hk-word hk-w3">hundreds,</span> <span class="hk-word hk-w3">people</span> <span class="hk-word hk-w3">slip</span> <span class="hk-word hk-w3">away</span> <span class="hk-word hk-w3">quietly.</span></p>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/gsap@3.12.5/dist/gsap.min.js"></script>
+    <script>
+      (function () {
+        var DURATION = 7;
+        var byId = function (id) { return document.getElementById(id); };
+        var root = document.querySelector('[data-composition-id="01-hook"]');
+        var byClass = function (cls) { return Array.prototype.slice.call(root.getElementsByClassName(cls)); };
+
+        var tl = gsap.timeline({ paused: true });
+
+        // Scene 1 (0.4-2.4s): the headline rises word by word.
+        byClass("hk-w1").forEach(function (el, i) {
+          tl.fromTo(el,
+            { opacity: 0, y: 40 },
+            { opacity: 1, y: 0, duration: 1.0, ease: "power3.out" }, 0.4 + i * 0.18);
+        });
+
+        // Scene 2 (2.6-4.4s): the quiet sub-line.
+        tl.fromTo(byId("01-hook-sub"),
+          { opacity: 0, y: 18 },
+          { opacity: 1, y: 0, duration: 1.0, ease: "power3.out" }, 2.6);
+
+        // Ambient (0.5-5.3s): nine Sundays appear as empty outlines, 0.6s apart.
+        for (var s = 0; s < 9; s++) {
+          tl.fromTo(byId("01-hook-sun-" + s),
+            { opacity: 0, scale: 0.6 },
+            { opacity: 1, scale: 1, duration: 0.6, ease: "power3.out" }, 0.5 + s * 0.6);
+        }
+        // The ninth pulses once in the lifted crimson, then rests.
+        var last = byId("01-hook-sun-8");
+        tl.to(last, { borderColor: "#E8567A", duration: 0.3, ease: "power2.out" }, 5.5);
+        tl.to(last, { scale: 1.3, duration: 0.3, ease: "power2.out" }, 5.5);
+        tl.to(last, { scale: 1, duration: 0.5, ease: "power3.out" }, 5.8);
+
+        // Scene 3 (4.6-6.4s): the first two lines dim; the turn arrives.
+        tl.to([byId("01-hook-headline"), byId("01-hook-sub")],
+          { opacity: 0.35, duration: 0.8, ease: "power2.out" }, 4.6);
+        byClass("hk-w3").forEach(function (el, i) {
+          tl.fromTo(el,
+            { opacity: 0, y: 28 },
+            { opacity: 1, y: 0, duration: 0.8, ease: "power3.out" }, 4.8 + i * 0.1);
+        });
+
+        tl.set({}, {}, DURATION);
+
+        window.__timelines = window.__timelines || {};
+        window.__timelines["01-hook"] = tl;
+      })();
+    </script>
+  </div>
+</template>

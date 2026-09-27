@@ -65,7 +65,7 @@ export const AUTOMATION_TEMPLATES: AutomationTemplate[] = [
     id: "absence-follow-up",
     title: "Absence follow-up",
     description:
-      "Reach out when a member misses several services in a row so no one slips through the cracks.",
+      "Reach out when a member misses several services in a row, so no one slips through the cracks.",
     icon: HeartHandshake,
     triggerKey: "member.consecutive_absences",
     fields: ["event_type_value", "threshold", "channel", "message", "notify_leaders", "assign_task", "active_only", "cooldown_days"],
@@ -73,7 +73,7 @@ export const AUTOMATION_TEMPLATES: AutomationTemplate[] = [
       name: "Absence follow-up",
       threshold: 3,
       event_type_value: "sunday-service",
-      message: "Hi {{member.first_name}}, we missed you at {{event.label}} for {{count}} weeks. Everything okay? — {{org.name}}",
+      message: "Hi {{member.first_name}}, we missed you at {{event.label}} for {{count}} weeks. Everything okay? From all of us at {{org.name}}",
       cooldown_days: 30,
       active_only: true,
       notify_leaders: true,
@@ -84,7 +84,7 @@ export const AUTOMATION_TEMPLATES: AutomationTemplate[] = [
   },
   {
     id: "win-back",
-    title: "Win-back (inactive)",
+    title: "Win back inactive members",
     description: "Nudge members who haven't attended anything for a while.",
     icon: UserX,
     triggerKey: "member.no_attendance_for_days",
@@ -92,7 +92,7 @@ export const AUTOMATION_TEMPLATES: AutomationTemplate[] = [
     defaults: {
       name: "Win-back inactive members",
       days: 30,
-      message: "Hi {{member.first_name}}, it's been a while — we'd love to see you again at {{org.name}}. 💛",
+      message: "Hi {{member.first_name}}, it's been a while. We'd love to see you again at {{org.name}}. 💛",
       cooldown_days: 45,
       active_only: true,
     },
@@ -103,14 +103,14 @@ export const AUTOMATION_TEMPLATES: AutomationTemplate[] = [
     id: "low-engagement",
     title: "Low engagement score",
     description:
-      "Reach out when a member's engagement score drops below a threshold — catches gradual decline, not just missed streaks. Requires Engagement Scoring (Pro).",
+      "Reach out when a member's engagement score drops below a level you set. It catches a gradual drift, not just missed weeks. Needs engagement scoring, part of the Pro plan.",
     icon: TrendingDown,
     triggerKey: "member.engagement_score_below",
     fields: ["threshold", "channel", "message", "notify_leaders", "assign_task", "active_only", "cooldown_days"],
     defaults: {
       name: "Low engagement follow-up",
       threshold: 40,
-      message: "Hi {{member.first_name}}, we've noticed you around less lately — we'd love to reconnect. — {{org.name}}",
+      message: "Hi {{member.first_name}}, we've seen less of you lately and we'd love to reconnect. From all of us at {{org.name}}",
       cooldown_days: 30,
       active_only: true,
       notify_leaders: true,
@@ -249,7 +249,7 @@ export function buildRulePayload(
   if (template.fields.includes("assign_task") && values.assign_task) {
     actions.push({
       key: "create_follow_up_task",
-      params: { note: "{{member.name}} triggered “" + values.name + "” — needs follow-up." },
+      params: { note: "{{member.name}} triggered “" + values.name + "” and needs a follow-up." },
     })
   }
 

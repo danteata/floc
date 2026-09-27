@@ -310,7 +310,8 @@ export const createOrOpenSession = mutation({
             longitude: args.longitude,
             radius_meters: args.radius_meters,
             display_name:
-                args.display_name ?? `${eventType.label} — ${args.date}`,
+                // The date shows beside the name wherever it appears, so the name is just the event.
+                args.display_name ?? eventType.label,
             check_in_count: 0,
         });
 
@@ -1659,7 +1660,7 @@ export const linkMyAccount = mutation({
     handler: async (ctx, args) => {
         const identity = await requireIdentity(ctx);
         if (!identity.email) {
-            throw new Error("Your Clerk account has no email — cannot link a member record");
+            throw new Error("Your account has no email address, so it can't be linked to a member record. Add an email to your account and try again.");
         }
 
         const member = await ctx.db

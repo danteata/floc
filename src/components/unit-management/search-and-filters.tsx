@@ -35,13 +35,13 @@ export function SearchAndFilters({
   onViewModeChange,
 }: SearchAndFiltersProps) {
   return (
-    <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 p-4 border border-border/50 shadow-soft rounded-xl bg-card/50 backdrop-blur-sm">
+    <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 p-4 border border-border/50 rounded-xl bg-card">
       <div className="flex flex-col md:flex-row items-start md:items-center gap-4 w-full">
         <div className="relative w-full md:w-auto md:min-w-[300px]">
           <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
           <Input
             type="text"
-            placeholder="Search units..."
+            placeholder="Search units…"
             value={searchTerm}
             onChange={(e) => onSearchChange(e.target.value)}
             className="pl-9 h-10 w-full rounded-lg bg-background/50 border-input-border focus:ring-1 focus:ring-primary/20"
@@ -53,7 +53,7 @@ export function SearchAndFilters({
             <SelectValue placeholder="Type" />
           </SelectTrigger>
           <SelectContent className="rounded-xl shadow-lg border-border/50">
-            <SelectItem value="all">All Types</SelectItem>
+            <SelectItem value="all">All types</SelectItem>
             <SelectItem value="administrative">Administrative</SelectItem>
             <SelectItem value="functional">Functional</SelectItem>
             <SelectItem value="geographic">Geographic</SelectItem>
@@ -65,7 +65,7 @@ export function SearchAndFilters({
             <SelectValue placeholder="Inheritance" />
           </SelectTrigger>
           <SelectContent className="rounded-xl shadow-lg border-border/50">
-            <SelectItem value="all">All Sources</SelectItem>
+            <SelectItem value="all">All sources</SelectItem>
             <SelectItem value="direct">Direct</SelectItem>
             <SelectItem value="inherited">Inherited</SelectItem>
             <SelectItem value="template">Templates</SelectItem>
@@ -78,7 +78,8 @@ export function SearchAndFilters({
           variant={viewMode === 'grid' ? 'default' : 'ghost'}
           size="sm"
           onClick={() => onViewModeChange('grid')}
-          className={cn("h-8 px-3 rounded-md transition-all", viewMode === 'grid' && "bg-white text-black shadow-sm")}
+          aria-label="Grid view"
+          className={cn("h-8 px-3 rounded-md transition-all", viewMode === 'grid' && "bg-background text-foreground shadow-sm hover:bg-background")}
         >
           <Grid3X3 className="h-4 w-4" />
         </Button>
@@ -86,7 +87,8 @@ export function SearchAndFilters({
           variant={viewMode === 'list' ? 'default' : 'ghost'}
           size="sm"
           onClick={() => onViewModeChange('list')}
-          className={cn("h-8 px-3 rounded-md transition-all", viewMode === 'list' && "bg-white text-black shadow-sm")}
+          aria-label="List view"
+          className={cn("h-8 px-3 rounded-md transition-all", viewMode === 'list' && "bg-background text-foreground shadow-sm hover:bg-background")}
         >
           <List className="h-4 w-4" />
         </Button>

@@ -41,6 +41,12 @@
     --warning-foreground: oklch(0.25 0.06 70);
     --info: oklch(0.56 0.14 245);
     --info-foreground: oklch(0.985 0.01 245);
+    /* Text-safe shades of the status colours: 4.5:1 or better on the cream
+       background, for a status written as words rather than shown as a fill. */
+    --success-strong: oklch(0.47 0.12 155);
+    --warning-strong: oklch(0.5 0.12 60);
+    --info-strong: oklch(0.47 0.13 245);
+    --destructive-strong: oklch(0.5 0.2 27);
     --sidebar: oklch(0.986 0.002 67.8);
     --sidebar-foreground: oklch(0.147 0.004 49.3);
     --sidebar-primary: oklch(0.586 0.253 17.585);
@@ -81,6 +87,10 @@
     --warning-foreground: oklch(0.25 0.06 70);
     --info: oklch(0.68 0.12 245);
     --info-foreground: oklch(0.2 0.05 245);
+    --success-strong: oklch(0.78 0.13 155);
+    --warning-strong: oklch(0.82 0.13 75);
+    --info-strong: oklch(0.78 0.11 245);
+    --destructive-strong: oklch(0.76 0.15 22);
     --sidebar: oklch(0.21 0.006 285.885);
     --sidebar-foreground: oklch(0.986 0.002 67.8);
     --sidebar-primary: oklch(0.645 0.246 16.439);
@@ -95,6 +105,9 @@
     --font-sans: 'Inter Variable', sans-serif;
     --font-mono: 'JetBrains Mono Variable', monospace;
     --font-serif: 'Fraunces', ui-serif, Georgia, serif;
+
+    /* The landing page's warm paper, shared with the sign-in screens. */
+    --color-paper: #faf7f1;
 
     --color-background: var(--background);
     --color-foreground: var(--foreground);
@@ -145,6 +158,10 @@
     --color-warning-foreground: var(--warning-foreground);
     --color-info: var(--info);
     --color-info-foreground: var(--info-foreground);
+    --color-success-strong: var(--success-strong);
+    --color-warning-strong: var(--warning-strong);
+    --color-info-strong: var(--info-strong);
+    --color-destructive-strong: var(--destructive-strong);
 
     /* Elevation ladder — warm-tinted so shadows sit naturally on the cream palette */
     --shadow-soft: 0 1px 2px oklch(0.2 0.02 60 / 0.05), 0 2px 8px oklch(0.2 0.02 60 / 0.04);

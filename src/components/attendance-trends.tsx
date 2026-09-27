@@ -29,7 +29,8 @@ import { Id } from "../../convex/_generated/dataModel"
 import { useOrganization } from "@/hooks/use-organization"
 import { ScopeBadge } from "@/components/scope-badge"
 import { scopeSubtitle } from "@/lib/report-scope"
-import { Info, TrendingUp, Calendar, BarChart3, PieChartIcon, Filter } from "lucide-react"
+import { Info, Calendar, BarChart3, PieChartIcon, Filter } from "lucide-react"
+import { titleCase } from "@/lib/display"
 
 // Crimson-family palette (from the theme's --chart tokens) for multi-series
 // charts. Use an explicit per-event-type color only when it's a valid hex;
@@ -42,6 +43,17 @@ const CHART_PALETTE = [
   "var(--chart-3)",
   "var(--chart-5)",
 ]
+// One tooltip look for every chart here.
+const TOOLTIP_STYLE = {
+  backgroundColor: 'var(--popover)',
+  borderRadius: '8px',
+  border: '1px solid var(--border)',
+  fontSize: '12px',
+  color: 'var(--popover-foreground)',
+}
+const TICK = { fill: 'var(--muted-foreground)', fontSize: 11 }
+const legendLabel = (value: string) => <span className="text-xs text-muted-foreground ml-1">{titleCase(value)}</span>
+
 const seriesColor = (color: string | undefined, index: number) =>
   color && color.startsWith("#") ? color : CHART_PALETTE[index % CHART_PALETTE.length]
 
@@ -62,7 +74,7 @@ export function AttendanceTrends() {
     <Select value={unitFilter} onValueChange={setUnitFilter}>
       <SelectTrigger className="h-9 w-full sm:w-[220px]" disabled={unitsLoading}>
         <Filter className="h-3.5 w-3.5 mr-2 text-muted-foreground" />
-        <SelectValue placeholder={unitsLoading ? "Loading units..." : "All units"} />
+        <SelectValue placeholder={unitsLoading ? "Loading units…" : "All units"} />
       </SelectTrigger>
       <SelectContent>
         <SelectItem value="all">All units</SelectItem>
@@ -77,14 +89,14 @@ export function AttendanceTrends() {
 
   if (!trendsData) {
     return (
-      <div className="space-y-8">
+      <div className="space-y-6">
         {unitPicker}
         <div className="flex gap-4">
           <Skeleton className="h-10 w-32 rounded-lg" />
           <Skeleton className="h-10 w-32 rounded-lg" />
           <Skeleton className="h-10 w-32 rounded-lg" />
         </div>
-        <Card className="glass-card shadow-soft p-8 rounded-xl border-border/50">
+        <Card className="p-4 md:p-6">
           <Skeleton className="h-[400px] w-full rounded-lg" />
         </Card>
       </div>
@@ -100,36 +112,34 @@ export function AttendanceTrends() {
     <div className="space-y-6">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <h2 className="text-xl font-semibold text-foreground">Analytics</h2>
+          <h2 className="text-lg font-semibold text-foreground">Attendance trends</h2>
           <p className="text-sm text-muted-foreground">
             {unitName
-              ? `Every chart below counts ${unitName} members only`
-              : scopeSubtitle(trendsData.scope, "Track engagement patterns and growth trends")}
+              ? `Every chart below counts ${unitName} members only.`
+              : scopeSubtitle(trendsData.scope, "How attendance is changing, week by week and month by month.")}
           </p>
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex w-full flex-wrap items-center gap-3 sm:w-auto">
           {unitPicker}
           <ScopeBadge scope={trendsData.scope} />
         </div>
       </div>
 
       <Tabs defaultValue="weekly" className="w-full space-y-6">
-        <TabsList className="bg-muted/50 p-1 rounded-lg h-auto flex-wrap gap-0.5">
-          <TabsTrigger value="weekly" className="h-8 px-3 rounded-md text-sm data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm">Weekly</TabsTrigger>
-          <TabsTrigger value="monthly" className="h-8 px-3 rounded-md text-sm data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm">Monthly</TabsTrigger>
-          <TabsTrigger value="comparison" className="h-8 px-3 rounded-md text-sm data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm">Compare</TabsTrigger>
+        <TabsList className="bg-muted/50 p-1 rounded-lg h-auto max-w-full justify-start flex-nowrap gap-0.5 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+          <TabsTrigger value="weekly" className="h-8 shrink-0 grow-0 px-3 rounded-md text-sm data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm">Weekly</TabsTrigger>
+          <TabsTrigger value="monthly" className="h-8 shrink-0 grow-0 px-3 rounded-md text-sm data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm">Monthly</TabsTrigger>
+          <TabsTrigger value="comparison" className="h-8 shrink-0 grow-0 px-3 rounded-md text-sm data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm">Compare</TabsTrigger>
         </TabsList>
 
         <TabsContent value="weekly" className="space-y-6 outline-none">
-          <Card className="border-border/50 rounded-lg">
+          <Card>
             <CardHeader className="pb-2">
-              <div className="flex items-center gap-3">
-                <div className="h-9 w-9 bg-primary/10 text-primary rounded-lg flex items-center justify-center">
-                  <Calendar className="h-4 w-4" />
-                </div>
+              <div className="flex items-start gap-2">
+                <Calendar className="mt-1 h-4 w-4 shrink-0 text-muted-foreground" />
                 <div>
-                  <CardTitle className="text-base">Weekly Engagement</CardTitle>
-                  <CardDescription className="text-sm">Participation over the last 11 weeks</CardDescription>
+                  <CardTitle className="text-base font-semibold">Weekly attendance</CardTitle>
+                  <CardDescription className="text-sm">The last 11 weeks</CardDescription>
                 </div>
               </div>
             </CardHeader>
@@ -143,28 +153,22 @@ export function AttendanceTrends() {
                         dataKey="name"
                         axisLine={false}
                         tickLine={false}
-                        tick={{ fill: 'var(--muted-foreground)', fontSize: 11 }}
+                        tick={TICK}
                         dy={10}
                       />
                       <YAxis
                         axisLine={false}
                         tickLine={false}
-                        tick={{ fill: 'var(--muted-foreground)', fontSize: 11 }}
+                        tick={TICK}
                       />
                       <Tooltip
-                        contentStyle={{
-                          backgroundColor: 'var(--popover)',
-                          borderRadius: '8px',
-                          border: '1px solid var(--border)',
-                          fontSize: '12px',
-                          color: 'var(--popover-foreground)'
-                        }}
+                        contentStyle={TOOLTIP_STYLE}
                       />
                       <Legend
                         verticalAlign="top"
                         align="right"
                         iconType="circle"
-                        formatter={(value) => <span className="text-xs text-muted-foreground ml-1">{value}</span>}
+                        formatter={legendLabel}
                       />
                       <Line
                         type="monotone"
@@ -180,21 +184,21 @@ export function AttendanceTrends() {
                 </div>
               ) : (
                 <div className="h-[300px] flex items-center justify-center text-sm text-muted-foreground bg-muted/30 rounded-lg border border-dashed border-border">
-                  No weekly data available
+                  No attendance recorded in the last 11 weeks
                 </div>
               )}
             </CardContent>
           </Card>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <Card className="border-border/50 rounded-lg">
+          <div>
+            <Card>
               <CardHeader className="pb-2">
-                <CardTitle className="text-sm">Growth Rate</CardTitle>
-                <CardDescription className="text-xs">Week-over-week change</CardDescription>
+                <CardTitle className="text-base font-semibold">Change from the week before</CardTitle>
+                <CardDescription className="text-sm">Percentage up or down on the previous week</CardDescription>
               </CardHeader>
-              <CardContent className="p-8 pt-4">
+              <CardContent className="pb-4">
                 {hasWeeklyData ? (
-                  <div className="h-[350px]">
+                  <div className="h-[300px]">
                     <ResponsiveContainer width="100%" height="100%">
                       <BarChart
                         data={weeklyData.slice(1).map((week, index) => ({
@@ -208,28 +212,23 @@ export function AttendanceTrends() {
                           dataKey="name"
                           axisLine={false}
                           tickLine={false}
-                          tick={{ fill: 'var(--muted-foreground)', fontSize: 10, fontWeight: 700 }}
+                          tick={TICK}
                           dy={5}
                         />
                         <YAxis
                           axisLine={false}
                           tickLine={false}
-                          tick={{ fill: 'var(--muted-foreground)', fontSize: 10, fontWeight: 700 }}
+                          tick={TICK}
                         />
                         <Tooltip
                           cursor={{ fill: 'var(--muted)' }}
-                          contentStyle={{
-                            backgroundColor: 'var(--popover)',
-                            borderRadius: '16px',
-                            border: '1px solid var(--border)',
-                            boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1)',
-                            fontWeight: 700,
-                            color: 'var(--popover-foreground)'
-                          }}
+                          contentStyle={TOOLTIP_STYLE}
+                          separator=""
+                          formatter={(value) => [`${value}% growth`, ""]}
                         />
                         <Bar
                           dataKey="growth"
-                          name="Growth %"
+                          name="Change"
                           fill="var(--primary)"
                           radius={[8, 8, 0, 0]}
                           barSize={32}
@@ -238,48 +237,29 @@ export function AttendanceTrends() {
                     </ResponsiveContainer>
                   </div>
                 ) : (
-                  <div className="h-[300px] flex items-center justify-center text-sm text-muted-foreground tracking-widest">
-                    No growth data yet
+                  <div className="h-[300px] flex items-center justify-center text-sm text-muted-foreground bg-muted/30 rounded-lg border border-dashed border-border">
+                    Record two weeks of attendance to see the change
                   </div>
                 )}
-              </CardContent>
-            </Card>
-
-            <Card className="border-border/50 shadow-soft-xl rounded-2xl overflow-hidden bg-card border-dashed">
-              <CardHeader className="p-8 pb-4">
-                <CardTitle className="text-lg tracking-tight text-foreground">Demographics</CardTitle>
-                <CardDescription className="font-medium text-muted-foreground text-sm">Breakdown by demographics (coming soon)</CardDescription>
-              </CardHeader>
-              <CardContent className="p-8 pt-4">
-                <div className="h-[300px] flex flex-col items-center justify-center text-center space-y-4">
-                  <div className="h-16 w-16 bg-muted text-muted-foreground/50 rounded-2xl flex items-center justify-center">
-                    <PieChartIcon className="h-8 w-8" />
-                  </div>
-                  <p className="text-sm text-muted-foreground max-w-[240px]">
-                    Demographic charts will appear once member profiles include more detail.
-                  </p>
-                </div>
               </CardContent>
             </Card>
           </div>
         </TabsContent>
 
-        <TabsContent value="monthly" className="space-y-10 animate-in fade-in duration-500 outline-none">
-          <Card className="border-border/50 shadow-soft-xl rounded-2xl overflow-hidden bg-card">
-            <CardHeader className="p-8 pb-4">
-              <div className="flex items-center gap-4">
-                <div className="h-12 w-12 bg-muted text-foreground rounded-2xl flex items-center justify-center shadow-soft">
-                  <BarChart3 className="h-6 w-6" />
-                </div>
+        <TabsContent value="monthly" className="space-y-6 outline-none">
+          <Card>
+            <CardHeader className="pb-2">
+              <div className="flex items-start gap-2">
+                <BarChart3 className="mt-1 h-4 w-4 shrink-0 text-muted-foreground" />
                 <div>
-                  <CardTitle className="text-xl tracking-tight text-foreground">Monthly Attendance</CardTitle>
-                  <CardDescription className="font-medium text-muted-foreground text-sm">Attendance over the last 12 months</CardDescription>
+                  <CardTitle className="text-base font-semibold">Monthly attendance</CardTitle>
+                  <CardDescription className="text-sm">Attendance over the last 12 months</CardDescription>
                 </div>
               </div>
             </CardHeader>
-            <CardContent className="p-10 pt-4">
+            <CardContent className="pb-4">
               {hasMonthlyData ? (
-                <div className="h-[450px]">
+                <div className="h-[350px]">
                   <ResponsiveContainer width="100%" height="100%">
                     <AreaChart data={monthlyData} margin={{ top: 20, right: 30, left: 20, bottom: 20 }}>
                       <defs>
@@ -293,30 +273,23 @@ export function AttendanceTrends() {
                         dataKey="name"
                         axisLine={false}
                         tickLine={false}
-                        tick={{ fill: 'var(--muted-foreground)', fontSize: 10, fontWeight: 700 }}
+                        tick={TICK}
                         dy={10}
                       />
                       <YAxis
                         axisLine={false}
                         tickLine={false}
-                        tick={{ fill: 'var(--muted-foreground)', fontSize: 10, fontWeight: 700 }}
+                        tick={TICK}
                       />
                       <Tooltip
-                        contentStyle={{
-                          backgroundColor: 'var(--popover)',
-                          borderRadius: '16px',
-                          border: '1px solid var(--border)',
-                          boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1)',
-                          fontWeight: 700,
-                          color: 'var(--popover-foreground)'
-                        }}
+                        contentStyle={TOOLTIP_STYLE}
                       />
                       <Area
                         type="monotone"
                         dataKey="count"
                         name="Attendance"
                         stroke="var(--primary)"
-                        strokeWidth={4}
+                        strokeWidth={2}
                         fillOpacity={1}
                         fill="url(#colorCount)"
                       />
@@ -324,30 +297,28 @@ export function AttendanceTrends() {
                   </ResponsiveContainer>
                 </div>
               ) : (
-                <div className="h-[400px] flex items-center justify-center text-sm text-muted-foreground tracking-widest bg-muted/50 rounded-2xl border border-dashed border-border">
-                  No monthly data yet
+                <div className="h-[300px] flex items-center justify-center text-sm text-muted-foreground bg-muted/30 rounded-lg border border-dashed border-border">
+                  No attendance recorded in the last 12 months
                 </div>
               )}
             </CardContent>
           </Card>
         </TabsContent>
 
-        <TabsContent value="comparison" className="space-y-10 animate-in fade-in duration-500 outline-none">
-          <Card className="border-border/50 shadow-soft-xl rounded-2xl overflow-hidden bg-card">
-            <CardHeader className="p-8 pb-4">
-              <div className="flex items-center gap-4">
-                <div className="h-12 w-12 bg-primary text-primary-foreground rounded-2xl flex items-center justify-center shadow-soft">
-                  <PieChartIcon className="h-6 w-6" />
-                </div>
+        <TabsContent value="comparison" className="space-y-6 outline-none">
+          <Card>
+            <CardHeader className="pb-2">
+              <div className="flex items-start gap-2">
+                <PieChartIcon className="mt-1 h-4 w-4 shrink-0 text-muted-foreground" />
                 <div>
-                  <CardTitle className="text-xl tracking-tight text-foreground">Comparative Engagement</CardTitle>
-                  <CardDescription className="font-medium text-muted-foreground text-sm">How attendance compares across service types</CardDescription>
+                  <CardTitle className="text-base font-semibold">Attendance by event type</CardTitle>
+                  <CardDescription className="text-sm">How attendance compares across event types</CardDescription>
                 </div>
               </div>
             </CardHeader>
-            <CardContent className="p-10 pt-4">
+            <CardContent className="pb-4">
               {hasComparisonData ? (
-                <div className="h-[450px]">
+                <div className="h-[350px]">
                   <ResponsiveContainer width="100%" height="100%">
                     <BarChart data={eventComparisonData} margin={{ top: 20, right: 30, left: 20, bottom: 20 }}>
                       <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--border)" />
@@ -355,34 +326,28 @@ export function AttendanceTrends() {
                         dataKey="name"
                         axisLine={false}
                         tickLine={false}
-                        tick={{ fill: 'var(--muted-foreground)', fontSize: 10, fontWeight: 700 }}
+                        tick={TICK}
                         dy={10}
                       />
                       <YAxis
                         axisLine={false}
                         tickLine={false}
-                        tick={{ fill: 'var(--muted-foreground)', fontSize: 10, fontWeight: 700 }}
+                        tick={TICK}
                       />
                       <Tooltip
-                        contentStyle={{
-                          backgroundColor: 'var(--popover)',
-                          borderRadius: '16px',
-                          border: '1px solid var(--border)',
-                          boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1)',
-                          fontWeight: 700,
-                          color: 'var(--popover-foreground)'
-                        }}
+                        contentStyle={TOOLTIP_STYLE}
                       />
                       <Legend
                         verticalAlign="top"
                         align="right"
                         iconType="circle"
-                        formatter={(value) => <span className="text-[10px] text-muted-foreground tracking-wider ml-1">{value}</span>}
+                        formatter={legendLabel}
                       />
                       {activeEventTypes.map((eventType, index) => (
                         <Bar
                           key={eventType.id}
                           dataKey={eventType.label}
+                          name={titleCase(eventType.label)}
                           fill={seriesColor(eventType.color, index)}
                           radius={[6, 6, 0, 0]}
                           stackId="a"
@@ -392,37 +357,30 @@ export function AttendanceTrends() {
                   </ResponsiveContainer>
                 </div>
               ) : (
-                <div className="h-[400px] flex items-center justify-center text-sm text-muted-foreground tracking-widest bg-muted/50 rounded-2xl border border-dashed border-border">
-                  Not enough data to compare yet
+                <div className="h-[300px] flex items-center justify-center text-sm text-muted-foreground bg-muted/30 rounded-lg border border-dashed border-border">
+                  Not enough attendance to compare yet
                 </div>
               )}
             </CardContent>
           </Card>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-            <Card className="border-border/50 shadow-soft-xl rounded-2xl overflow-hidden bg-card">
-              <CardHeader className="p-8 pb-4">
-                <CardTitle className="text-lg tracking-tight text-foreground">Attendance by Service Type</CardTitle>
-                <CardDescription className="font-medium text-muted-foreground text-sm">Share of attendance by service type</CardDescription>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-base font-semibold">Share by event type</CardTitle>
+                <CardDescription className="text-sm">Each event type's share of attendance in the latest period</CardDescription>
               </CardHeader>
-              <CardContent className="p-8 pt-4">
+              <CardContent className="pb-4">
                 {hasComparisonData ? (
                   <div className="h-[350px]">
                     <ResponsiveContainer width="100%" height="100%">
                       <PieChart>
                         <Tooltip
-                          contentStyle={{
-                            backgroundColor: 'var(--popover)',
-                            borderRadius: '16px',
-                            border: '1px solid var(--border)',
-                            boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1)',
-                            fontWeight: 700,
-                            color: 'var(--popover-foreground)'
-                          }}
+                          contentStyle={TOOLTIP_STYLE}
                         />
                         <Pie
                           data={activeEventTypes.map((et) => ({
-                            name: et.label,
+                            name: titleCase(et.label),
                             value: eventComparisonData[eventComparisonData.length - 1][et.label] || 0
                           }))}
                           cx="50%"
@@ -440,29 +398,26 @@ export function AttendanceTrends() {
                           verticalAlign="bottom"
                           height={36}
                           iconType="circle"
-                          formatter={(value) => <span className="text-[10px] text-muted-foreground tracking-wider ml-1">{value}</span>}
+                          formatter={legendLabel}
                         />
                       </PieChart>
                     </ResponsiveContainer>
                   </div>
                 ) : (
-                  <div className="h-[300px] flex items-center justify-center text-sm text-muted-foreground tracking-widest">
-                    No data yet
+                  <div className="h-[300px] flex items-center justify-center text-sm text-muted-foreground bg-muted/30 rounded-lg border border-dashed border-border">
+                    No attendance recorded yet
                   </div>
                 )}
               </CardContent>
             </Card>
 
-            <div className="flex flex-col justify-center p-12 bg-muted/50 border border-dashed border-border rounded-2xl relative overflow-hidden group">
-              <div className="absolute top-0 right-0 p-8 opacity-5 group-hover:opacity-10 transition-opacity">
-                <TrendingUp className="h-32 w-32 text-foreground" />
-              </div>
-              <div className="space-y-6 text-left relative z-10">
-                <div className="h-14 w-14 bg-background shadow-soft rounded-2xl flex items-center justify-center text-foreground transform -rotate-3 border border-border">
-                  <Info className="h-7 w-7" />
+            <div className="flex flex-col justify-center rounded-xl border border-dashed border-border bg-muted/30 p-4 md:p-6">
+              <div className="space-y-2 text-left">
+                <div className="flex items-center gap-2">
+                  <Info className="h-4 w-4 text-muted-foreground" />
+                  <h3 className="text-base font-semibold text-foreground">About these figures</h3>
                 </div>
                 <div className="space-y-2">
-                  <h4 className="text-xl tracking-tight text-foreground">About this data</h4>
                   <p className="text-sm text-muted-foreground leading-relaxed max-w-sm">
                     These figures come from recorded services. The weekly and monthly views help you spot attendance trends over time.
                     {unitName

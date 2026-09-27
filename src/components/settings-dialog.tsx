@@ -27,7 +27,8 @@ import { AnalyticsEventType } from "@/services/analytics/types"
 import { useQuery, useMutation } from "convex/react"
 import { api } from "../../convex/_generated/api"
 import { Id } from "../../convex/_generated/dataModel"
-import { Settings, Shield, Sparkles, Save, RotateCcw } from "lucide-react"
+import { Save, RotateCcw } from "lucide-react"
+import { CURRENCIES, DEFAULT_CURRENCY } from "@/lib/money"
 import { cn } from "@/lib/utils"
 import { BrandingPanel } from "@/components/branding-panel"
 import { AiCredentialsPanel } from "@/components/ai-credentials-panel"
@@ -114,7 +115,6 @@ export function SettingsDialog({ open, onOpenChange, onSuccess }: SettingsDialog
   // Storing a provider key is only useful to an org whose plan can use it; the
   // backend refuses regardless (ai/internal:forCredentialChange).
   const { isPro } = useSubscription()
-  const tabCount = 3 + (brandingEnabled ? 1 : 0) + (isPro ? 1 : 0)
 
   // Organization structure local state
   const [orgTerms, setOrgTerms] = useState({ ...DEFAULT_ORG_TERMS })
@@ -128,6 +128,10 @@ export function SettingsDialog({ open, onOpenChange, onSuccess }: SettingsDialog
   // The organization's canonical name (organizations.name). Shown in the org
   // switcher, page headers, and the public giving page.
   const [orgName, setOrgName] = useState('')
+
+  // The currency every amount in Floc is shown in (organizations.currency).
+  const currentCurrency = (currentOrg?.currency as string | undefined) || DEFAULT_CURRENCY
+  const [isSavingCurrency, setIsSavingCurrency] = useState(false)
 
   const handleLevelTypeChange = (level: '1' | '2' | '3' | '4', type: LevelType) => {
     const levelKey = `level${level}` as keyof typeof levelTypes
@@ -194,9 +198,9 @@ export function SettingsDialog({ open, onOpenChange, onSuccess }: SettingsDialog
           ...orgTerms
         }
       })
-      toast({ title: "Success", description: "Hierarchical terminology updated" })
+      toast({ title: "Structure updated" })
     } catch (error: any) {
-      toast({ title: "Error", description: error.message, variant: "destructive" })
+      toast({ title: "Couldn't save the structure", description: error.message, variant: "destructive" })
     } finally {
       setIsLoading(false)
     }
@@ -211,7 +215,7 @@ export function SettingsDialog({ open, onOpenChange, onSuccess }: SettingsDialog
     if (!currentOrg) return
     const trimmed = orgName.trim()
     if (!trimmed) {
-      toast({ title: "Error", description: "Organization name can't be empty", variant: "destructive" })
+      toast({ title: "Couldn't save the name", description: "The church name can't be empty.", variant: "destructive" })
       return
     }
     setIsLoading(true)
@@ -222,39 +226,47 @@ export function SettingsDialog({ open, onOpenChange, onSuccess }: SettingsDialog
           updates: { name: trimmed },
         })
       }
-      toast({ title: "Success", description: "Organization name updated" })
+      toast({ title: "Church name updated" })
       onSuccess?.()
     } catch (error: any) {
-      toast({ title: "Error", description: error.message, variant: "destructive" })
+      toast({ title: "Couldn't save the name", description: error.message, variant: "destructive" })
     } finally {
       setIsLoading(false)
     }
   }
 
+  const handleCurrencyChange = async (currency: string) => {
+    if (!currentOrg || currency === currentCurrency) return
+    setIsSavingCurrency(true)
+    try {
+      await updateOrgMutation({
+        id: currentOrg._id as Id<"organizations">,
+        updates: { currency },
+      })
+      toast({ title: "Currency updated" })
+    } catch (error) {
+      toast({ title: "Couldn't change the currency", description: error instanceof Error ? error.message : undefined, variant: "destructive" })
+    } finally {
+      setIsSavingCurrency(false)
+    }
+  }
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[700px] max-h-[85vh] flex flex-col overflow-hidden p-0 glass-card border-border/50 shadow-soft rounded-2xl">
+      <DialogContent className="sm:max-w-[700px] max-h-[85vh] flex flex-col overflow-hidden p-0 rounded-2xl">
         <DialogHeader className="shrink-0 p-6 bg-muted/20 border-b border-border/50">
-          <DialogTitle className="text-xl tracking-tight flex items-center gap-3 text-foreground">
-            <div className="p-2 bg-primary/10 rounded-lg text-primary">
-              <Settings className="h-5 w-5" />
-            </div>
-            System Control Center
+          <DialogTitle className="text-xl font-semibold text-foreground">
+            Church settings
           </DialogTitle>
-          <DialogDescription className="text-muted-foreground">
-            Architect the terminology and structure of your foundation.
+          <DialogDescription className="text-sm text-muted-foreground">
+            Your church's name, structure, branding and preferences.
           </DialogDescription>
         </DialogHeader>
 
         <div className="flex-1 min-h-0 overflow-y-auto custom-scrollbar p-6">
           <Tabs defaultValue="terminology" className="space-y-6">
-            <TabsList
-              className={cn(
-                "bg-muted/50 p-1 rounded-xl w-full grid",
-                tabCount === 5 ? "grid-cols-5" : tabCount === 4 ? "grid-cols-4" : "grid-cols-3",
-              )}
-            >
-              <TabsTrigger value="terminology" className="rounded-lg data-[state=active]:bg-background data-[state=active]:shadow-sm">Identity</TabsTrigger>
+            <TabsList className="bg-muted/50 p-1 rounded-xl w-full flex justify-start overflow-x-auto">
+              <TabsTrigger value="terminology" className="rounded-lg data-[state=active]:bg-background data-[state=active]:shadow-sm">Name and currency</TabsTrigger>
               <TabsTrigger value="organization" className="rounded-lg data-[state=active]:bg-background data-[state=active]:shadow-sm">Structure</TabsTrigger>
               {brandingEnabled && (
                 <TabsTrigger value="branding" className="rounded-lg data-[state=active]:bg-background data-[state=active]:shadow-sm">Branding</TabsTrigger>
@@ -266,30 +278,56 @@ export function SettingsDialog({ open, onOpenChange, onSuccess }: SettingsDialog
             </TabsList>
 
             <TabsContent value="terminology" className="space-y-6 animate-in fade-in slide-in-from-bottom-2 duration-300">
-              {/* Organization name — per-org, editable by org admins */}
-              <Card className="border border-border/50 shadow-sm overflow-hidden bg-card/50">
+              {/* Church name: per-org, editable by org admins */}
+              <Card className="overflow-hidden">
                 <CardHeader className="bg-muted/20 border-b border-border/50 px-6 py-4">
-                  <CardTitle className="text-base font-semibold flex items-center gap-2">
-                    <Sparkles className="h-4 w-4 text-primary" /> Organization
-                  </CardTitle>
-                  <CardDescription>Your organization's name across the app</CardDescription>
+                  <CardTitle className="text-base font-semibold">Name</CardTitle>
+                  <CardDescription>How your church appears across Floc</CardDescription>
                 </CardHeader>
                 <CardContent className="p-6 space-y-4">
                   <div className="space-y-2">
-                    <Label className="text-xs text-muted-foreground tracking-wide">Organization Name</Label>
+                    <Label htmlFor="church-name" className="text-sm">Church name</Label>
                     <Input
-                      placeholder="e.g. First Baptist Church"
+                      id="church-name"
+                      placeholder="For example, Grace Chapel"
                       value={orgName}
                       onChange={(e) => setOrgName(e.target.value)}
-                      className="bg-background/50 h-11"
+                      className="bg-background h-11"
                     />
-                    <p className="text-[11px] text-muted-foreground">
-                      Shown in the organization switcher, page headers, and the public giving page.
+                    <p className="text-xs text-muted-foreground">
+                      Shown in the church switcher, page headers and the public giving page.
                     </p>
                   </div>
-                  <Button onClick={handleSaveOrgName} disabled={isLoading} className="w-full h-12 shadow-soft hover:shadow-lg transition-all">
-                    {isLoading ? "Saving..." : "Save Organization Name"}
+                  <Button onClick={handleSaveOrgName} disabled={isLoading} className="w-full sm:w-auto">
+                    {isLoading ? "Saving…" : "Save name"}
                   </Button>
+                </CardContent>
+              </Card>
+
+              <Card className="overflow-hidden">
+                <CardHeader className="bg-muted/20 border-b border-border/50 px-6 py-4">
+                  <CardTitle className="text-base font-semibold">Currency</CardTitle>
+                  <CardDescription>The currency your church keeps its books in</CardDescription>
+                </CardHeader>
+                <CardContent className="p-6 space-y-2">
+                  <Label htmlFor="church-currency" className="text-sm">Currency</Label>
+                  <Select
+                    value={currentCurrency}
+                    onValueChange={handleCurrencyChange}
+                    disabled={!currentOrg || isSavingCurrency}
+                  >
+                    <SelectTrigger id="church-currency" className="bg-background h-11">
+                      <SelectValue placeholder="Choose a currency" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {CURRENCIES.map((c) => (
+                        <SelectItem key={c.code} value={c.code}>{c.label}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <p className="text-xs text-muted-foreground">
+                    Used for every amount in Floc. Online giving is always taken in cedis.
+                  </p>
                 </CardContent>
               </Card>
             </TabsContent>
@@ -297,8 +335,8 @@ export function SettingsDialog({ open, onOpenChange, onSuccess }: SettingsDialog
         <TabsContent value="organization" className="space-y-6 animate-in fade-in slide-in-from-bottom-2 duration-300">
           <Card className="border border-border/50 shadow-sm bg-accent/5">
             <CardHeader className="border-b border-border/50 px-6 py-4">
-              <CardTitle className="text-sm font-semibold tracking-wide">Hierarchy Preview</CardTitle>
-              <CardDescription>Click a level to edit its name</CardDescription>
+              <CardTitle className="text-base font-semibold">Levels</CardTitle>
+              <CardDescription>Choose a level to rename it</CardDescription>
             </CardHeader>
             <CardContent className="p-6">
               <div className="flex flex-wrap gap-3">
@@ -338,12 +376,12 @@ export function SettingsDialog({ open, onOpenChange, onSuccess }: SettingsDialog
                   <CardTitle className="text-sm font-semibold flex items-center gap-2">
                     Level {level}: {orgTerms[singularKey]}
                   </CardTitle>
-                  <CardDescription>Define how this level is named</CardDescription>
+                  <CardDescription>What your church calls this level</CardDescription>
                 </CardHeader>
                 <CardContent className="p-6 space-y-4">
                   <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-2">
-                      <Label className="text-xs text-muted-foreground tracking-wide">Type Preset</Label>
+                      <Label className="text-xs text-muted-foreground">Preset</Label>
                       <Select
                         value={levelTypes[levelKey]}
                         onValueChange={(value) => handleLevelTypeChange(String(level) as '1' | '2' | '3' | '4', value as LevelType)}
@@ -361,18 +399,18 @@ export function SettingsDialog({ open, onOpenChange, onSuccess }: SettingsDialog
                       </Select>
                     </div>
                     <div className="space-y-2">
-                      <Label className="text-xs text-muted-foreground tracking-wide">&nbsp;</Label>
+                      <Label className="text-xs text-muted-foreground">&nbsp;</Label>
                       <p className="text-xs text-muted-foreground pt-2">
                         {isCustom 
-                          ? "Enter custom terminology below" 
-                          : `Auto-fills: ${types[levelTypes[levelKey] as keyof typeof types]?.singular} / ${types[levelTypes[levelKey] as keyof typeof types]?.plural}`}
+                          ? "Type your own names below" 
+                          : `Fills in ${types[levelTypes[levelKey] as keyof typeof types]?.singular} and ${types[levelTypes[levelKey] as keyof typeof types]?.plural}`}
                       </p>
                     </div>
                   </div>
                   
                   <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-2">
-                      <Label className="text-xs text-muted-foreground tracking-wide">Singular</Label>
+                      <Label className="text-xs text-muted-foreground">Singular</Label>
                       <Input 
                         value={orgTerms[singularKey]} 
                         onChange={(e) => {
@@ -383,7 +421,7 @@ export function SettingsDialog({ open, onOpenChange, onSuccess }: SettingsDialog
                       />
                     </div>
                     <div className="space-y-2">
-                      <Label className="text-xs text-muted-foreground tracking-wide">Plural</Label>
+                      <Label className="text-xs text-muted-foreground">Plural</Label>
                       <Input 
                         value={orgTerms[pluralKey]} 
                         onChange={(e) => {
@@ -401,7 +439,7 @@ export function SettingsDialog({ open, onOpenChange, onSuccess }: SettingsDialog
 
           <div className="flex gap-4 pt-4 border-t">
             <Button onClick={handleSaveOrgTerminology} disabled={isLoading} className="flex-1 h-12 shadow-soft hover:shadow-lg transition-all">
-              <Save className="mr-2 h-4 w-4" /> Save Structure
+              <Save className="mr-2 h-4 w-4" /> Save structure
             </Button>
             <Button variant="outline" onClick={handleResetOrgTerminology} className="shadow-sm h-12">
               <RotateCcw className="mr-2 h-4 w-4" /> Reset
@@ -432,14 +470,12 @@ export function SettingsDialog({ open, onOpenChange, onSuccess }: SettingsDialog
             <TabsContent value="general" className="space-y-6 animate-in fade-in slide-in-from-bottom-2 duration-300">
               <Card className="border border-border/50 shadow-sm overflow-hidden bg-card/50">
                 <CardHeader className="bg-muted/20 border-b border-border/50 px-6 py-4">
-                  <CardTitle className="text-base font-semibold flex items-center gap-2">
-                    <Shield className="h-4 w-4 text-primary" /> Identity Settings
-                  </CardTitle>
-                  <CardDescription>General application configuration</CardDescription>
+                  <CardTitle className="text-base font-semibold">General</CardTitle>
+                  <CardDescription>Other preferences for your church</CardDescription>
                 </CardHeader>
                 <CardContent className="p-6 space-y-6">
                   <div className="text-sm text-muted-foreground p-4 bg-muted/50 rounded-lg border border-dashed text-center">
-                    Additional general configurations will appear here as the system evolves.
+                    Nothing to set here yet.
                   </div>
                 </CardContent>
               </Card>
@@ -454,7 +490,7 @@ export function SettingsDialog({ open, onOpenChange, onSuccess }: SettingsDialog
             onClick={() => onOpenChange(false)}
             disabled={isLoading}
           >
-            Close Settings
+            Close
           </Button>
         </DialogFooter>
       </DialogContent>

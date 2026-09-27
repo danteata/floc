@@ -2,8 +2,9 @@
 
 import { useMemo } from "react";
 import { LayoutWrapper } from "@/components/layout-wrapper";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { MapPin, Loader2, Crown } from "lucide-react";
+import { Card, CardContent } from "@/components/ui/card";
+import { PageHeader } from "@/components/ui/page-header";
+import { Loader2, Crown } from "lucide-react";
 import { useQuery } from "convex/react";
 import { api } from "../../../convex/_generated/api";
 import MapView from "../../../components/map-view";
@@ -67,31 +68,21 @@ export default function MapPage() {
 
     return (
         <LayoutWrapper>
-            <div className="container mx-auto py-6">
+            <div className="container mx-auto flex flex-col gap-6 py-6">
+                <PageHeader title="Member map" description="Where your members live, one pin per household." />
                 <Card>
-                    <CardHeader>
-                        <CardTitle className="flex items-center gap-2">
-                            <MapPin className="h-6 w-6" />
-                            Member Map
-                        </CardTitle>
-                        <CardDescription>
-                            See where members live relative to your church.
-                        </CardDescription>
-                    </CardHeader>
                     <CardContent>
                         {subLoading ? (
                             <div className="h-[400px] bg-muted rounded-lg flex items-center justify-center">
-                                <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+                                <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" aria-label="Loading" />
                             </div>
                         ) : !canUseMap ? (
                             <div className="h-[400px] rounded-lg border border-dashed border-border flex flex-col items-center justify-center gap-4 px-6 text-center">
-                                <div className="h-12 w-12 rounded-full bg-primary/10 flex items-center justify-center">
-                                    <Crown className="h-6 w-6 text-primary" />
-                                </div>
+                                <Crown className="h-8 w-8 text-muted-foreground/60" aria-hidden="true" />
                                 <div className="space-y-1 max-w-sm">
-                                    <h3 className="font-semibold">Member map is a Pro feature</h3>
+                                    <h3 className="text-base font-semibold">The member map is part of the Pro plan</h3>
                                     <p className="text-sm text-muted-foreground">
-                                        Upgrade to plot member addresses, plan outreach, and see your congregation geographically.
+                                        Upgrade to see where your members live and plan visits by area.
                                     </p>
                                 </div>
                                 <Button asChild>

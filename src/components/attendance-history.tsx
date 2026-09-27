@@ -30,6 +30,8 @@ import { useEventTypes } from '@/hooks/use-event-types'
 import { Badge } from '@/components/ui/badge'
 import { Input } from '@/components/ui/input'
 import { AttendeesDialog } from './attendees-dialog'
+import { EmptyState } from '@/components/ui/empty-state'
+import { titleCase, formatDay } from '@/lib/display'
 import { Skeleton } from '@/components/ui/skeleton'
 import { useQuery } from 'convex/react'
 import { api } from '../../convex/_generated/api'
@@ -128,40 +130,40 @@ export function AttendanceHistory({ unitId, unitName }: AttendanceHistoryProps) 
   }
 
   return (
-    <Card className="border-border/50 shadow-soft-xl rounded-3xl overflow-hidden">
-      <CardHeader className="p-8 pb-4">
-        <CardTitle className="text-xl tracking-tight text-foreground">Historical Archives</CardTitle>
-        <CardDescription className="font-medium text-muted-foreground">
-          Comprehensive log of processed attendance records
-          {unitName && ` for ${unitName}`}
-          {hasScopedCounts && " — engagement shows your members, then the organization total"}
+    <Card>
+      <CardHeader className="p-4 pb-2 md:p-6 md:pb-2">
+        <CardTitle className="text-lg font-semibold text-foreground">Attendance history</CardTitle>
+        <CardDescription className="text-sm text-muted-foreground">
+          Every service you have recorded
+          {unitName && ` for ${unitName}`}.
+          {hasScopedCounts && " Headcounts show your members, then the whole church."}
         </CardDescription>
       </CardHeader>
-      <CardContent className="p-8 pt-4">
+      <CardContent className="p-4 pt-2 md:p-6 md:pt-2">
         <div className="space-y-6">
-          <div className="flex flex-col xl:flex-row xl:items-center xl:justify-between gap-6">
+          <div className="flex flex-col xl:flex-row xl:items-center xl:justify-between gap-4">
             <div className="flex-1 relative">
               <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input
-                placeholder="Search by note or date..."
-                className="pl-11 h-11 border-border rounded-xl bg-background focus:ring-primary max-w-md"
+                placeholder="Search by note or date…"
+                className="pl-11 h-11 bg-background max-w-md"
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
               />
             </div>
             <div className="flex flex-row gap-3 items-center flex-wrap">
               <Select value={eventType} onValueChange={setEventType}>
-                <SelectTrigger className="w-[180px] h-11 border-border rounded-xl bg-background">
-                  <SelectValue placeholder="All Protocols" />
+                <SelectTrigger className="w-full sm:w-[200px] h-11 bg-background">
+                  <SelectValue placeholder="All types" />
                 </SelectTrigger>
-                <SelectContent className="border-border/50 rounded-xl shadow-soft-2xl">
-                  <SelectItem value="all" className="font-medium py-2.5 rounded-lg">All Protocols</SelectItem>
+                <SelectContent>
+                  <SelectItem value="all" className="py-2.5">All types</SelectItem>
                   {eventTypesLoading ? (
-                    <SelectItem value="loading" disabled>Loading...</SelectItem>
+                    <SelectItem value="loading" disabled>Loading…</SelectItem>
                   ) : (
                     eventTypes.map((eventType: any) => (
-                      <SelectItem key={eventType.value} value={eventType.value} className="font-medium py-2.5 rounded-lg">
-                        {eventType.label}
+                      <SelectItem key={eventType.value} value={eventType.value}>
+                        {titleCase(eventType.label)}
                       </SelectItem>
                     ))
                   )}
@@ -173,7 +175,7 @@ export function AttendanceHistory({ unitId, unitName }: AttendanceHistoryProps) 
                 size="sm"
                 onClick={handleExportCsv}
                 disabled={filteredRecords.length === 0}
-                className="h-11 rounded-xl border-border text-muted-foreground px-6"
+                className="h-11 px-6"
               >
                 <Download className="mr-2 h-4 w-4" />
                 Export CSV
@@ -188,19 +190,19 @@ export function AttendanceHistory({ unitId, unitName }: AttendanceHistoryProps) 
                 {filteredRecords.length !== attendanceData.length && ` of ${attendanceData.length}`}
               </span>
               <span className="inline-flex items-center rounded-lg bg-primary/10 text-primary px-3 py-1.5 font-semibold">
-                {totalAttendances} total attendances
+                {totalAttendances} {totalAttendances === 1 ? "person" : "people"} counted in all
               </span>
             </div>
           )}
 
-          <div className="rounded-2xl border border-border overflow-hidden bg-card">
+          <div className="rounded-xl border border-border overflow-x-auto bg-card">
             <Table>
               <TableHeader className="bg-muted/50">
                 <TableRow className="hover:bg-transparent border-border">
-                  <TableHead className="font-black text-[10px] text-muted-foreground tracking-wider pl-6 py-4 text-center">Protocol Date</TableHead>
-                  <TableHead className="font-black text-[10px] text-muted-foreground tracking-wider py-4">Event Type</TableHead>
-                  <TableHead className="font-black text-[10px] text-muted-foreground tracking-wider py-4 text-center">Engagement</TableHead>
-                  <TableHead className="font-black text-[10px] text-muted-foreground tracking-wider py-4 pr-6">Context & Actions</TableHead>
+                  <TableHead className="text-xs text-muted-foreground pl-6 py-3">Date</TableHead>
+                  <TableHead className="text-xs text-muted-foreground py-3">Event type</TableHead>
+                  <TableHead className="text-xs text-muted-foreground py-3 text-center">Present</TableHead>
+                  <TableHead className="text-xs text-muted-foreground py-3 pr-6">Notes</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -224,31 +226,30 @@ export function AttendanceHistory({ unitId, unitName }: AttendanceHistoryProps) 
                       colSpan={4}
                       className="h-32 text-center"
                     >
-                      <div className="flex flex-col items-center justify-center gap-2 opacity-50">
-                        <FileText className="h-6 w-6 text-muted-foreground/50" />
-                        <p className="font-medium text-muted-foreground text-sm">No historical logs found</p>
-                      </div>
+                      <EmptyState
+                        icon={FileText}
+                        className="py-6"
+                        title={attendanceData.length === 0 ? 'No attendance recorded yet' : 'No services match'}
+                        description={attendanceData.length === 0 ? 'Take attendance in the Record tab and it will appear here.' : 'Try a different search or event type.'}
+                      />
                     </TableCell>
                   </TableRow>
                 ) : (
                   filteredRecords.map((record) => (
                     <TableRow key={record._id} className="hover:bg-muted/50 transition-colors border-border last:border-0">
-                      <TableCell className="pl-6 py-5 text-center">
-                        <div className="flex flex-col items-center">
-                          <span className="font-bold text-foreground">{record.date}</span>
-                          <span className="text-[10px] text-muted-foreground tracking-tighter">Processed Log</span>
-                        </div>
+                      <TableCell className="pl-6 py-4 whitespace-nowrap font-medium text-foreground">
+                        {formatDay(record.date)}
                       </TableCell>
-                      <TableCell className="py-5 text-foreground">
-                        {record.event_type_label || record.event_type_value || 'Direct Record'}
+                      <TableCell className="py-4 text-foreground">
+                        {titleCase(record.event_type_label || record.event_type_value) || 'Attendance'}
                       </TableCell>
-                      <TableCell className="py-5 text-center">
+                      <TableCell className="py-4 text-center">
                         <Badge
                           variant="outline"
-                          className="bg-muted text-foreground border-border h-8 px-4 rounded-xl"
+                          className="bg-muted text-foreground tabular-nums"
                           title={
                             record.org_count !== record.count
-                              ? `${record.count} of your members · ${record.org_count} organization-wide`
+                              ? `${record.count} of your members · ${record.org_count} across the church`
                               : undefined
                           }
                         >
@@ -260,16 +261,18 @@ export function AttendanceHistory({ unitId, unitName }: AttendanceHistoryProps) 
                           )}
                         </Badge>
                       </TableCell>
-                      <TableCell className="py-5 pr-6">
+                      <TableCell className="py-4 pr-6">
                         <div className="flex gap-4 items-center justify-between">
                           <span className="text-xs text-muted-foreground truncate max-w-[200px]">
-                            {record.notes || <span className="italic opacity-50">No documentation</span>}
+                            {record.notes || <span className="text-muted-foreground/70">No notes</span>}
                           </span>
                           <Button
                             variant="ghost"
                             size="icon"
                             onClick={() => handleViewAttendees(record)}
-                            className="h-9 w-9 rounded-xl hover:bg-slate-900 hover:text-white transition-all shadow-sm"
+                            className="h-9 w-9"
+                            aria-label="See who was there"
+                            title="See who was there"
                           >
                             <Eye className="h-4 w-4" />
                           </Button>

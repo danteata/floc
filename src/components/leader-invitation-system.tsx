@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import { formatDay } from "@/lib/display"
 import {
   Card,
   CardContent,
@@ -72,6 +73,13 @@ interface PotentialLeader {
   led_unit_names: string[]
 }
 
+/** "organization_admin" reads "Organization admin". */
+function inviteRoleLabel(role: string | undefined): string {
+  if (!role) return 'Member'
+  const words = role.replace(/[_.-]+/g, ' ').trim().toLowerCase()
+  return words.charAt(0).toUpperCase() + words.slice(1)
+}
+
 export function LeaderInvitationSystem() {
   const { terminology } = useTerminology()
   const { toast } = useToast()
@@ -120,7 +128,7 @@ export function LeaderInvitationSystem() {
       await revokeInvitation({ id: id as Id<"invitations"> })
       toast({ title: "Invitation revoked", description: "The invitation link can no longer be used." })
     } catch (err: any) {
-      toast({ title: "Error", description: err.message || "Failed to revoke invitation.", variant: "destructive" })
+      toast({ title: "Couldn't revoke the invitation", description: err.message, variant: "destructive" })
     }
   }
 
@@ -155,7 +163,7 @@ export function LeaderInvitationSystem() {
     return (
       <Card>
         <CardHeader>
-          <CardTitle>Unit Leader Invitation System</CardTitle>
+          <CardTitle className="text-lg font-semibold">Invite leaders</CardTitle>
           <CardDescription>
             You don&apos;t have permission to invite leaders.
           </CardDescription>
@@ -261,16 +269,15 @@ export function LeaderInvitationSystem() {
       }
 
       toast({
-        title: "Invitations Sent",
-        description: `Sent ${selectedLeaders.length} invitations.`
+        title: `${selectedLeaders.length} ${selectedLeaders.length === 1 ? "invitation" : "invitations"} sent`
       });
       setSelectedLeaders([]);
     } catch (err: any) {
       console.error('Send invitations error:', err);
       toast({
         variant: "destructive",
-        title: "Error",
-        description: err.message || "Failed to send invitations."
+        title: "Couldn't send the invitations",
+        description: err.message
       });
     } finally {
       setIsSendingInvites(false)
@@ -305,15 +312,15 @@ export function LeaderInvitationSystem() {
       if (!leader.email) {
         toast({
           title: "Missing email",
-          description: "This leader has no email on file. The invite link was generated; please share it directly.",
+          description: "This leader has no email address, so share the invite link with them yourself.",
         });
       }
     } catch (err: any) {
       console.error('Generate invitation link error:', err);
       toast({
         variant: "destructive",
-        title: "Error",
-        description: err.message || "Failed to generate link."
+        title: "Couldn't create the invite link",
+        description: err.message
       });
     }
   }
@@ -332,7 +339,7 @@ export function LeaderInvitationSystem() {
       }
 
       if (!email) {
-        toast({ variant: "destructive", title: "Error", description: "Email is required." });
+        toast({ variant: "destructive", title: "Add an email address", description: "The invitation needs an email to go to." });
         return;
       }
 
@@ -351,8 +358,8 @@ export function LeaderInvitationSystem() {
       console.error('Admin invite error:', err);
       toast({
         variant: "destructive",
-        title: "Error",
-        description: err.message || "Failed to generate admin link."
+        title: "Couldn't create the invite link",
+        description: err.message
       });
     }
   }
@@ -360,11 +367,11 @@ export function LeaderInvitationSystem() {
   // Handler for creating leader invitation with unit assignment
   const handleLeaderInvite = async () => {
     if (!selectedMemberForLeader) {
-      toast({ variant: "destructive", title: "Error", description: "Please select a member." });
+      toast({ variant: "destructive", title: "Choose a member", description: "Pick the member you want to invite." });
       return;
     }
     if (selectedUnitIds.length === 0) {
-      toast({ variant: "destructive", title: "Error", description: "Please select at least one unit." });
+      toast({ variant: "destructive", title: "Choose a unit", description: "Pick at least one unit for them to lead." });
       return;
     }
 
@@ -390,13 +397,13 @@ export function LeaderInvitationSystem() {
       setSelectedMemberForLeader(null);
       setSelectedUnitIds([]);
 
-      toast({ title: "Success", description: "Leader invitation created successfully." });
+      toast({ title: "Leader invitation created" });
     } catch (err: any) {
       console.error('Leader invite error:', err);
       toast({
         variant: "destructive",
-        title: "Error",
-        description: err.message || "Failed to create leader invitation."
+        title: "Couldn't create the invitation",
+        description: err.message
       });
     } finally {
       setIsCreatingLeaderInvite(false);
@@ -407,8 +414,7 @@ export function LeaderInvitationSystem() {
     if (generatedLink) {
       navigator.clipboard.writeText(generatedLink)
       toast({
-        title: 'Copied',
-        description: 'Invitation link copied to clipboard',
+        title: 'Invite link copied',
       })
     }
   }
@@ -417,24 +423,24 @@ export function LeaderInvitationSystem() {
     <div className="space-y-6">
       <Card>
         <CardHeader>
-          <div className="flex items-center justify-between">
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
             <div>
-              <CardTitle className="flex items-center gap-2">
-                <UserPlus className="h-5 w-5" />
-                {terminology.unit_leader_term} Invitation System
+              <CardTitle className="flex items-center gap-2 text-lg font-semibold">
+                <UserPlus className="h-4 w-4 text-muted-foreground" />
+                Invite {terminology.unit_leader_term.toLowerCase()}s
               </CardTitle>
               <CardDescription>
-                Invite {terminology.unit_term} leaders to create accounts and access their dashboards
+                Invite {terminology.unit_term.toLowerCase()} leaders to create an account so they can look after their members.
               </CardDescription>
             </div>
-            <div className="flex items-center gap-2">
+            <div className="flex flex-wrap items-center gap-2">
               <Button
                 variant="outline"
                 onClick={() => setIsLeaderInviteDialogOpen(true)}
                 className="flex items-center gap-2"
               >
                 <UserPlus className="h-4 w-4" />
-                Invite Leader
+                Invite a leader
               </Button>
               <Button
                 variant="outline"
@@ -442,7 +448,7 @@ export function LeaderInvitationSystem() {
                 className="flex items-center gap-2"
               >
                 <Mail className="h-4 w-4" />
-                Invite Admin
+                Invite an admin
               </Button>
             </div>
           </div>
@@ -451,13 +457,13 @@ export function LeaderInvitationSystem() {
           {/* Organization selector for super_admins */}
           {isSuperAdmin && allOrganizations && allOrganizations.length > 0 && (
             <div className="mb-4 p-4 bg-muted/50 rounded-lg border">
-              <Label className="text-sm mb-2 block">Select Organization</Label>
+              <Label className="text-sm font-medium mb-2 block">Church</Label>
               <Select
                 value={selectedOrgId || allOrganizations[0]?._id}
                 onValueChange={(value) => setSelectedOrgId(value as Id<"organizations">)}
               >
-                <SelectTrigger className="w-[300px]">
-                  <SelectValue placeholder="Select an organization" />
+                <SelectTrigger className="w-full sm:w-[300px]">
+                  <SelectValue placeholder="Choose a church" />
                 </SelectTrigger>
                 <SelectContent>
                   {allOrganizations.map((org: any) => (
@@ -471,30 +477,30 @@ export function LeaderInvitationSystem() {
           )}
 
           {!activeOrganization && !isSuperAdmin && (
-            <div className="p-4 bg-yellow-50 border border-yellow-200 rounded-lg mb-4">
-              <p className="text-yellow-800">No organization selected. Please select an organization to manage invitations.</p>
+            <div className="p-4 bg-warning/10 border border-warning/30 rounded-lg mb-4">
+              <p className="text-warning-strong">No church chosen. Choose a church to manage its invitations.</p>
             </div>
           )}
 
           <div className="flex flex-col sm:flex-row gap-4 mb-4">
             <div className="flex-1">
               <Input
-                placeholder="Search leaders..."
+                placeholder="Search leaders…"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 className="max-w-sm"
               />
             </div>
             <Select value={roleFilter} onValueChange={setRoleFilter}>
-              <SelectTrigger className="w-[200px]">
+              <SelectTrigger className="w-full sm:w-[200px]">
                 <SelectValue placeholder="Filter by status" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">All Leaders</SelectItem>
-                <SelectItem value="no_account">No Account</SelectItem>
-                <SelectItem value="has_account">Has Account</SelectItem>
+                <SelectItem value="all">All leaders</SelectItem>
+                <SelectItem value="no_account">No account yet</SelectItem>
+                <SelectItem value="has_account">Has an account</SelectItem>
                 <SelectItem value="unit_leader">
-                  {terminology.unit_term} Leaders
+                  {terminology.unit_term} leaders
                 </SelectItem>
               </SelectContent>
             </Select>
@@ -505,8 +511,8 @@ export function LeaderInvitationSystem() {
             >
               <Send className="h-4 w-4" />
               {isSendingInvites
-                ? 'Sending...'
-                : `Send Email Invites (${selectedLeaders.length})`}
+                ? 'Sending…'
+                : `Email invites (${selectedLeaders.length})`}
             </Button>
           </div>
 
@@ -527,8 +533,8 @@ export function LeaderInvitationSystem() {
                   </TableHead>
                   <TableHead>Name</TableHead>
                   <TableHead>Email</TableHead>
-                  <TableHead>Leadership Roles</TableHead>
-                  <TableHead>Account Status</TableHead>
+                  <TableHead>Leads</TableHead>
+                  <TableHead>Account</TableHead>
                   <TableHead>Actions</TableHead>
                 </TableRow>
               </TableHeader>
@@ -538,7 +544,7 @@ export function LeaderInvitationSystem() {
                     <TableCell colSpan={6} className="h-24 text-center">
                       <div className="flex items-center justify-center">
                         <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary mr-2"></div>
-                        Loading potential leaders...
+                        Loading leaders…
                       </div>
                     </TableCell>
                   </TableRow>
@@ -548,7 +554,7 @@ export function LeaderInvitationSystem() {
                       colSpan={6}
                       className="h-24 text-center text-muted-foreground"
                     >
-                      No leaders found
+                      {searchQuery || roleFilter !== 'all' ? 'No leaders match your search.' : 'No leaders yet. Give a unit a leader and they will show here.'}
                     </TableCell>
                   </TableRow>
                 ) : (
@@ -564,7 +570,7 @@ export function LeaderInvitationSystem() {
                       <TableCell className="font-medium">
                         {leader.name}
                       </TableCell>
-                      <TableCell>{leader.email}</TableCell>
+                      <TableCell>{leader.email || <span className="text-muted-foreground">No email</span>}</TableCell>
                       <TableCell>
                         <div className="flex flex-wrap gap-1">
                           {leader.led_unit_names &&
@@ -582,11 +588,11 @@ export function LeaderInvitationSystem() {
                       <TableCell>
                         {leader.has_account ? (
                           <Badge
-                            variant="default"
-                            className="flex items-center gap-1"
+                            variant="secondary"
+                            className="flex items-center gap-1 bg-success/15 text-success-strong"
                           >
                             <CheckCircle className="h-3 w-3" />
-                            Has Account
+                            Has an account
                           </Badge>
                         ) : (
                           <Badge
@@ -594,14 +600,14 @@ export function LeaderInvitationSystem() {
                             className="flex items-center gap-1"
                           >
                             <AlertCircle className="h-3 w-3" />
-                            No Account
+                            No account yet
                           </Badge>
                         )}
                       </TableCell>
                       <TableCell>
                         {leader.has_account ? (
                           <span className="text-sm text-muted-foreground">
-                            Already registered
+                            Already signed up
                           </span>
                         ) : (
                           <Button
@@ -611,7 +617,7 @@ export function LeaderInvitationSystem() {
                             className="flex items-center gap-1"
                           >
                             <Link className="h-3 w-3" />
-                            Generate Link
+                            Get invite link
                           </Button>
                         )}
                       </TableCell>
@@ -627,9 +633,9 @@ export function LeaderInvitationSystem() {
       {pendingInvitations.length > 0 && (
         <Card className="mt-6">
           <CardHeader>
-            <CardTitle>Pending Invitations</CardTitle>
+            <CardTitle className="text-lg font-semibold">Waiting to be accepted</CardTitle>
             <CardDescription>
-              Invitations awaiting acceptance. Revoke one to invalidate its link.
+              Invitations no one has accepted yet. Revoke one to stop its link working.
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -649,14 +655,14 @@ export function LeaderInvitationSystem() {
                     <TableRow key={inv._id}>
                       <TableCell className="font-medium">{inv.email}</TableCell>
                       <TableCell>
-                        <Badge variant="secondary" className="capitalize">
-                          {inv.intended_role?.replace(/_/g, ' ')}
+                        <Badge variant="secondary">
+                          {inviteRoleLabel(inv.intended_role)}
                         </Badge>
                       </TableCell>
                       <TableCell>
                         <div className="flex flex-wrap gap-1">
                           {(inv.intended_units || []).length === 0 ? (
-                            <span className="text-xs text-muted-foreground">—</span>
+                            <span className="text-xs text-muted-foreground">None</span>
                           ) : (
                             (inv.intended_units || []).map((uid: string) => (
                               <Badge key={uid} variant="outline" className="text-xs">
@@ -667,7 +673,7 @@ export function LeaderInvitationSystem() {
                         </div>
                       </TableCell>
                       <TableCell>
-                        {inv.expires_at ? new Date(inv.expires_at).toLocaleDateString() : '—'}
+                        {inv.expires_at ? formatDay(inv.expires_at) : <span className="text-muted-foreground">Never</span>}
                       </TableCell>
                       <TableCell>
                         <Button
@@ -693,11 +699,11 @@ export function LeaderInvitationSystem() {
         open={isInviteLinkDialogOpen}
         onOpenChange={setIsInviteLinkDialogOpen}
       >
-        <DialogContent>
+        <DialogContent className="sm:max-w-lg">
           <DialogHeader>
-            <DialogTitle>Invitation Link Generated</DialogTitle>
+            <DialogTitle>Invite link ready</DialogTitle>
             <DialogDescription>
-              Copy this link and share it with the leader to invite them.
+              Copy the link and send it to the leader. It lets them create their account.
             </DialogDescription>
           </DialogHeader>
           <div className="flex items-center space-x-2">
@@ -715,9 +721,9 @@ export function LeaderInvitationSystem() {
       >
         <DialogContent className="sm:max-w-[600px]">
           <DialogHeader>
-            <DialogTitle>Invite Administrator</DialogTitle>
+            <DialogTitle>Invite an admin</DialogTitle>
             <DialogDescription>
-              Create an invitation for a new administrator. They will receive full access to the system.
+              An admin can see and change everything for your church.
             </DialogDescription>
           </DialogHeader>
 
@@ -729,7 +735,7 @@ export function LeaderInvitationSystem() {
               className="flex-1"
             >
               <Mail className="mr-2 h-4 w-4" />
-              New Admin
+              Someone new
             </Button>
             <Button
               variant={adminInviteMode === 'existing' ? 'default' : 'ghost'}
@@ -738,7 +744,7 @@ export function LeaderInvitationSystem() {
               className="flex-1"
             >
               <Users className="mr-2 h-4 w-4" />
-              Existing Member
+              A member
             </Button>
           </div>
 
@@ -746,26 +752,26 @@ export function LeaderInvitationSystem() {
             <div className="grid gap-4 py-4">
               <div className="grid grid-cols-4 items-center gap-4">
                 <Label htmlFor="firstName" className="text-right">
-                  First Name
+                  First name
                 </Label>
                 <Input
                   id="firstName"
                   value={adminInviteForm.firstName}
                   onChange={(e) => setAdminInviteForm(prev => ({ ...prev, firstName: e.target.value }))}
                   className="col-span-3"
-                  placeholder="Enter first name"
+                  placeholder="First name"
                 />
               </div>
               <div className="grid grid-cols-4 items-center gap-4">
                 <Label htmlFor="lastName" className="text-right">
-                  Last Name
+                  Last name
                 </Label>
                 <Input
                   id="lastName"
                   value={adminInviteForm.lastName}
                   onChange={(e) => setAdminInviteForm(prev => ({ ...prev, lastName: e.target.value }))}
                   className="col-span-3"
-                  placeholder="Enter last name"
+                  placeholder="Last name"
                 />
               </div>
               <div className="grid grid-cols-4 items-center gap-4">
@@ -778,7 +784,7 @@ export function LeaderInvitationSystem() {
                   value={adminInviteForm.email}
                   onChange={(e) => setAdminInviteForm(prev => ({ ...prev, email: e.target.value }))}
                   className="col-span-3"
-                  placeholder="Enter email address"
+                  placeholder="name@example.com"
                 />
               </div>
             </div>
@@ -787,7 +793,7 @@ export function LeaderInvitationSystem() {
               <div className="relative">
                 <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
                 <Input
-                  placeholder="Search members..."
+                  placeholder="Search members…"
                   value={memberSearchQuery}
                   onChange={(e) => setMemberSearchQuery(e.target.value)}
                   className="pl-8"
@@ -856,7 +862,7 @@ export function LeaderInvitationSystem() {
               className="flex items-center gap-1"
             >
               <Link className="h-3 w-3" />
-              Generate Link
+              Get invite link
             </Button>
           </div>
         </DialogContent>
@@ -869,20 +875,20 @@ export function LeaderInvitationSystem() {
       >
         <DialogContent className="sm:max-w-[600px]">
           <DialogHeader>
-            <DialogTitle>Invite Unit Leader</DialogTitle>
+            <DialogTitle>Invite a leader</DialogTitle>
             <DialogDescription>
-              Select a member and assign them as a leader of one or more units. Upon acceptance, they will automatically become the unit leader.
+              Choose a member and the units they will lead. When they accept, they become the leader of those units.
             </DialogDescription>
           </DialogHeader>
 
           <div className="space-y-4 py-4">
             {/* Member Selection */}
             <div className="space-y-2">
-              <Label>Select Member</Label>
+              <Label>Member</Label>
               <div className="relative">
                 <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
                 <Input
-                  placeholder="Search members..."
+                  placeholder="Search members…"
                   value={leaderMemberSearchQuery}
                   onChange={(e) => setLeaderMemberSearchQuery(e.target.value)}
                   className="pl-8"
@@ -934,11 +940,11 @@ export function LeaderInvitationSystem() {
 
             {/* Unit Selection */}
             <div className="space-y-2">
-              <Label>Select Units to Lead</Label>
+              <Label>Units they will lead</Label>
               <div className="relative">
                 <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
                 <Input
-                  placeholder="Search units..."
+                  placeholder="Search units…"
                   value={unitSearchQuery}
                   onChange={(e) => setUnitSearchQuery(e.target.value)}
                   className="pl-8"
@@ -982,12 +988,12 @@ export function LeaderInvitationSystem() {
                             <div className="font-medium">{u.name}</div>
                             {u.type && (
                               <Badge variant="outline" className="ml-2">
-                                {u.type}
+                                {u.type.charAt(0).toUpperCase() + u.type.slice(1)}
                               </Badge>
                             )}
                             {u.leader_id && (
                               <span className="ml-2 text-xs text-muted-foreground">
-                                Already led — will be added as co-admin
+                                Already has a leader, so they join as a co-admin
                               </span>
                             )}
                           </div>
@@ -1020,12 +1026,12 @@ export function LeaderInvitationSystem() {
               {isCreatingLeaderInvite ? (
                 <>
                   <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                  Creating...
+                  Creating…
                 </>
               ) : (
                 <>
                   <UserPlus className="h-4 w-4 mr-2" />
-                  Create Invitation
+                  Create invitation
                 </>
               )}
             </Button>

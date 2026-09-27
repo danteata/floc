@@ -2,6 +2,7 @@
 
 import { Link, useLocation } from "react-router-dom"
 import { cn } from "@/lib/utils"
+import { MemberAvatar } from "@/components/ui/member-avatar"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import {
@@ -55,7 +56,7 @@ export function RoleBasedNavigation() {
       group: "Overview",
     },
     {
-      title: "My Portal",
+      title: "My portal",
       href: "/portal",
       icon: QrCode,
       capability: "portal",
@@ -90,21 +91,21 @@ export function RoleBasedNavigation() {
       group: "Community",
     },
     {
-      title: "Command Center",
+      title: "Command center",
       href: "/command-center",
       icon: Radio,
       capability: "command_center",
       group: "Care",
     },
     {
-      title: "Care Tasks",
+      title: "Care tasks",
       href: "/care",
       icon: HeartHandshake,
       capability: "care_tasks",
       group: "Care",
     },
     {
-      title: "Financial",
+      title: "Finance",
       href: "/financial",
       icon: DollarSign,
       capability: "financial",
@@ -125,7 +126,7 @@ export function RoleBasedNavigation() {
       group: "Insight",
     },
     {
-      title: "User Management",
+      title: "User management",
       href: "/user-management",
       icon: Shield,
       badge: "Admin",
@@ -155,7 +156,7 @@ export function RoleBasedNavigation() {
       group: "Administration",
     },
     {
-      title: "Audit Trail",
+      title: "Audit trail",
       href: "/audit-trail",
       icon: ClipboardList,
       badge: "Pro",
@@ -189,7 +190,7 @@ export function RoleBasedNavigation() {
       {grouped.map(({ group, items }, groupIndex) => (
         <div key={group} className={groupIndex > 0 ? "mt-6" : ""}>
           {grouped.length > 1 && (
-            <div className="text-[10px] text-sidebar-foreground/40 tracking-widest mb-2 px-3 font-medium uppercase">
+            <div className="text-[0.6875rem] text-sidebar-foreground/50 tracking-[0.12em] mb-2 px-3 font-medium uppercase">
               {group}
             </div>
           )}
@@ -213,7 +214,7 @@ export function RoleBasedNavigation() {
                     className={cn(
                       "relative w-full justify-start gap-3 h-9 px-3 rounded-lg text-sm transition-all duration-200 font-normal",
                       isActive
-                        ? "bg-primary/10 text-primary font-medium"
+                        ? "bg-primary/10 text-primary font-medium dark:bg-sidebar-accent dark:text-sidebar-foreground"
                         : "text-sidebar-foreground/60 hover:text-sidebar-foreground hover:bg-sidebar-foreground/5",
                     )}
                   >
@@ -221,7 +222,7 @@ export function RoleBasedNavigation() {
                       className={cn(
                         "h-4 w-4 shrink-0 transition-colors duration-200",
                         isActive
-                          ? "text-primary"
+                          ? "text-primary dark:text-sidebar-primary"
                           : "text-sidebar-foreground/50 group-hover/nav:text-sidebar-foreground",
                       )}
                     />
@@ -259,15 +260,15 @@ export function RoleIndicator() {
   const getRoleDisplay = () => {
     switch (role) {
       case "super_admin":
-        return { label: "Super Administrator", color: "destructive" as const }
+        return { label: "Super administrator", color: "destructive" as const }
       case "admin":
       case "organization_admin":
-        return { label: "Organization Admin", color: "default" as const }
+        return { label: "Organization admin", color: "default" as const }
       case "division_admin":
-        return { label: "Division Admin", color: "default" as const }
+        return { label: "Division admin", color: "default" as const }
       case "unit_admin":
       case "sub_unit_admin":
-        return { label: "Unit Admin", color: "secondary" as const }
+        return { label: "Unit admin", color: "secondary" as const }
       case "treasurer":
         return { label: "Treasurer", color: "secondary" as const }
       default:
@@ -281,19 +282,11 @@ export function RoleIndicator() {
   const roleInfo = getRoleDisplay()
 
   return (
-    <div className="p-4 border-t border-sidebar-border/30">
-      <div className="flex items-center justify-between">
-        <div className="flex flex-col">
-          <p className="text-sm font-semibold text-sidebar-foreground truncate">
-            {user.name || "Unknown User"}
-          </p>
-          <Badge
-            variant={roleInfo.color}
-            className="text-[10px] px-2 py-0 h-5 w-fit mt-1.5 bg-primary/20 text-primary border border-primary/30"
-          >
-            {roleInfo.label}
-          </Badge>
-        </div>
+    <div className="flex items-center gap-3 border-t border-sidebar-border/50 p-4">
+      <MemberAvatar name={user.name} size="sm" />
+      <div className="min-w-0">
+        <p className="truncate text-sm font-medium text-sidebar-foreground">{user.name || "Unknown user"}</p>
+        <p className="truncate text-xs text-sidebar-foreground/60">{roleInfo.label}</p>
       </div>
     </div>
   )

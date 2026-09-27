@@ -11,12 +11,13 @@ import { Label } from "@/components/ui/label"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Checkbox } from "@/components/ui/checkbox"
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
+import { MemberAvatar } from "@/components/ui/member-avatar"
 import { cn } from "@/lib/utils"
+import { titleCase } from "@/lib/display"
 import { format } from "date-fns"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Badge } from "./ui/badge"
-import { Skeleton } from "@/components/ui/skeleton"
+import { EmptyState } from "@/components/ui/empty-state"
 import { useEventTypes } from "@/hooks/use-event-types"
 import { useQuery, useMutation } from "convex/react"
 import { useAnalytics } from "@/hooks/useAnalytics"
@@ -172,8 +173,8 @@ export function AttendanceForm({
     if (!date || !eventTypeId) {
       toast({
         variant: "destructive",
-        title: "Error",
-        description: "Please select a date and event type.",
+        title: "Choose a date and service",
+        description: "Pick the service and the date before saving.",
       })
       return
     }
@@ -181,8 +182,8 @@ export function AttendanceForm({
     if (selectedMembers.length === 0) {
       toast({
         variant: "destructive",
-        title: "Error",
-        description: "Please select at least one member.",
+        title: "No one marked present",
+        description: "Tick at least one member before saving.",
       })
       return
     }
@@ -206,8 +207,8 @@ export function AttendanceForm({
       });
 
       toast({
-        title: "Success",
-        description: `Attendance saved successfully! ${selectedMembers.length} members recorded.`,
+        title: "Attendance saved",
+        description: `${selectedMembers.length} ${selectedMembers.length === 1 ? "member" : "members"} marked present.`,
       })
 
       if (onSuccess) onSuccess()
@@ -215,8 +216,8 @@ export function AttendanceForm({
       console.error('Error saving attendance:', error)
       toast({
         variant: "destructive",
-        title: "Error",
-        description: error.message || "Failed to save attendance.",
+        title: "Couldn't save attendance",
+        description: error.message || "Try again in a moment.",
       })
     } finally {
       setIsSaving(false)
@@ -225,57 +226,57 @@ export function AttendanceForm({
 
   return (
     <div className="space-y-6">
-      <Card className="border-border/50 shadow-soft-xl rounded-3xl overflow-hidden">
-        <CardHeader className="p-8 pb-4">
+      <Card>
+        <CardHeader className="p-4 pb-2 md:p-6 md:pb-2">
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
             <div className="space-y-1">
-              <CardTitle className="text-xl tracking-tight text-foreground">Record Participation</CardTitle>
-              <CardDescription className="font-medium text-muted-foreground">Log attendance by selecting an event protocol and verified members</CardDescription>
+              <CardTitle className="text-lg font-semibold text-foreground">Take attendance</CardTitle>
+              <CardDescription className="text-sm text-muted-foreground">Choose the service and date, then mark who was there.</CardDescription>
             </div>
             <Button
               variant="outline"
               size="sm"
               onClick={() => window.location.reload()}
-              className="rounded-xl border-border text-muted-foreground h-9"
+              className="h-9 self-start md:self-auto"
             >
               <RefreshCw className="mr-2 h-3.5 w-3.5" />
-              Reset View
+              Reset
             </Button>
           </div>
         </CardHeader>
-        <CardContent className="space-y-8 p-8 pt-4">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+        <CardContent className="space-y-6 p-4 pt-2 md:p-6 md:pt-2">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-6">
             <div className="space-y-2">
-              <Label className="text-[10px] text-muted-foreground tracking-wider pl-1">Event Type</Label>
+              <Label className="text-xs text-muted-foreground">Service or event type</Label>
               <Select value={attendanceType || undefined} onValueChange={setAttendanceType}>
-                <SelectTrigger className="h-12 border-border rounded-xl bg-background focus:ring-primary">
-                  <SelectValue placeholder={eventTypesLoading ? "Loading Protocols..." : "Select Event Protocol"} />
+                <SelectTrigger className="h-11 bg-background">
+                  <SelectValue placeholder={eventTypesLoading ? "Loading…" : "Choose a type"} />
                 </SelectTrigger>
-                <SelectContent className="border-border/50 rounded-xl shadow-soft-2xl">
+                <SelectContent>
                   {eventTypes.map((eventType) => (
-                    <SelectItem key={eventType.value} value={eventType.value} className="font-medium py-3 rounded-lg focus:bg-muted">
-                      {eventType.label}
+                    <SelectItem key={eventType.value} value={eventType.value}>
+                      {titleCase(eventType.label)}
                     </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
             </div>
             <div className="space-y-2">
-              <Label className="text-[10px] text-muted-foreground tracking-wider pl-1">Occurrence Date</Label>
+              <Label className="text-xs text-muted-foreground">Date</Label>
               <Popover>
                 <PopoverTrigger asChild>
                   <Button
                     variant="outline"
                     className={cn(
-                      "w-full h-12 border-border rounded-xl justify-start text-foreground bg-background hover:bg-accent hover:border-border transition-colors",
+                      "w-full h-11 justify-start font-normal text-foreground bg-background",
                       !date && "text-muted-foreground"
                     )}
                   >
                     <CalendarIcon className="mr-3 h-4 w-4 text-muted-foreground" />
-                    {date ? format(date, "PPP") : <span>Select Date</span>}
+                    {date ? format(date, "d MMM yyyy") : <span>Choose a date</span>}
                   </Button>
                 </PopoverTrigger>
-                <PopoverContent className="w-auto p-0 border-border/50 shadow-soft-2xl rounded-2xl" align="start">
+                <PopoverContent className="w-auto p-0" align="start">
                   <Calendar
                     mode="single"
                     selected={date}
@@ -289,22 +290,22 @@ export function AttendanceForm({
               </Popover>
             </div>
             <div className="space-y-2">
-              <Label className="text-[10px] text-muted-foreground tracking-wider pl-1">
-                Event {filteredEvents.length > 0 && `(${filteredEvents.length} available)`}
+              <Label className="text-xs text-muted-foreground">
+                Event {filteredEvents.length > 0 && `(${filteredEvents.length} on this day)`}
               </Label>
               <Select value={selectedEventId} onValueChange={setSelectedEventId}>
-                <SelectTrigger className="h-12 border-border rounded-xl bg-background focus:ring-primary">
-                  <SelectValue placeholder={filteredEvents.length > 0 ? "Select Event (optional)" : "Auto-create on save"} />
+                <SelectTrigger className="h-11 bg-background">
+                  <SelectValue placeholder={filteredEvents.length > 0 ? "Choose an event (optional)" : "Create one when saving"} />
                 </SelectTrigger>
-                <SelectContent className="border-border/50 rounded-xl shadow-soft-2xl">
-                  <SelectItem value="auto-create" className="font-medium py-3 rounded-lg focus:bg-muted">
-                    <span className="text-muted-foreground">Auto-create event on save</span>
+                <SelectContent>
+                  <SelectItem value="auto-create">
+                    <span className="text-muted-foreground">Create a new event when saving</span>
                   </SelectItem>
                   {filteredEvents.map((event: any) => (
-                    <SelectItem key={event._id} value={event._id} className="font-medium py-3 rounded-lg focus:bg-muted">
+                    <SelectItem key={event._id} value={event._id}>
                       <div className="flex items-center gap-2">
                         <CalendarDays className="h-4 w-4 text-muted-foreground" />
-                        <span>{event.title}</span>
+                        <span>{titleCase(event.title)}</span>
                         {event.time && <span className="text-muted-foreground text-xs">({event.time})</span>}
                       </div>
                     </SelectItem>
@@ -315,16 +316,16 @@ export function AttendanceForm({
           </div>
 
           <div className="pt-4 space-y-4">
-            <Label className="text-[10px] text-muted-foreground tracking-wider pl-1">Member Registry</Label>
+            <Label className="text-xs text-muted-foreground">Members</Label>
             <div className="flex flex-col gap-4 md:flex-row md:items-center">
               <div className="flex-1">
                 <Select value={statusFilter} onValueChange={setStatusFilter}>
-                  <SelectTrigger className="h-11 border-border rounded-xl bg-background focus:ring-primary">
+                  <SelectTrigger className="h-11 bg-background">
                     <SelectValue placeholder="Member status" />
                   </SelectTrigger>
-                  <SelectContent className="border-border/50 rounded-xl shadow-soft-2xl">
+                  <SelectContent>
                     {STATUS_FILTERS.map((option) => (
-                      <SelectItem key={option.value} value={option.value} className="font-medium py-2.5 rounded-lg">
+                      <SelectItem key={option.value} value={option.value}>
                         {option.label}
                       </SelectItem>
                     ))}
@@ -335,45 +336,45 @@ export function AttendanceForm({
                 <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                 <Input
                   type="search"
-                  placeholder="Filter by name or email..."
+                  placeholder="Search by name or email…"
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="pl-11 h-11 border-border rounded-xl bg-background focus:ring-primary"
+                  className="pl-11 h-11 bg-background"
                 />
               </div>
               <Button
                 type="button"
                 variant="outline"
                 onClick={handleSelectAll}
-                className="h-11 rounded-xl border-border text-muted-foreground px-6 shrink-0"
+                className="h-11 px-6 shrink-0"
               >
                 {allVisibleSelected
                   ? `Clear ${visibleIds.length}`
-                  : `Select All (${visibleIds.length})`}
+                  : `Select all (${visibleIds.length})`}
               </Button>
             </div>
 
-            {/* Running tallies — the counts you would otherwise get by
+            {/* Running tallies: the counts you would otherwise get by
                 scrolling the table and counting ticks by hand. */}
             <div className="flex flex-wrap items-center gap-2 text-xs">
               <span className="inline-flex items-center gap-1.5 rounded-lg bg-primary/10 text-primary px-3 py-1.5 font-semibold">
                 <Users className="h-3.5 w-3.5" />
-                {selectedMembers.length} marked present
+                {selectedMembers.length} present
               </span>
               <span className="inline-flex items-center rounded-lg bg-muted text-muted-foreground px-3 py-1.5">
-                {visibleIds.length - selectedVisibleCount} not yet marked in view
+                {visibleIds.length - selectedVisibleCount} not marked yet
               </span>
               <span className="inline-flex items-center rounded-lg bg-muted text-muted-foreground px-3 py-1.5">
-                Showing {visibleIds.length} of {availableMembers.length} members
+                Showing {visibleIds.length} of {availableMembers.length} {availableMembers.length === 1 ? "member" : "members"}
               </span>
               {hiddenSelectedCount > 0 && (
                 <span className="inline-flex items-center rounded-lg bg-muted text-muted-foreground px-3 py-1.5">
-                  {hiddenSelectedCount} marked outside this view
+                  {hiddenSelectedCount} present but hidden by filters
                 </span>
               )}
             </div>
 
-            <div className="rounded-2xl border border-border bg-card overflow-hidden">
+            <div className="rounded-xl border border-border bg-card overflow-x-auto">
               <Table>
                 <TableHeader className="bg-muted/50">
                   <TableRow className="hover:bg-transparent border-border">
@@ -381,27 +382,28 @@ export function AttendanceForm({
                       <Checkbox
                         checked={allVisibleSelected}
                         onCheckedChange={handleSelectAll}
-                        className="rounded-md border-border data-[state=checked]:bg-primary data-[state=checked]:border-primary"
+                        aria-label="Mark everyone shown as present"
                       />
                     </TableHead>
-                    <TableHead className="min-w-[200px] text-[10px] text-muted-foreground tracking-wider">Member Profile</TableHead>
-                    <TableHead className="hidden md:table-cell text-[10px] text-muted-foreground tracking-wider text-center">Contact</TableHead>
-                    <TableHead className="hidden md:table-cell text-[10px] text-muted-foreground tracking-wider pl-4">Allocations</TableHead>
+                    <TableHead className="min-w-[200px] text-xs text-muted-foreground">Member</TableHead>
+                    <TableHead className="hidden md:table-cell text-xs text-muted-foreground text-center">Phone</TableHead>
+                    <TableHead className="hidden md:table-cell text-xs text-muted-foreground pl-4">Units</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {filteredMembers.length === 0 ? (
                     <TableRow>
                       <TableCell colSpan={4} className="h-32 text-center">
-                        <div className="flex flex-col items-center justify-center gap-2 opacity-50">
-                          <Search className="h-6 w-6 text-muted-foreground/50" />
-                          <p className="font-medium text-muted-foreground text-sm">No members match your criteria</p>
-                          {allowedStatuses && (
-                            <p className="text-xs text-muted-foreground/70">
-                              Showing {allowedStatuses.join(" and ")} members — switch the status filter to widen the list
-                            </p>
-                          )}
-                        </div>
+                        <EmptyState
+                          icon={Search}
+                          className="py-6"
+                          title="No members match"
+                          description={
+                            allowedStatuses
+                              ? `Showing ${allowedStatuses.join(" and ")} members. Change the status filter or search to see more.`
+                              : "Try a different name or email."
+                          }
+                        />
                       </TableCell>
                     </TableRow>
                   ) : (
@@ -411,7 +413,7 @@ export function AttendanceForm({
                           <Checkbox
                             checked={selectedMembers.includes(member.id)}
                             onCheckedChange={() => handleSelectMember(member.id)}
-                            className="rounded-md border-border data-[state=checked]:bg-primary data-[state=checked]:border-primary"
+                            aria-label="Mark present"
                           />
                         </TableCell>
                         <TableCell className="py-4">
@@ -420,29 +422,26 @@ export function AttendanceForm({
                             onClick={() => setViewingMember(member)}
                             className="flex items-center gap-3 text-left hover:opacity-80 transition-opacity"
                           >
-                            <Avatar className="h-10 w-10 rounded-xl border-2 border-background shadow-sm">
-                              <AvatarImage src={member.avatar_url || member.avatar} alt={member.name} />
-                              <AvatarFallback className="bg-muted text-muted-foreground text-xs">{member.name.substring(0, 2).toUpperCase()}</AvatarFallback>
-                            </Avatar>
+                            <MemberAvatar name={member.name} src={member.avatar_url || member.avatar} className="border-2 border-background" />
                             <div className="flex flex-col">
                               <span className="flex items-center gap-2">
-                                <span className="font-bold text-foreground underline-offset-2 hover:underline">{member.name}</span>
+                                <span className="font-medium text-foreground underline-offset-2 hover:underline">{member.name}</span>
                                 {/* Only flagged when it is not the ordinary case, so a
                                     row that survived the status filter because it is
                                     already marked present reads as deliberate. */}
                                 {member.status && member.status !== "active" && (
                                   <Badge
                                     variant="outline"
-                                    className="text-[9px] px-1.5 py-0 rounded-md capitalize border-border text-muted-foreground"
+                                    className="capitalize text-muted-foreground"
                                   >
                                     {member.status}
                                   </Badge>
                                 )}
                               </span>
-                              {/* Phone/email, not the raw internal id — this is the only
+                              {/* Phone/email, not the raw internal id: this is the only
                                   contact info visible on mobile, since the Contact column
                                   is hidden below md. */}
-                              <span className="text-[10px] text-muted-foreground tracking-tight md:hidden">
+                              <span className="text-xs text-muted-foreground md:hidden">
                                 {member.phone || member.email || "No contact info"}
                               </span>
                             </div>
@@ -454,7 +453,7 @@ export function AttendanceForm({
                         <TableCell className="hidden md:table-cell py-4 pl-4">
                           <div className="flex flex-wrap gap-1.5">
                             {(member.unit_names || member.units || []).map((m: string, i: number) => (
-                              <Badge key={i} variant="secondary" className="bg-muted text-muted-foreground border border-border text-[10px] px-2 py-0.5 rounded-lg">
+                              <Badge key={i} variant="secondary" className="text-muted-foreground">
                                 {m}
                               </Badge>
                             ))}
@@ -469,29 +468,29 @@ export function AttendanceForm({
           </div>
 
           <div className="space-y-2 pt-4">
-            <Label className="text-[10px] text-muted-foreground tracking-wider pl-1">Strategic Notes</Label>
+            <Label className="text-xs text-muted-foreground">Notes (optional)</Label>
             <Input
-              placeholder="Internal observations or event specifics..."
+              placeholder="Anything worth remembering about this service…"
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
-              className="h-12 border-border rounded-xl bg-background focus:ring-primary"
+              className="h-11 bg-background"
             />
           </div>
         </CardContent>
-        <CardFooter className="p-8 bt border-t border-border justify-end">
+        <CardFooter className="p-4 md:p-6 border-t border-border justify-end">
           <Button
             onClick={handleSaveAttendance}
             disabled={isSaving}
-            className="bg-primary text-primary-foreground hover:bg-primary/90 rounded-xl h-12 px-12 shadow-soft transition-all min-w-[240px]"
+            className="h-11 w-full px-8 sm:w-auto sm:min-w-[240px]"
           >
             {isSaving ? (
               <div className="flex items-center gap-2">
                 <RefreshCw className="h-4 w-4 animate-spin" />
-                Syncing Logs...
+                Saving…
               </div>
             ) : (
               <div className="flex items-center gap-2">
-                Commit {selectedMembers.length} Logs
+                Save attendance ({selectedMembers.length})
               </div>
             )}
           </Button>

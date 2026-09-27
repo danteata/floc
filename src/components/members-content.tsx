@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useMemo, useEffect } from "react"
-import { Download, Filter, Plus, Upload, Users, Building2, Home, Tag, X, ShieldAlert, Search, Share2, Loader2 } from "lucide-react"
+import { Download, SlidersHorizontal, Plus, Upload, Building2, Home, Tag, X, ShieldAlert, Search, Share2, Loader2, CircleDot } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
 import { useTerminology } from "@/hooks/use-terminology"
@@ -11,12 +11,12 @@ import { AnalyticsEventType } from "@/services/analytics/types"
 import { api } from "../../convex/_generated/api"
 import type { Id } from "../../convex/_generated/dataModel"
 import { Button } from "@/components/ui/button"
+import { PageHeader } from "@/components/ui/page-header"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { MembersTable } from "@/components/members-table"
 import { MemberDialog } from "@/components/member-dialog"
 import { BulkUploadDialog } from "@/components/bulk-upload-dialog"
 import { ShareMembersLinkDialog } from "@/components/share-members-link-dialog"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import type { Member } from "@/types/database"
 import { cn } from "@/lib/utils"
 import { useOrganization } from "@/hooks/use-organization"
@@ -30,11 +30,14 @@ interface MembersContentProps {
   onViewChange?: (view: 'active' | 'archived') => void
 }
 
-// Sentinel household-filter value for "not in any household" — distinct from
+// Sentinel household-filter value for "not in any household", distinct from
 // any real Id<"households"> so it can sit in the same string[] filter state.
 const NO_HOUSEHOLD = "__none__"
 
 const PAGE_SIZE = 50
+
+const STATUS_LABELS: Record<string, string> = { active: "Active", inactive: "Inactive", visitor: "Visitor" }
+const statusLabel = (status: string) => STATUS_LABELS[status] ?? status
 
 function useDebouncedValue<T>(value: T, delayMs: number): T {
   const [debounced, setDebounced] = useState(value)
@@ -57,6 +60,9 @@ export function MembersContent({ view = 'active', onViewChange }: MembersContent
   const [isShareOpen, setIsShareOpen] = useState(false)
   const [selectedMemberIds, setSelectedMemberIds] = useState<string[]>([])
   const [searchInput, setSearchInput] = useState("")
+  // Phones only: the filter selects sit behind a "Filters" button so the
+  // first member stays above the fold. Always shown from md up.
+  const [filtersOpen, setFiltersOpen] = useState(false)
   const search = useDebouncedValue(searchInput.trim(), 250)
   const [loadedCount, setLoadedCount] = useState(PAGE_SIZE)
 
@@ -122,7 +128,7 @@ export function MembersContent({ view = 'active', onViewChange }: MembersContent
 
   // useQuery goes back to `undefined` while a bigger pageSize is in flight, so
   // "Load more" used to unmount the whole table mid-refetch. Hold on to the
-  // last result for the same filters and keep rendering it — otherwise the
+  // last result for the same filters and keep rendering it. Otherwise the
   // remount wipes row selection and the list jumps to a spinner.
   const [lastResult, setLastResult] = useState<{ key: string; data: NonNullable<typeof page> } | null>(null)
   if (page !== undefined && (lastResult?.data !== page || lastResult.key !== filterKey)) {
@@ -152,7 +158,7 @@ export function MembersContent({ view = 'active', onViewChange }: MembersContent
   const unitName = (id: string) => unitsData?.find(u => u._id === id)?.name ?? id
   const labelName = (id: string) => (labelsData as any)?.find((l: any) => l._id === id)?.name ?? id
   const householdName = (id: string) =>
-    id === NO_HOUSEHOLD ? "No household" : (householdsData?.find(h => h._id === id)?.name ?? id)
+    id === NO_HOUSEHOLD ? "Not in a household" : (householdsData?.find(h => h._id === id)?.name ?? id)
   const RISK_LABELS: Record<string, string> = { low: "Low risk", medium: "Medium risk", high: "High risk", new: "New member" }
   const riskLabel = (level: string) => RISK_LABELS[level] ?? level
   const activeFilterCount =
@@ -163,7 +169,7 @@ export function MembersContent({ view = 'active', onViewChange }: MembersContent
   const filterSummary = useMemo(() => {
     const parts: string[] = [view === 'archived' ? "Archived" : "Active"]
     if (search) parts.push(`Search: "${search}"`)
-    if (statusFilters.length) parts.push(`Status: ${statusFilters.join(", ")}`)
+    if (statusFilters.length) parts.push(`Status: ${statusFilters.map(statusLabel).join(", ")}`)
     if (unitFilters.length) parts.push(`Unit: ${unitFilters.map(unitName).join(", ")}`)
     if (labelFilters.length) parts.push(`Label: ${labelFilters.map(labelName).join(", ")}`)
     if (householdFilters.length) parts.push(`Household: ${householdFilters.map(householdName).join(", ")}`)
@@ -173,7 +179,7 @@ export function MembersContent({ view = 'active', onViewChange }: MembersContent
   }, [view, search, statusFilters, unitFilters, labelFilters, householdFilters, riskFilters, unitsData, labelsData, householdsData])
 
   // Export the whole filtered result, not just the rows "Load more" happens to
-  // have pulled in — the CSV silently stopped at the loaded page before, so a
+  // have pulled in. The CSV silently stopped at the loaded page before, so a
   // filtered directory of 300 exported as 50 with no indication.
   const handleExport = async () => {
     if (!organization?._id) return
@@ -195,16 +201,16 @@ export function MembersContent({ view = 'active', onViewChange }: MembersContent
       rowsToExport = full.page as unknown as Member[]
       if (!full.isDone) {
         toast({
-          title: "Export truncated",
-          description: `Only the first ${exportLimit.toLocaleString()} of ${full.totalCount.toLocaleString()} matches were exported. Narrow the filters to export the rest.`,
+          title: `Exported the first ${exportLimit.toLocaleString()} members`,
+          description: `${full.totalCount.toLocaleString()} members match. Narrow the filters to export the rest.`,
         })
       }
     } catch (err) {
       console.error("Full export query failed, falling back to loaded rows:", err)
       toast({
         variant: "destructive",
-        title: "Exported loaded rows only",
-        description: "Could not fetch the full filtered list; the CSV contains the rows currently loaded.",
+        title: "Exported the loaded rows only",
+        description: "Couldn't fetch the full filtered list, so the file holds the rows loaded on screen.",
       })
     }
 
@@ -266,88 +272,60 @@ export function MembersContent({ view = 'active', onViewChange }: MembersContent
   }
 
   return (
-    <div className="flex flex-col gap-6 w-full animate-in fade-in slide-in-from-bottom-4 duration-700">
-      {/* Header section */}
-      <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 pb-6 border-b border-border/50">
-        <div className="space-y-1">
-          <div className="flex items-center gap-3">
-            <div className="p-2.5 bg-[#5b21b6] text-white rounded-xl shadow-md">
-              <Users className="h-6 w-6" />
-            </div>
-            <h1 className="text-3xl tracking-tight text-foreground">Members</h1>
-          </div>
-          <p className="text-muted-foreground pl-12 text-sm">
-            Manage your community directory and profiles
-          </p>
-        </div>
-        <div className="flex flex-wrap items-center gap-3">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={handleExport}
-            className="shadow-sm hover:shadow-md transition-all rounded-lg"
-          >
-            <Download className="mr-2 h-4 w-4" />
-            Export
-          </Button>
-          {canShareList && organization?._id && (
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setIsShareOpen(true)}
-              className="shadow-sm hover:shadow-md transition-all rounded-lg"
-            >
-              <Share2 className="mr-2 h-4 w-4" />
-              Share list
-              {selectedMemberIds.length > 0 && (
-                <Badge variant="secondary" className="ml-2 h-5 px-1.5 font-normal">
-                  {selectedMemberIds.length}
-                </Badge>
-              )}
+    <div className="flex flex-col gap-4 w-full md:gap-6">
+      <PageHeader
+        title="Members"
+        description="Everyone in your church, their households, units and labels."
+        actions={
+          <>
+            <Button variant="outline" size="sm" onClick={handleExport}>
+              <Download className="mr-2 h-4 w-4" />
+              Export
             </Button>
-          )}
-          {view === 'active' && (
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setIsBulkUploadOpen(true)}
-              className="shadow-sm hover:shadow-md transition-all rounded-lg"
-            >
-              <Upload className="mr-2 h-4 w-4" />
-              Bulk Upload
-            </Button>
-          )}
-          {view === 'active' && isAdmin && organization?._id && (
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={async () => {
-                if (!window.confirm("Merge duplicates by name + phone? This will merge members with matching first & last names. If a member has a real phone number, phones must also match. This cannot be undone.")) return
-                try {
-                  const result = await mergeDuplicates({ organization_id: organization._id })
-                  alert(`✅ Deduplication Complete!\n\n📊 Groups merged: ${result.mergedGroups}\n🗑️ Duplicates removed: ${result.removed}\n\nThe member list has been updated.`)
-                  window.location.reload() // Refresh to show updated data
-                } catch (err: any) {
-                  alert(`❌ Deduplication Failed\n\n${err.message || "Unable to merge duplicates."}`)
-                }
-              }}
-              className="shadow-sm hover:shadow-md transition-all rounded-lg"
-            >
-              Merge Duplicates
-            </Button>
-          )}
-          {view === 'active' && (
-            <Button
-              size="sm"
-              onClick={() => setIsAddMemberOpen(true)}
-              className="bg-primary text-primary-foreground shadow-soft hover:shadow-soft-lg transition-all rounded-lg"
-            >
-              <Plus className="mr-2 h-4 w-4" />
-              Add Member
-            </Button>
-          )}
-        </div>
-      </div>
+            {canShareList && organization?._id && (
+              <Button variant="outline" size="sm" onClick={() => setIsShareOpen(true)}>
+                <Share2 className="mr-2 h-4 w-4" />
+                Share list
+                {selectedMemberIds.length > 0 && (
+                  <Badge variant="secondary" className="ml-2 h-5 px-1.5 font-normal">
+                    {selectedMemberIds.length}
+                  </Badge>
+                )}
+              </Button>
+            )}
+            {view === 'active' && (
+              <Button variant="outline" size="sm" onClick={() => setIsBulkUploadOpen(true)}>
+                <Upload className="mr-2 h-4 w-4" />
+                Bulk upload
+              </Button>
+            )}
+            {view === 'active' && isAdmin && organization?._id && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={async () => {
+                  if (!window.confirm("Merge duplicate members? Members with the same first and last name are merged into one. Where a member has a real phone number, the phone numbers must match too. This can't be undone.")) return
+                  try {
+                    const result = await mergeDuplicates({ organization_id: organization._id })
+                    alert(`Duplicates merged\n\nGroups merged: ${result.mergedGroups}\nDuplicates removed: ${result.removed}\n\nThe member list will now reload.`)
+                    window.location.reload() // Refresh to show updated data
+                  } catch (err: any) {
+                    alert(`Couldn't merge duplicates\n\n${err.message || "Something went wrong. Try again."}`)
+                  }
+                }}
+              >
+                Merge duplicates
+              </Button>
+            )}
+            {view === 'active' && (
+              <Button size="sm" onClick={() => setIsAddMemberOpen(true)}>
+                <Plus className="mr-2 h-4 w-4" />
+                Add member
+              </Button>
+            )}
+          </>
+        }
+      />
 
       {/* Active / Archived tabs */}
       {onViewChange && (
@@ -356,7 +334,6 @@ export function MembersContent({ view = 'active', onViewChange }: MembersContent
             variant={view === 'active' ? 'default' : 'outline'}
             size="sm"
             onClick={() => onViewChange('active')}
-            className="rounded-lg"
           >
             Active
           </Button>
@@ -364,171 +341,163 @@ export function MembersContent({ view = 'active', onViewChange }: MembersContent
             variant={view === 'archived' ? 'default' : 'outline'}
             size="sm"
             onClick={() => onViewChange('archived')}
-            className="rounded-lg"
           >
             Archived
           </Button>
         </div>
       )}
 
-      {/* Filters and Search */}
-      <Card className="shadow-soft hover:shadow-soft-lg transition-all rounded-xl border border-border/50">
-        <CardHeader className="bg-muted/30 pb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <CardTitle className="text-lg font-semibold flex items-center gap-2">
-            <Filter className="h-4 w-4 text-muted-foreground" />
-            Filter Directory
-          </CardTitle>
-          <div className="flex items-center gap-3">
-            <div className="relative w-full sm:w-72">
-              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-              <Input
-                value={searchInput}
-                onChange={(e) => setSearchInput(e.target.value)}
-                placeholder="Search name, email, or phone…"
-                className="pl-9 bg-background"
-              />
-            </div>
-            {typeof totalCount === "number" && (
-              <span className="hidden sm:inline text-sm text-muted-foreground whitespace-nowrap">
-                {totalCount.toLocaleString()} member{totalCount === 1 ? "" : "s"}
-              </span>
-            )}
+      {/* Search and filters: a compact bar. The search box is always visible;
+          on phones the selects fold behind a "Filters" button. */}
+      <div className="flex flex-col gap-3 rounded-xl bg-card p-3 ring-1 ring-foreground/10">
+        <div className="flex items-center gap-2">
+          <div className="relative min-w-0 flex-1 md:max-w-sm">
+            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+            <Input
+              value={searchInput}
+              onChange={(e) => setSearchInput(e.target.value)}
+              placeholder="Search name, email or phone…"
+              aria-label="Search members"
+              className="pl-9 bg-background"
+            />
           </div>
-        </CardHeader>
-        <CardContent className="p-6">
-          <div className={cn("grid grid-cols-1 md:grid-cols-2 gap-4", isPro ? "lg:grid-cols-5" : "lg:grid-cols-4")}>
-            {/* key remounts the trigger after each pick so it resets to placeholder */}
-            <Select key={`status-${statusFilters.length}`} onValueChange={(v) => addFilter(setStatusFilters, v)}>
-              <SelectTrigger className="rounded-lg w-full">
-                <SelectValue placeholder="Status" />
-              </SelectTrigger>
-              <SelectContent className="rounded-lg shadow-lg border-border/50">
-                {["active", "inactive", "visitor"].filter(s => !statusFilters.includes(s)).map(s => (
-                  <SelectItem key={s} value={s} className="capitalize">{s}</SelectItem>
-                ))}
-                {statusFilters.length === 3 && (
-                  <div className="px-2 py-1.5 text-xs text-muted-foreground">All statuses selected</div>
-                )}
-              </SelectContent>
-            </Select>
-            <Select key={`unit-${unitFilters.length}`} onValueChange={(v) => addFilter(setUnitFilters, v)}>
-              <SelectTrigger className="rounded-lg w-full">
-                <Building2 className="w-4 h-4 mr-2 text-muted-foreground" />
-                <SelectValue placeholder="Unit" />
-              </SelectTrigger>
-              <SelectContent className="rounded-lg shadow-lg border-border/50 max-h-[300px]">
-                {unitsData?.filter(u => !unitFilters.includes(u._id)).map((unit) => (
-                  <SelectItem key={unit._id} value={unit._id}>
-                    {unit.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <Select key={`label-${labelFilters.length}`} onValueChange={(v) => addFilter(setLabelFilters, v)}>
-              <SelectTrigger className="rounded-lg w-full">
-                <Tag className="w-4 h-4 mr-2 text-muted-foreground" />
-                <SelectValue placeholder="Label" />
-              </SelectTrigger>
-              <SelectContent className="rounded-lg shadow-lg border-border/50 max-h-[300px]">
-                {labelsData?.filter((l: any) => !labelFilters.includes(l._id)).map((label: any) => (
-                  <SelectItem key={label._id} value={label._id}>
-                    {label.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <Select key={`household-${householdFilters.length}`} onValueChange={(v) => addFilter(setHouseholdFilters, v)}>
-              <SelectTrigger className="rounded-lg w-full">
-                <Home className="w-4 h-4 mr-2 text-muted-foreground" />
-                <SelectValue placeholder="Household" />
-              </SelectTrigger>
-              <SelectContent className="rounded-lg shadow-lg border-border/50 max-h-[300px]">
-                {!householdFilters.includes(NO_HOUSEHOLD) && (
-                  <SelectItem value={NO_HOUSEHOLD} className="italic text-muted-foreground">
-                    No household
-                  </SelectItem>
-                )}
-                {householdsData?.filter(h => !householdFilters.includes(h._id)).map((h) => (
-                  <SelectItem key={h._id} value={h._id}>
-                    {h.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            {isPro && (
-              <Select key={`risk-${riskFilters.length}`} onValueChange={(v) => addFilter(setRiskFilters, v)}>
-                <SelectTrigger className="rounded-lg w-full">
-                  <ShieldAlert className="w-4 h-4 mr-2 text-muted-foreground" />
-                  <SelectValue placeholder="Risk level" />
-                </SelectTrigger>
-                <SelectContent className="rounded-lg shadow-lg border-border/50">
-                  {Object.keys(RISK_LABELS).filter(l => !riskFilters.includes(l)).map(level => (
-                    <SelectItem key={level} value={level}>{riskLabel(level)}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+          <Button
+            variant="outline"
+            onClick={() => setFiltersOpen((open) => !open)}
+            aria-expanded={filtersOpen}
+            aria-controls="member-filters"
+            className="shrink-0 gap-2 md:hidden"
+          >
+            <SlidersHorizontal className="h-4 w-4" />
+            Filters
+            {activeFilterCount > 0 && (
+              <Badge className="h-5 min-w-5 px-1.5">{activeFilterCount}</Badge>
             )}
-          </div>
+          </Button>
+          {typeof totalCount === "number" && (
+            <span className="ml-auto hidden text-sm text-muted-foreground whitespace-nowrap tabular-nums md:inline">
+              {/* Filters run server-side across the whole scoped set, so this is
+                  the authoritative match count, not just the loaded page. */}
+              {activeFilterCount > 0 || search
+                ? `${totalCount.toLocaleString()} ${totalCount === 1 ? "match" : "matches"}`
+                : `${totalCount.toLocaleString()} member${totalCount === 1 ? "" : "s"}`}
+            </span>
+          )}
+        </div>
 
-          {/* Active filters + count */}
-          <div className="flex flex-wrap items-center justify-between gap-3 mt-4">
-            <div className="flex flex-wrap items-center gap-2">
-              {statusFilters.map(s => (
-                <Badge key={`s-${s}`} variant="secondary" className="gap-1 pl-2.5 capitalize font-normal">
-                  {s}
-                  <button type="button" onClick={() => removeFilter(setStatusFilters, s)} className="ml-0.5 rounded-full p-0.5 hover:bg-foreground/10">
-                    <X className="h-3 w-3" />
-                  </button>
-                </Badge>
+        <div
+          id="member-filters"
+          className={cn(
+            "grid-cols-1 gap-2 sm:grid-cols-2 md:grid md:grid-cols-3",
+            isPro ? "lg:grid-cols-5" : "lg:grid-cols-4",
+            filtersOpen ? "grid" : "hidden",
+          )}
+        >
+          {/* key remounts the trigger after each pick so it resets to placeholder */}
+          <Select key={`status-${statusFilters.length}`} onValueChange={(v) => addFilter(setStatusFilters, v)}>
+            <SelectTrigger className="w-full">
+              <CircleDot className="w-4 h-4 mr-2 text-muted-foreground" />
+              <SelectValue placeholder="Status" />
+            </SelectTrigger>
+            <SelectContent>
+              {["active", "inactive", "visitor"].filter(s => !statusFilters.includes(s)).map(s => (
+                <SelectItem key={s} value={s}>{statusLabel(s)}</SelectItem>
               ))}
-              {unitFilters.map(id => (
-                <Badge key={`u-${id}`} variant="secondary" className="gap-1 pl-2.5 font-normal">
-                  {unitName(id)}
-                  <button type="button" onClick={() => removeFilter(setUnitFilters, id)} className="ml-0.5 rounded-full p-0.5 hover:bg-foreground/10">
-                    <X className="h-3 w-3" />
-                  </button>
-                </Badge>
-              ))}
-              {labelFilters.map(id => (
-                <Badge key={`l-${id}`} variant="secondary" className="gap-1 pl-2.5 font-normal">
-                  {labelName(id)}
-                  <button type="button" onClick={() => removeFilter(setLabelFilters, id)} className="ml-0.5 rounded-full p-0.5 hover:bg-foreground/10">
-                    <X className="h-3 w-3" />
-                  </button>
-                </Badge>
-              ))}
-              {householdFilters.map(id => (
-                <Badge key={`h-${id}`} variant="secondary" className="gap-1 pl-2.5 font-normal">
-                  {householdName(id)}
-                  <button type="button" onClick={() => removeFilter(setHouseholdFilters, id)} className="ml-0.5 rounded-full p-0.5 hover:bg-foreground/10">
-                    <X className="h-3 w-3" />
-                  </button>
-                </Badge>
-              ))}
-              {riskFilters.map(level => (
-                <Badge key={`r-${level}`} variant="secondary" className="gap-1 pl-2.5 font-normal">
-                  {riskLabel(level)}
-                  <button type="button" onClick={() => removeFilter(setRiskFilters, level)} className="ml-0.5 rounded-full p-0.5 hover:bg-foreground/10">
-                    <X className="h-3 w-3" />
-                  </button>
-                </Badge>
-              ))}
-              {activeFilterCount > 0 && (
-                <Button variant="ghost" size="sm" onClick={resetFilters} className="h-7 px-2 text-muted-foreground hover:text-foreground">
-                  Reset all
-                </Button>
+              {statusFilters.length === 3 && (
+                <div className="px-2 py-1.5 text-xs text-muted-foreground">All statuses selected</div>
               )}
-            </div>
-            {/* Filters run server-side across the whole scoped set, so this is
-                the authoritative match count, not just the loaded page. */}
-            {activeFilterCount > 0 && typeof totalCount === "number" && (
-              <span className="text-sm text-muted-foreground bg-muted/50 px-3 py-1.5 rounded-full shrink-0">
-                {totalCount.toLocaleString()} match{totalCount === 1 ? '' : 'es'} filter{totalCount !== 1 ? 's' : ''}
+            </SelectContent>
+          </Select>
+          <Select key={`unit-${unitFilters.length}`} onValueChange={(v) => addFilter(setUnitFilters, v)}>
+            <SelectTrigger className="w-full">
+              <Building2 className="w-4 h-4 mr-2 text-muted-foreground" />
+              <SelectValue placeholder="Unit" />
+            </SelectTrigger>
+            <SelectContent className="max-h-[300px]">
+              {unitsData?.filter(u => !unitFilters.includes(u._id)).map((unit) => (
+                <SelectItem key={unit._id} value={unit._id}>
+                  {unit.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <Select key={`label-${labelFilters.length}`} onValueChange={(v) => addFilter(setLabelFilters, v)}>
+            <SelectTrigger className="w-full">
+              <Tag className="w-4 h-4 mr-2 text-muted-foreground" />
+              <SelectValue placeholder="Label" />
+            </SelectTrigger>
+            <SelectContent className="max-h-[300px]">
+              {labelsData?.filter((l: any) => !labelFilters.includes(l._id)).map((label: any) => (
+                <SelectItem key={label._id} value={label._id}>
+                  {label.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <Select key={`household-${householdFilters.length}`} onValueChange={(v) => addFilter(setHouseholdFilters, v)}>
+            <SelectTrigger className="w-full">
+              <Home className="w-4 h-4 mr-2 text-muted-foreground" />
+              <SelectValue placeholder="Household" />
+            </SelectTrigger>
+            <SelectContent className="max-h-[300px]">
+              {!householdFilters.includes(NO_HOUSEHOLD) && (
+                <SelectItem value={NO_HOUSEHOLD} className="text-muted-foreground">
+                  Not in a household
+                </SelectItem>
+              )}
+              {householdsData?.filter(h => !householdFilters.includes(h._id)).map((h) => (
+                <SelectItem key={h._id} value={h._id}>
+                  {h.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          {isPro && (
+            <Select key={`risk-${riskFilters.length}`} onValueChange={(v) => addFilter(setRiskFilters, v)}>
+              <SelectTrigger className="w-full">
+                <ShieldAlert className="w-4 h-4 mr-2 text-muted-foreground" />
+                <SelectValue placeholder="Risk level" />
+              </SelectTrigger>
+              <SelectContent>
+                {Object.keys(RISK_LABELS).filter(l => !riskFilters.includes(l)).map(level => (
+                  <SelectItem key={level} value={level}>{riskLabel(level)}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          )}
+        </div>
+
+        {/* Active filters, always visible so a folded panel still shows what applies */}
+        {activeFilterCount > 0 && (
+          <div className="flex flex-wrap items-center gap-2">
+            {statusFilters.map(s => (
+              <FilterChip key={`s-${s}`} label={statusLabel(s)} onRemove={() => removeFilter(setStatusFilters, s)} />
+            ))}
+            {unitFilters.map(id => (
+              <FilterChip key={`u-${id}`} label={unitName(id)} onRemove={() => removeFilter(setUnitFilters, id)} />
+            ))}
+            {labelFilters.map(id => (
+              <FilterChip key={`l-${id}`} label={labelName(id)} onRemove={() => removeFilter(setLabelFilters, id)} />
+            ))}
+            {householdFilters.map(id => (
+              <FilterChip key={`h-${id}`} label={householdName(id)} onRemove={() => removeFilter(setHouseholdFilters, id)} />
+            ))}
+            {riskFilters.map(level => (
+              <FilterChip key={`r-${level}`} label={riskLabel(level)} onRemove={() => removeFilter(setRiskFilters, level)} />
+            ))}
+            {activeFilterCount > 0 && (
+              <Button variant="ghost" size="sm" onClick={resetFilters} className="h-7 px-2 text-muted-foreground hover:text-foreground">
+                Clear filters
+              </Button>
+            )}
+            {typeof totalCount === "number" && (
+              <span className="ml-auto text-sm text-muted-foreground tabular-nums md:hidden">
+                {totalCount.toLocaleString()} {totalCount === 1 ? "match" : "matches"}
               </span>
             )}
           </div>
-        </CardContent>
-      </Card>
+        )}
+      </div>
 
       {/* Table and dialogs */}
       {isLoading ? (
@@ -537,14 +506,12 @@ export function MembersContent({ view = 'active', onViewChange }: MembersContent
         </div>
       ) : (
         <>
-          <div className="rounded-xl overflow-hidden shadow-soft border border-border/50 bg-card">
-            <MembersTable
-              members={filteredMembers}
-              isArchivedView={view === 'archived'}
-              selectedMembers={selectedMemberIds}
-              onSelectedMembersChange={setSelectedMemberIds}
-            />
-          </div>
+          <MembersTable
+            members={filteredMembers}
+            isArchivedView={view === 'archived'}
+            selectedMembers={selectedMemberIds}
+            onSelectedMembersChange={setSelectedMemberIds}
+          />
 
           {!isDone && (
             <div className="mt-4 flex justify-center">
@@ -590,5 +557,21 @@ export function MembersContent({ view = 'active', onViewChange }: MembersContent
         />
       )}
     </div>
+  )
+}
+
+function FilterChip({ label, onRemove }: { label: string; onRemove: () => void }) {
+  return (
+    <Badge variant="secondary" className="h-6 gap-1 pl-2.5 font-normal">
+      {label}
+      <button
+        type="button"
+        onClick={onRemove}
+        aria-label={`Remove filter: ${label}`}
+        className="ml-0.5 rounded-full p-0.5 hover:bg-foreground/10"
+      >
+        <X className="h-3 w-3" />
+      </button>
+    </Badge>
   )
 }

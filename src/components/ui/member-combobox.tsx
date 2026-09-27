@@ -18,7 +18,7 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover"
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
+import { MemberAvatar } from "@/components/ui/member-avatar"
 
 interface Member {
   id: string
@@ -67,12 +67,7 @@ export function MemberCombobox({
         >
           {selectedMember ? (
             <div className="flex items-center gap-2">
-              <Avatar className="h-6 w-6">
-                <AvatarImage src={selectedMember.avatar_url || selectedMember.avatar} alt={selectedMember.name} />
-                <AvatarFallback className="text-xs">
-                  {selectedMember.initials || selectedMember.name.charAt(0)}
-                </AvatarFallback>
-              </Avatar>
+              <MemberAvatar name={selectedMember.name} src={selectedMember.avatar_url || selectedMember.avatar} size="sm" />
               <span className="truncate">{selectedMember.name}</span>
             </div>
           ) : (
@@ -123,12 +118,7 @@ export function MemberCombobox({
                   }}
                 >
                   <div className="flex items-center gap-2">
-                    <Avatar className="h-6 w-6">
-                      <AvatarImage src={member.avatar_url || member.avatar} alt={member.name} />
-                      <AvatarFallback className="text-xs">
-                        {member.initials || member.name.charAt(0)}
-                      </AvatarFallback>
-                    </Avatar>
+                    <MemberAvatar name={member.name} src={member.avatar_url || member.avatar} size="sm" />
                     <div className="flex flex-col">
                       <span className="font-medium">{member.name}</span>
                       {member.email && (

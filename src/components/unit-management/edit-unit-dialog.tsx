@@ -110,33 +110,31 @@ export function EditUnitDialog({
 
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
-            <DialogContent className="sm:max-w-[500px] glass-card border-border/50 shadow-soft">
+            <DialogContent className="sm:max-w-[500px]">
                 <DialogHeader>
-                    <DialogTitle className="flex items-center gap-2 text-xl">
-                        <div className="p-2 bg-primary/10 rounded-lg text-primary">
-                            <Layers className="h-5 w-5" />
-                        </div>
-                        Edit Unit
+                    <DialogTitle className="flex items-center gap-2 text-lg">
+                        <Layers className="h-4 w-4 text-muted-foreground" />
+                        Edit unit
                     </DialogTitle>
                     <DialogDescription>
-                        Update the details of this organizational group.
+                        Change this unit's name, place in the structure or leader.
                     </DialogDescription>
                 </DialogHeader>
 
                 <div className="space-y-6 py-4">
                     <div className="space-y-2">
-                        <Label className="text-xs font-semibold text-muted-foreground tracking-wider">Name *</Label>
+                        <Label className="text-sm font-medium">Name *</Label>
                         <Input
                             value={name}
                             onChange={(e) => setName(e.target.value)}
-                            placeholder="Team Alpha / Worship Team"
+                            placeholder="e.g. Worship team"
                             className="bg-background/50 border-input-border focus:ring-primary/20"
                             disabled={updating}
                         />
                     </div>
 
                     <div className="space-y-2">
-                        <Label className="text-xs font-semibold text-muted-foreground tracking-wider">Description</Label>
+                        <Label className="text-sm font-medium">Description</Label>
                         <Input
                             value={description}
                             onChange={(e) => setDescription(e.target.value)}
@@ -148,13 +146,13 @@ export function EditUnitDialog({
 
                     <div className="grid grid-cols-2 gap-4">
                         <div className="space-y-2">
-                            <Label className="text-xs font-semibold text-muted-foreground tracking-wider">Parent Unit *</Label>
+                            <Label className="text-sm font-medium">Parent unit *</Label>
                             <Select value={unitId} onValueChange={setUnitId} disabled={updating}>
                                 <SelectTrigger className="bg-background/50 border-input-border">
-                                    <SelectValue placeholder="Select unit" />
+                                    <SelectValue placeholder="Choose a unit" />
                                 </SelectTrigger>
                                 <SelectContent>
-                                    <SelectItem value="none">None (Root Level)</SelectItem>
+                                    <SelectItem value="none">None (top level)</SelectItem>
                                     {availableUnits.map((unit) => (
                                         <SelectItem key={unit._id} value={unit._id}>
                                             {unit.name}
@@ -165,7 +163,7 @@ export function EditUnitDialog({
                         </div>
 
                         <div className="space-y-2">
-                            <Label className="text-xs font-semibold text-muted-foreground tracking-wider">Type *</Label>
+                            <Label className="text-sm font-medium">Type *</Label>
                             <Select
                                 value={type}
                                 onValueChange={(value: 'administrative' | 'functional' | 'geographic') => setType(value)}
@@ -185,11 +183,11 @@ export function EditUnitDialog({
 
                     {type === 'functional' && (
                         <div className="space-y-2">
-                            <Label className="text-xs font-semibold text-muted-foreground tracking-wider">Category</Label>
+                            <Label className="text-sm font-medium">Category</Label>
                             <Input
                                 value={category}
                                 onChange={(e) => setCategory(e.target.value)}
-                                placeholder="Youth, Worship, Media..."
+                                placeholder="Youth, worship, media…"
                                 className="bg-background/50 border-input-border focus:ring-primary/20"
                                 disabled={updating}
                             />
@@ -197,12 +195,12 @@ export function EditUnitDialog({
                     )}
 
                     <div className="space-y-2">
-                        <Label className="text-xs font-semibold text-muted-foreground tracking-wider">Unit Leader</Label>
+                        <Label className="text-sm font-medium">Leader</Label>
                         <MemberCombobox
                             members={availableMembers}
                             value={leaderId}
                             onValueChange={(value) => setLeaderId(value === "none" ? undefined : value)}
-                            placeholder="Select unit leader..."
+                            placeholder="Choose a leader…"
                             disabled={updating}
                         />
                     </div>
@@ -238,7 +236,7 @@ export function EditUnitDialog({
                         ) : (
                             <Save className="h-4 w-4 mr-2" />
                         )}
-                        Save Changes
+                        Save changes
                     </Button>
                 </DialogFooter>
             </DialogContent>

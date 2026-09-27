@@ -1,0 +1,91 @@
+<template>
+  <div id="root" data-composition-id="10-everything" data-start="0" data-duration="7" data-width="1920" data-height="1080">
+    <style>
+      @font-face{font-family:"Fraunces";font-weight:400;font-style:normal;font-display:block;src:url("assets/fonts/fraunces-latin-400-normal.woff2") format("woff2");}
+      @font-face{font-family:"Fraunces";font-weight:500;font-style:normal;font-display:block;src:url("assets/fonts/fraunces-latin-500-normal.woff2") format("woff2");}
+      @font-face{font-family:"Inter";font-weight:100 900;font-style:normal;font-display:block;src:url("assets/fonts/inter-latin-wght-normal.woff2") format("woff2");}
+
+      #root { position: relative; width: 1920px; height: 1080px; overflow: hidden; }
+      .clip { position: absolute; inset: 0; }
+      .ev-ground { background: #FAF7F1; }
+      .ev-stage { overflow: hidden; }
+
+      /* statement, centred top */
+      .ev-statement { position: absolute; left: 96px; top: 112px; width: 1728px; margin: 0; text-align: center;
+        font-family: "Fraunces", serif; font-weight: 500; font-size: 64px; line-height: 1.05; letter-spacing: -0.02em; color: #1C1917; }
+      .ev-word { display: inline-block; }
+
+      /* 2x2 grid: tiles 680x340, gap 36, grid 1396x716 centred (left 262), top 240, bottom 956.
+         Each tile shows the top-left 2880x1440 of its capture at scale 0.23611 (2880 -> 680). */
+      .ev-grid { position: absolute; left: 262px; top: 240px; width: 1396px; height: 716px; transform-origin: 50% 50%; }
+      .ev-tile { position: absolute; width: 680px; height: 340px; }
+      .ev-window { position: absolute; inset: 0; border-radius: 16px; border: 1px solid #E7E0D4; overflow: hidden;
+        background: #FAF7F1; box-shadow: 0 40px 100px -40px rgba(28,25,23,0.40); }
+      .ev-shot { position: absolute; left: 0; top: 0; width: 680px; height: 425px; display: block; }
+      .ev-tagwrap { position: absolute; left: 20px; top: -17px; }
+      .ev-tag { display: inline-block; white-space: nowrap; padding: 6px 12px; background: #FAF7F1; border: 1px solid #E7E0D4; border-radius: 6px;
+        font-family: "Inter", sans-serif; font-weight: 600; font-size: 17px; line-height: 20px; color: #1C1917;
+        box-shadow: 0 6px 18px -10px rgba(28,25,23,0.35); }
+      [id="10-everything-tile-members"] { left: 0; top: 0; }
+      [id="10-everything-tile-attendance"] { left: 716px; top: 0; }
+      [id="10-everything-tile-reports"] { left: 0; top: 376px; }
+      [id="10-everything-tile-automations"] { left: 716px; top: 376px; }
+    </style>
+
+    <div id="10-everything-ground" class="clip ev-ground" data-start="0" data-duration="7" data-track-index="0"></div>
+
+    <div id="10-everything-stage" class="clip ev-stage" data-start="0" data-duration="7" data-track-index="1">
+      <h1 class="ev-statement" id="10-everything-statement"><span class="ev-word">Everything</span> <span class="ev-word">else</span> <span class="ev-word">your</span> <span class="ev-word">church</span> <span class="ev-word">runs</span> <span class="ev-word">on.</span></h1>
+
+      <div class="ev-grid" id="10-everything-grid">
+        <div class="ev-tile" id="10-everything-tile-members">
+          <div class="ev-window"><img class="ev-shot" src="assets/members.png" alt="" /></div>
+          <div class="ev-tagwrap"><span class="ev-tag" id="10-everything-tag-members">Members and households</span></div>
+        </div>
+        <div class="ev-tile" id="10-everything-tile-attendance">
+          <div class="ev-window"><img class="ev-shot" src="assets/attendance.png" alt="" /></div>
+          <div class="ev-tagwrap"><span class="ev-tag" id="10-everything-tag-attendance">Attendance</span></div>
+        </div>
+        <div class="ev-tile" id="10-everything-tile-reports">
+          <div class="ev-window"><img class="ev-shot" src="assets/reports.png" alt="" /></div>
+          <div class="ev-tagwrap"><span class="ev-tag" id="10-everything-tag-reports">Reports and trends</span></div>
+        </div>
+        <div class="ev-tile" id="10-everything-tile-automations">
+          <div class="ev-window"><img class="ev-shot" src="assets/automations.png" alt="" /></div>
+          <div class="ev-tagwrap"><span class="ev-tag" id="10-everything-tag-automations">Automations</span></div>
+        </div>
+      </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/gsap@3.12.5/dist/gsap.min.js"></script>
+    <script>
+      (function () {
+        var ID = "10-everything";
+        var DURATION = 7;
+        // ids start with a digit, so resolve them by getElementById (not a CSS #selector)
+        var q = function (s) { return document.getElementById(s.charAt(0) === "#" ? s.slice(1) : s); };
+        var qa = function (s) { return document.querySelectorAll('[data-composition-id="' + ID + '"] ' + s); };
+        var tl = gsap.timeline({ paused: true });
+
+        // Scene 1 (0.2-1.4): statement per word
+        tl.fromTo(qa(".ev-statement .ev-word"), { opacity: 0, y: 28 }, { opacity: 1, y: 0, duration: 0.8, ease: "power3.out", stagger: 0.08 }, 0.3);
+
+        // Scene 2 (1.4-4.4): tiles enter one by one, 0.5s apart; each label settles onto its corner
+        var names = ["members", "attendance", "reports", "automations"];
+        for (var i = 0; i < names.length; i++) {
+          var at = 1.4 + i * 0.5;
+          tl.fromTo(q("#10-everything-tile-" + names[i]), { opacity: 0, y: 60, scale: 0.97 }, { opacity: 1, y: 0, scale: 1, duration: 1.0, ease: "power3.out" }, at);
+          tl.fromTo(q("#10-everything-tag-" + names[i]), { opacity: 0, y: 8 }, { opacity: 1, y: 0, duration: 0.45, ease: "power3.out" }, at + 0.4);
+        }
+
+        // Scene 3 (4.6-7.0): hold, with a 1% settle on the grid that eases out and is at rest by 6.4
+        tl.fromTo(q("#10-everything-grid"), { scale: 1.01 }, { scale: 1, duration: 5.0, ease: "power2.out" }, 1.4);
+
+        tl.set({}, {}, DURATION);
+
+        window.__timelines = window.__timelines || {};
+        window.__timelines[ID] = tl;
+      })();
+    </script>
+  </div>
+</template>

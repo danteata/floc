@@ -1,0 +1,144 @@
+<template>
+  <div id="root" data-composition-id="05-dashboard" data-start="0" data-duration="8" data-width="1920" data-height="1080">
+    <style>
+      @font-face{font-family:"Fraunces";font-weight:400;font-style:normal;font-display:block;src:url("assets/fonts/fraunces-latin-400-normal.woff2") format("woff2");}
+      @font-face{font-family:"Fraunces";font-weight:500;font-style:normal;font-display:block;src:url("assets/fonts/fraunces-latin-500-normal.woff2") format("woff2");}
+      @font-face{font-family:"Inter";font-weight:100 900;font-style:normal;font-display:block;src:url("assets/fonts/inter-latin-wght-normal.woff2") format("woff2");}
+
+      #root { position: relative; width: 1920px; height: 1080px; overflow: hidden; }
+      .clip { position: absolute; inset: 0; }
+      .db-ground { background: #FAF7F1; }
+      .db-stage { overflow: hidden; }
+
+      /* docket label */
+      .db-docket { position: absolute; left: 96px; top: 96px; display: flex; align-items: center; gap: 16px;
+        font-family: "Inter", sans-serif; font-weight: 600; font-size: 16px; letter-spacing: 0.14em; text-transform: uppercase; }
+      .db-docket-num { color: #C1153F; }
+      .db-docket-rule { width: 40px; height: 1px; background: #C1153F; transform-origin: 0 50%; }
+      .db-docket-label { color: #716A65; }
+
+      /* statement */
+      .db-statement { position: absolute; left: 96px; top: 290px; width: 460px; margin: 0;
+        font-family: "Fraunces", serif; font-weight: 500; font-size: 68px; line-height: 1.05; letter-spacing: -0.02em; color: #1C1917; }
+      .db-word { display: inline-block; }
+
+      /* depth layer behind the window */
+      .db-panel { position: absolute; left: 560px; top: 76px; width: 1224px; height: 765px;
+        background: #F3EEE4; border: 1px solid #E7E0D4; border-radius: 16px; }
+
+      /* screen-window */
+      .db-persp { position: absolute; left: 600px; top: 116px; width: 1224px; height: 765px; perspective: 1800px; }
+      .db-window { position: absolute; inset: 0; border-radius: 16px; border: 1px solid #E7E0D4; overflow: hidden;
+        background: #FAF7F1; box-shadow: 0 40px 100px -40px rgba(28,25,23,0.40); transform-origin: 50% 100%; }
+      .db-cam-outer { position: absolute; left: 0; top: 0; width: 1224px; height: 765px; transform-origin: 50% 50%; will-change: transform; }
+      .db-cam-inner { position: absolute; left: 0; top: 0; width: 1224px; height: 765px; will-change: transform; }
+      .db-shot { position: absolute; left: 0; top: 0; width: 1224px; height: 765px; display: block; }
+
+      /* callouts (world coords = source px x 0.425) */
+      .db-leader { position: absolute; background: #C1153F; }
+      .db-tagwrap { position: absolute; transform-origin: 0 0; }
+      .db-tag { display: inline-block; white-space: nowrap; padding: 6px 12px; background: #FAF7F1; border: 1px solid #E7E0D4; border-radius: 6px;
+        font-family: "Inter", sans-serif; font-weight: 600; font-size: 17px; line-height: 20px; color: #1C1917;
+        box-shadow: 0 6px 18px -10px rgba(28,25,23,0.35); }
+    </style>
+
+    <div id="05-dashboard-ground" class="clip db-ground" data-start="0" data-duration="8" data-track-index="0"></div>
+
+    <div id="05-dashboard-stage" class="clip db-stage" data-start="0" data-duration="8" data-track-index="1">
+      <div class="db-docket" id="05-dashboard-docket">
+        <span class="db-docket-num" id="05-dashboard-docket-num">02</span>
+        <span class="db-docket-rule" id="05-dashboard-docket-rule"></span>
+        <span class="db-docket-label" id="05-dashboard-docket-label">Monday</span>
+      </div>
+
+      <h1 class="db-statement" id="05-dashboard-statement"><span class="db-word">The</span> <span class="db-word">week</span> <span class="db-word">at</span> <span class="db-word">a</span> <span class="db-word">glance.</span></h1>
+
+      <div class="db-panel" id="05-dashboard-panel"></div>
+
+      <div class="db-persp">
+        <div class="db-window" id="05-dashboard-window">
+          <div class="db-cam-outer" id="05-dashboard-cam-outer">
+            <div class="db-cam-inner" id="05-dashboard-cam-inner" data-layout-allow-overflow>
+              <img class="db-shot" src="assets/dashboard.png" alt="" />
+
+              <!-- Attendance card: "-50% vs last week" src x 1176-1387, y 503. Camera S 2.0 on src (1119.5, 450).
+                   Leader down from src (1230, 522) to y 580, tag below in the gap above the chart card -->
+              <div class="db-leader" id="05-dashboard-lead-att" style="left:522.25px; top:221.85px; width:1px; height:24.65px; transform-origin:50% 0;"></div>
+              <div class="db-tagwrap" style="left:514.75px; top:246.5px; transform:scale(0.5);">
+                <span class="db-tag" id="05-dashboard-tag-att">Down on last week</span>
+              </div>
+
+              <!-- Attendance chart src x 560-1839, y 609-1511. Camera S 1.5 on src (1199.5, 1060).
+                   Leader rises from the top of the Sep 13 bar src (1577, 1215) to y 1140; tag above it, right edge at src x 1602 (clear of every bar top) -->
+              <div class="db-leader" id="05-dashboard-lead-chart" style="left:669.89px; top:484.5px; width:1.333px; height:31.9px; transform-origin:50% 100%;"></div>
+              <div class="db-tagwrap" style="left:auto; right:543.15px; top:461.8px; transform-origin:100% 0; transform:scale(0.6667);">
+                <span class="db-tag" id="05-dashboard-tag-chart">Every service, week by week</span>
+              </div>
+
+              <!-- Recent members src x 1885-2832, y 609-1511. Camera S 1.9 on src (2122, 1060) (clamped to the capture's right edge).
+                   Leader right from the first name's end src (2295, 808) to x 2370; tag to its right, before the date at src x 2703 -->
+              <div class="db-leader" id="05-dashboard-lead-recent" style="left:975.4px; top:342.87px; width:31.9px; height:1.053px; transform-origin:0 50%;"></div>
+              <div class="db-tagwrap" style="left:1007.25px; top:334.45px; transform:scale(0.5263);">
+                <span class="db-tag" id="05-dashboard-tag-recent">New members, as they join</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/gsap@3.12.5/dist/gsap.min.js"></script>
+    <script>
+      (function () {
+        var ID = "05-dashboard";
+        var DURATION = 8;
+        // ids start with a digit, so resolve them by getElementById (not a CSS #selector)
+        var q = function (s) { return document.getElementById(s.charAt(0) === "#" ? s.slice(1) : s); };
+        var qa = function (s) { return document.querySelectorAll('[data-composition-id="' + ID + '"] ' + s); };
+        var tl = gsap.timeline({ paused: true });
+
+        // Scene 1 (0.2-1.6): docket, statement, window rises
+        tl.fromTo(q("#05-dashboard-docket-num"), { opacity: 0, x: -12 }, { opacity: 1, x: 0, duration: 0.6, ease: "power3.out" }, 0.2);
+        tl.fromTo(q("#05-dashboard-docket-rule"), { scaleX: 0 }, { scaleX: 1, duration: 0.6, ease: "power3.out" }, 0.3);
+        tl.fromTo(q("#05-dashboard-docket-label"), { opacity: 0, x: -12 }, { opacity: 1, x: 0, duration: 0.6, ease: "power3.out" }, 0.4);
+        tl.fromTo(qa(".db-statement .db-word"), { opacity: 0, y: 28 }, { opacity: 1, y: 0, duration: 0.8, ease: "power3.out", stagger: 0.08 }, 0.45);
+        tl.fromTo(q("#05-dashboard-panel"), { opacity: 0, y: 60 }, { opacity: 1, y: 0, duration: 1.3, ease: "power3.out" }, 0.3);
+        tl.fromTo(q("#05-dashboard-window"), { opacity: 0, y: 200, rotationX: 16 }, { opacity: 1, y: 0, rotationX: 0, duration: 1.4, ease: "power3.out" }, 0.35);
+
+        // Camera: outer scales, inner counter-translates (T = centre - target, world px)
+        var cam = function (S, tx, ty, at, dur) {
+          tl.to(q("#05-dashboard-cam-outer"), { scale: S, duration: dur, ease: "power3.inOut" }, at);
+          tl.to(q("#05-dashboard-cam-inner"), { x: tx, y: ty, duration: dur, ease: "power3.inOut" }, at);
+        };
+        var callout = function (lead, tag, at, axis) {
+          var from = {}, to = { duration: 0.35, ease: "power3.out" };
+          from[axis] = 0; to[axis] = 1;
+          tl.fromTo(q(lead), from, to, at);
+          tl.fromTo(q(tag), { opacity: 0, y: 8 }, { opacity: 1, y: 0, duration: 0.45, ease: "power3.out" }, at + 0.18);
+        };
+        var clear = function (lead, tag, at) {
+          tl.to([q(lead), q(tag)], { opacity: 0, duration: 0.35, ease: "power2.out" }, at);
+        };
+
+        // Scene 2 (1.8-3.4): push S 2.0 to the stat row, src (1119.5, 450) = world (475.8, 191.25)
+        cam(2.0, 136.2, 191.25, 1.8, 0.95);
+        callout("#05-dashboard-lead-att", "#05-dashboard-tag-att", 2.8, "scaleY");
+
+        // Scene 3 (3.6-5.4): pull to the attendance chart S 1.5, src (1199.5, 1060) = world (509.8, 450.5)
+        clear("#05-dashboard-lead-att", "#05-dashboard-tag-att", 3.3);
+        cam(1.5, 102.2, -68, 3.4, 0.9);
+        callout("#05-dashboard-lead-chart", "#05-dashboard-tag-chart", 4.25, "scaleY");
+
+        // Scene 4 (5.5-7.5): settle to recent members S 1.9, src (2122, 1060) = world (901.85, 450.5)
+        clear("#05-dashboard-lead-chart", "#05-dashboard-tag-chart", 5.35);
+        cam(1.9, -289.85, -68, 5.45, 0.8);
+        callout("#05-dashboard-lead-recent", "#05-dashboard-tag-recent", 6.0, "scaleX");
+
+        tl.set({}, {}, DURATION);
+
+        window.__timelines = window.__timelines || {};
+        window.__timelines[ID] = tl;
+      })();
+    </script>
+  </div>
+</template>

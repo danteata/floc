@@ -34,7 +34,7 @@ import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Calendar } from '@/components/ui/calendar'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
-import { CalendarIcon, X, Plus, Loader2, Save, Info, DollarSign, Calculator, UserCheck, ShieldCheck, Tag } from 'lucide-react'
+import { CalendarIcon, X, Plus, Loader2, Save, Info, Wallet, UserCheck, ShieldCheck, Tag } from 'lucide-react'
 import { format } from 'date-fns'
 import { cn } from '@/lib/utils'
 import { ServiceFinancialSummary } from '@/types/database'
@@ -44,6 +44,7 @@ import { useQuery, useMutation } from 'convex/react'
 import { api } from '../../convex/_generated/api'
 import { useOrganization } from '@/hooks/use-organization'
 import { toast } from 'sonner'
+import { CURRENCIES, formatMoney, useCurrency } from '@/lib/money'
 
 const serviceSummarySchema = z.object({
     service_date: z.date(),
@@ -77,10 +78,10 @@ interface ServiceFinancialSummaryDialogProps {
 }
 
 const SERVICE_TYPES = [
-    { value: 'sunday_service', label: 'Sunday Service' },
-    { value: 'wednesday_service', label: 'Wednesday Service' },
-    { value: 'special_service', label: 'Special Service' },
-    { value: 'event', label: 'Church Event' },
+    { value: 'sunday_service', label: 'Sunday service' },
+    { value: 'wednesday_service', label: 'Wednesday service' },
+    { value: 'special_service', label: 'Special service' },
+    { value: 'event', label: 'Church event' },
     { value: 'other', label: 'Other' }
 ] as const
 
@@ -93,6 +94,7 @@ export function ServiceFinancialSummaryDialog({
 }: ServiceFinancialSummaryDialogProps) {
     const { user } = useUser()
     const { organization } = useOrganization()
+    const churchCurrency = useCurrency()
     const [isLoading, setIsLoading] = useState(false)
     const [newTreasurerName, setNewTreasurerName] = useState('')
 
@@ -170,13 +172,13 @@ export function ServiceFinancialSummaryDialog({
                 special_offering_description: '',
                 special_offerings_cash: 0,
                 special_offerings_electronic: 0,
-                currency: 'GHS',
+                currency: churchCurrency,
                 counted_by: [],
                 counted_by_names: [],
                 notes: '',
             })
         }
-    }, [open, summary, form])
+    }, [open, summary, form, churchCurrency])
 
     // Auto-populate service name and event_id when service type is 'event'
     useEffect(() => {
@@ -237,15 +239,15 @@ export function ServiceFinancialSummaryDialog({
                     id: summary._id as any,
                     ...summaryPayload
                 })
-                toast.success('Summary updated successfully')
+                toast.success('Service summary updated')
             } else {
                 await createSummary(summaryPayload)
-                toast.success('Service summary created')
+                toast.success('Service summary added')
             }
             onOpenChange(false)
         } catch (error) {
             console.error('Error saving service summary:', error)
-            toast.error('Failed to save summary')
+            toast.error("Couldn't save the service summary", { description: error instanceof Error ? error.message : undefined })
         } finally {
             setIsLoading(false)
         }
@@ -285,29 +287,20 @@ export function ServiceFinancialSummaryDialog({
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
             <DialogContent className="sm:max-w-[850px] max-h-[90vh] overflow-hidden p-0 border-0 shadow-soft-xl rounded-2xl bg-background">
-                {/* Header Strip */}
-                <div className="h-1.5 bg-gradient-to-r from-primary to-primary/60"></div>
-
                 <div className="flex flex-col h-full overflow-hidden">
                     <DialogHeader className="p-8 pb-4">
                         <div className="flex items-center justify-between">
                             <div className="space-y-1">
-                                <DialogTitle className="text-2xl flex items-center gap-3">
-                                    <div className="p-3 bg-[#5b21b6] text-white rounded-xl shadow-md">
-                                        <Calculator className="h-6 w-6" />
-                                    </div>
-                                    {summary ? 'Edit Service Summary' : 'New Service Summary'}
+                                <DialogTitle className="text-xl font-semibold">
+                                    {summary ? 'Edit service summary' : 'Add a service summary'}
                                 </DialogTitle>
-                                <DialogDescription className="text-muted-foreground ml-14">
-                                    Record financial details for a service or event.
+                                <DialogDescription className="text-sm text-muted-foreground">
+                                    The tithes and offerings counted at one service or event.
                                 </DialogDescription>
                             </div>
-                            <div className="flex flex-col items-end gap-1">
-                                <Badge variant="secondary" className="px-3 py-1 text-sm font-semibold rounded-lg bg-secondary/50 text-secondary-foreground">
-                                    {form.watch('currency')} TOTAL: {(tithesTotal + offeringsTotal + specialOfferingsTotal).toLocaleString()}
-                                </Badge>
-                                <span className="text-[10px] text-muted-foreground tracking-wider">Draft Record</span>
-                            </div>
+                            <Badge variant="secondary" className="px-3 py-1 text-sm font-semibold rounded-lg tabular-nums">
+                                Total {formatMoney(tithesTotal + offeringsTotal + specialOfferingsTotal, form.watch('currency'))}
+                            </Badge>
                         </div>
                     </DialogHeader>
 
@@ -317,8 +310,8 @@ export function ServiceFinancialSummaryDialog({
                                 {/* Service Details */}
                                 <section className="space-y-6 rounded-xl border border-border/50 bg-muted/20 p-6">
                                     <div className="flex items-center gap-2 mb-4">
-                                        <Tag className="h-4 w-4 text-primary" />
-                                        <h3 className="font-semibold text-lg">Service Information</h3>
+                                        <Tag className="h-4 w-4 text-muted-foreground" />
+                                        <h3 className="font-semibold text-base">Service</h3>
                                     </div>
 
                                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -338,7 +331,7 @@ export function ServiceFinancialSummaryDialog({
                                                                         !field.value && 'text-muted-foreground'
                                                                     )}
                                                                 >
-                                                                    {field.value ? format(field.value, 'PPP') : 'Select date'}
+                                                                    {field.value ? format(field.value, 'd MMM yyyy') : 'Pick a date'}
                                                                     <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
                                                                 </Button>
                                                             </FormControl>
@@ -357,11 +350,11 @@ export function ServiceFinancialSummaryDialog({
                                             name="service_type"
                                             render={({ field }) => (
                                                 <FormItem>
-                                                    <FormLabel className="text-sm">Service Type</FormLabel>
+                                                    <FormLabel className="text-sm">Service type</FormLabel>
                                                     <Select onValueChange={field.onChange} value={field.value}>
                                                         <FormControl>
                                                             <SelectTrigger className="h-11 rounded-lg bg-background">
-                                                                <SelectValue placeholder="Select Type" />
+                                                                <SelectValue placeholder="Choose a type" />
                                                             </SelectTrigger>
                                                         </FormControl>
                                                         <SelectContent className="rounded-lg shadow-soft-lg">
@@ -383,18 +376,18 @@ export function ServiceFinancialSummaryDialog({
                                                 name="event_id"
                                                 render={({ field }) => (
                                                     <FormItem className="animate-in fade-in slide-in-from-top-2">
-                                                        <FormLabel className="text-sm">Linked Event</FormLabel>
+                                                        <FormLabel className="text-sm">Linked event</FormLabel>
                                                         <Select onValueChange={field.onChange} value={field.value}>
                                                             <FormControl>
                                                                 <SelectTrigger className="h-11 rounded-lg bg-background">
-                                                                    <SelectValue placeholder="Select Event" />
+                                                                    <SelectValue placeholder="Choose an event" />
                                                                 </SelectTrigger>
                                                             </FormControl>
                                                             <SelectContent className="rounded-lg shadow-soft-lg max-h-[300px]">
                                                                 <SelectItem value="" className="text-muted-foreground">None</SelectItem>
                                                                 {events?.map((event) => (
                                                                     <SelectItem key={event._id} value={event._id}>
-                                                                        {event.title} ({format(new Date(event.date), 'MMM dd')})
+                                                                        {event.title} ({format(new Date(event.date), 'd MMM')})
                                                                     </SelectItem>
                                                                 ))}
                                                             </SelectContent>
@@ -410,10 +403,10 @@ export function ServiceFinancialSummaryDialog({
                                             name="service_name"
                                             render={({ field }) => (
                                                 <FormItem>
-                                                    <FormLabel className="text-sm">Service Name (Optional)</FormLabel>
+                                                    <FormLabel className="text-sm">Service name (optional)</FormLabel>
                                                     <FormControl>
                                                         <Input
-                                                            placeholder="e.g. Special Revival Service"
+                                                            placeholder="For example, Revival night"
                                                             className="h-11 rounded-lg bg-background"
                                                             {...field}
                                                         />
@@ -428,16 +421,16 @@ export function ServiceFinancialSummaryDialog({
                                 {/* Financial Breakdown */}
                                 <div className="space-y-2">
                                     <div className="flex items-center gap-2 mb-2">
-                                        <DollarSign className="h-5 w-5 text-primary" />
-                                        <h3 className="font-semibold text-lg">Financial Breakdown</h3>
+                                        <Wallet className="h-4 w-4 text-muted-foreground" />
+                                        <h3 className="font-semibold text-base">Giving</h3>
                                     </div>
                                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
 
                                         {/* Tithes */}
-                                        <section className="space-y-4 rounded-xl border border-blue-200/50 bg-blue-50/30 p-6">
-                                            <div className="flex items-center gap-2 text-blue-700 mb-2">
+                                        <section className="space-y-4 rounded-xl border border-border/50 bg-muted/20 p-6">
+                                            <div className="flex items-center gap-2 text-foreground mb-2">
                                                 <ShieldCheck className="h-4 w-4" />
-                                                <h4 className="font-semibold text-sm tracking-wide">Tithes</h4>
+                                                <h4 className="font-semibold text-sm">Tithes</h4>
                                             </div>
 
                                             <FormField
@@ -445,9 +438,9 @@ export function ServiceFinancialSummaryDialog({
                                                 name="tithe_payers"
                                                 render={({ field }) => (
                                                     <FormItem>
-                                                        <FormLabel className="text-xs text-muted-foreground">Count of Tithe Payers</FormLabel>
+                                                        <FormLabel className="text-xs text-muted-foreground">Number of tithe payers</FormLabel>
                                                         <FormControl>
-                                                            <Input type="number" className="h-10 rounded-md bg-white/50" {...field} onChange={(e) => field.onChange(parseInt(e.target.value) || 0)} />
+                                                            <Input type="number" className="h-10 rounded-md bg-background" {...field} onChange={(e) => field.onChange(parseInt(e.target.value) || 0)} />
                                                         </FormControl>
                                                     </FormItem>
                                                 )}
@@ -461,7 +454,7 @@ export function ServiceFinancialSummaryDialog({
                                                         <FormItem>
                                                             <FormLabel className="text-xs text-muted-foreground">Cash</FormLabel>
                                                             <FormControl>
-                                                                <Input type="number" className="h-10 rounded-md bg-white/50" {...field} onChange={(e) => field.onChange(parseFloat(e.target.value) || 0)} />
+                                                                <Input type="number" className="h-10 rounded-md bg-background" {...field} onChange={(e) => field.onChange(parseFloat(e.target.value) || 0)} />
                                                             </FormControl>
                                                         </FormItem>
                                                     )}
@@ -473,23 +466,23 @@ export function ServiceFinancialSummaryDialog({
                                                         <FormItem>
                                                             <FormLabel className="text-xs text-muted-foreground">Digital</FormLabel>
                                                             <FormControl>
-                                                                <Input type="number" className="h-10 rounded-md bg-white/50" {...field} onChange={(e) => field.onChange(parseFloat(e.target.value) || 0)} />
+                                                                <Input type="number" className="h-10 rounded-md bg-background" {...field} onChange={(e) => field.onChange(parseFloat(e.target.value) || 0)} />
                                                             </FormControl>
                                                         </FormItem>
                                                     )}
                                                 />
                                             </div>
-                                            <div className="flex justify-between items-center pt-2 border-t border-blue-200/50">
-                                                <span className="text-xs text-blue-700/70">Total Tithes</span>
-                                                <span className="text-lg text-blue-700">{form.watch('currency')} {tithesTotal.toLocaleString()}</span>
+                                            <div className="flex justify-between items-center pt-2 border-t border-border/50">
+                                                <span className="text-xs text-muted-foreground">Total tithes</span>
+                                                <span className="text-lg tabular-nums text-foreground">{formatMoney(tithesTotal, form.watch('currency'))}</span>
                                             </div>
                                         </section>
 
                                         {/* Offerings */}
-                                        <section className="space-y-4 rounded-xl border border-emerald-200/50 bg-emerald-50/30 p-6">
-                                            <div className="flex items-center gap-2 text-emerald-700 mb-2">
+                                        <section className="space-y-4 rounded-xl border border-border/50 bg-muted/20 p-6">
+                                            <div className="flex items-center gap-2 text-foreground mb-2">
                                                 <Info className="h-4 w-4" />
-                                                <h4 className="font-semibold text-sm tracking-wide">Offerings</h4>
+                                                <h4 className="font-semibold text-sm">Offerings</h4>
                                             </div>
 
                                             <div className="h-[4.25rem]"></div> {/* Spacer for payer count alignment */}
@@ -502,7 +495,7 @@ export function ServiceFinancialSummaryDialog({
                                                         <FormItem>
                                                             <FormLabel className="text-xs text-muted-foreground">Cash</FormLabel>
                                                             <FormControl>
-                                                                <Input type="number" className="h-10 rounded-md bg-white/50" {...field} onChange={(e) => field.onChange(parseFloat(e.target.value) || 0)} />
+                                                                <Input type="number" className="h-10 rounded-md bg-background" {...field} onChange={(e) => field.onChange(parseFloat(e.target.value) || 0)} />
                                                             </FormControl>
                                                         </FormItem>
                                                     )}
@@ -514,23 +507,23 @@ export function ServiceFinancialSummaryDialog({
                                                         <FormItem>
                                                             <FormLabel className="text-xs text-muted-foreground">Digital</FormLabel>
                                                             <FormControl>
-                                                                <Input type="number" className="h-10 rounded-md bg-white/50" {...field} onChange={(e) => field.onChange(parseFloat(e.target.value) || 0)} />
+                                                                <Input type="number" className="h-10 rounded-md bg-background" {...field} onChange={(e) => field.onChange(parseFloat(e.target.value) || 0)} />
                                                             </FormControl>
                                                         </FormItem>
                                                     )}
                                                 />
                                             </div>
-                                            <div className="flex justify-between items-center pt-2 border-t border-emerald-200/50">
-                                                <span className="text-xs text-emerald-700/70">Total Offerings</span>
-                                                <span className="text-lg text-emerald-700">{form.watch('currency')} {offeringsTotal.toLocaleString()}</span>
+                                            <div className="flex justify-between items-center pt-2 border-t border-border/50">
+                                                <span className="text-xs text-muted-foreground">Total offerings</span>
+                                                <span className="text-lg tabular-nums text-foreground">{formatMoney(offeringsTotal, form.watch('currency'))}</span>
                                             </div>
                                         </section>
 
                                         {/* Special Offerings */}
-                                        <section className="col-span-1 md:col-span-2 space-y-4 rounded-xl border border-amber-200/50 bg-amber-50/30 p-6">
-                                            <div className="flex items-center gap-2 text-amber-700 mb-2">
+                                        <section className="col-span-1 md:col-span-2 space-y-4 rounded-xl border border-border/50 bg-muted/20 p-6">
+                                            <div className="flex items-center gap-2 text-foreground mb-2">
                                                 <Info className="h-4 w-4" />
-                                                <h4 className="font-semibold text-sm tracking-wide">Special Offerings</h4>
+                                                <h4 className="font-semibold text-sm">Special offerings</h4>
                                             </div>
 
                                             <FormField
@@ -538,9 +531,9 @@ export function ServiceFinancialSummaryDialog({
                                                 name="special_offering_description"
                                                 render={({ field }) => (
                                                     <FormItem>
-                                                        <FormLabel className="text-xs text-muted-foreground">Description / Project</FormLabel>
+                                                        <FormLabel className="text-xs text-muted-foreground">What it was for</FormLabel>
                                                         <FormControl>
-                                                            <Input placeholder="e.g. Building Fund" className="h-10 rounded-md bg-white/50" {...field} />
+                                                            <Input placeholder="For example, Building fund" className="h-10 rounded-md bg-background" {...field} />
                                                         </FormControl>
                                                     </FormItem>
                                                 )}
@@ -554,7 +547,7 @@ export function ServiceFinancialSummaryDialog({
                                                         <FormItem>
                                                             <FormLabel className="text-xs text-muted-foreground">Cash</FormLabel>
                                                             <FormControl>
-                                                                <Input type="number" className="h-10 rounded-md bg-white/50" {...field} onChange={(e) => field.onChange(parseFloat(e.target.value) || 0)} />
+                                                                <Input type="number" className="h-10 rounded-md bg-background" {...field} onChange={(e) => field.onChange(parseFloat(e.target.value) || 0)} />
                                                             </FormControl>
                                                         </FormItem>
                                                     )}
@@ -566,15 +559,15 @@ export function ServiceFinancialSummaryDialog({
                                                         <FormItem>
                                                             <FormLabel className="text-xs text-muted-foreground">Digital</FormLabel>
                                                             <FormControl>
-                                                                <Input type="number" className="h-10 rounded-md bg-white/50" {...field} onChange={(e) => field.onChange(parseFloat(e.target.value) || 0)} />
+                                                                <Input type="number" className="h-10 rounded-md bg-background" {...field} onChange={(e) => field.onChange(parseFloat(e.target.value) || 0)} />
                                                             </FormControl>
                                                         </FormItem>
                                                     )}
                                                 />
                                             </div>
-                                            <div className="flex justify-between items-center pt-2 border-t border-amber-200/50">
-                                                <span className="text-xs text-amber-700/70">Total Special Offerings</span>
-                                                <span className="text-lg text-amber-700">{form.watch('currency')} {specialOfferingsTotal.toLocaleString()}</span>
+                                            <div className="flex justify-between items-center pt-2 border-t border-border/50">
+                                                <span className="text-xs text-muted-foreground">Total special offerings</span>
+                                                <span className="text-lg tabular-nums text-foreground">{formatMoney(specialOfferingsTotal, form.watch('currency'))}</span>
                                             </div>
                                         </section>
                                     </div>
@@ -583,8 +576,8 @@ export function ServiceFinancialSummaryDialog({
                                 {/* Verification */}
                                 <div className="space-y-6 rounded-xl border border-border/50 bg-muted/20 p-6">
                                     <div className="flex items-center gap-2 mb-2">
-                                        <UserCheck className="h-5 w-5 text-primary" />
-                                        <h3 className="font-semibold text-lg">Verification</h3>
+                                        <UserCheck className="h-4 w-4 text-muted-foreground" />
+                                        <h3 className="font-semibold text-base">Counting and witnesses</h3>
                                     </div>
 
                                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -597,14 +590,13 @@ export function ServiceFinancialSummaryDialog({
                                                     <Select onValueChange={field.onChange} value={field.value}>
                                                         <FormControl>
                                                             <SelectTrigger className="h-11 rounded-lg bg-background">
-                                                                <SelectValue placeholder="Select Currency" />
+                                                                <SelectValue placeholder="Choose a currency" />
                                                             </SelectTrigger>
                                                         </FormControl>
                                                         <SelectContent className="rounded-lg shadow-soft-lg">
-                                                            <SelectItem value="GHS">GHS - Ghana Cedi</SelectItem>
-                                                            <SelectItem value="USD">USD - US Dollar</SelectItem>
-                                                            <SelectItem value="EUR">EUR - Euro</SelectItem>
-                                                            <SelectItem value="GBP">GBP - British Pound</SelectItem>
+                                                            {CURRENCIES.map((c) => (
+                                                                <SelectItem key={c.code} value={c.code}>{c.label}</SelectItem>
+                                                            ))}
                                                         </SelectContent>
                                                     </Select>
                                                 </FormItem>
@@ -615,12 +607,12 @@ export function ServiceFinancialSummaryDialog({
                                             <FormLabel className="text-sm">Witnesses</FormLabel>
                                             <div className="flex flex-wrap gap-2 p-3 border border-input rounded-lg min-h-[50px] bg-background">
                                                 {countedByNames.length === 0 && (
-                                                    <span className="text-sm text-muted-foreground italic">No witnesses added</span>
+                                                    <span className="text-sm text-muted-foreground">No witnesses yet</span>
                                                 )}
                                                 {countedByNames.map((name, index) => (
                                                     <Badge key={index} variant="secondary" className="px-3 py-1 text-xs rounded-full bg-secondary/50 flex items-center gap-1">
                                                         {name}
-                                                        <X className="h-3 w-3 cursor-pointer hover:text-destructive transition-colors" onClick={() => removeTreasurer(name)} />
+                                                        <X className="h-3 w-3 cursor-pointer hover:text-destructive transition-colors" aria-label={`Remove ${name}`} onClick={() => removeTreasurer(name)} />
                                                     </Badge>
                                                 ))}
                                             </div>
@@ -637,7 +629,7 @@ export function ServiceFinancialSummaryDialog({
                                                     const selectedMember = members?.find((m: any) => m._id === memberId)
                                                     if (selectedMember) addTreasurer(selectedMember.name)
                                                 }}
-                                                placeholder="Add a witness..."
+                                                placeholder="Add a witness…"
                                                 className="h-11 rounded-lg"
                                             />
                                         </div>
@@ -651,7 +643,7 @@ export function ServiceFinancialSummaryDialog({
                                                 <FormLabel className="text-sm">Notes</FormLabel>
                                                 <FormControl>
                                                     <Textarea
-                                                        placeholder="Enter any additional notes..."
+                                                        placeholder="Anything else worth recording"
                                                         className="min-h-[100px] resize-none rounded-lg bg-background"
                                                         {...field}
                                                     />
@@ -679,12 +671,12 @@ export function ServiceFinancialSummaryDialog({
                                         {isLoading ? (
                                             <div className="flex items-center gap-2">
                                                 <Loader2 className="h-4 w-4 animate-spin" />
-                                                Saving...
+                                                Saving…
                                             </div>
                                         ) : (
                                             <div className="flex items-center gap-2">
                                                 <Save className="h-4 w-4" />
-                                                {summary ? 'Update Summary' : 'Save Summary'}
+                                                {summary ? 'Save changes' : 'Save summary'}
                                             </div>
                                         )}
                                     </Button>

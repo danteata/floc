@@ -10,10 +10,13 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Calendar } from '@/components/ui/calendar'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { format, startOfMonth, endOfMonth, startOfYear, endOfYear, startOfQuarter, endOfQuarter, subMonths, subYears } from 'date-fns'
-import { CalendarIcon, Download, TrendingUp, TrendingDown, DollarSign, PieChart, BarChart3, FileText, Loader2 } from 'lucide-react'
+import { CalendarIcon, Download, TrendingUp, TrendingDown, Wallet, Receipt, PieChart, BarChart3, Loader2 } from 'lucide-react'
 import { TransactionCategory } from '@/types/database'
-import { formatCurrency, TRANSACTION_CATEGORIES } from '@/lib/financial-utils'
+import { TRANSACTION_CATEGORIES } from '@/lib/financial-utils'
+import { useMoney } from '@/lib/money'
+import { EmptyState } from '@/components/ui/empty-state'
 import { cn } from '@/lib/utils'
+import { StatCard, StatGrid } from '@/components/ui/stat-card'
 import { useQuery } from 'convex/react'
 import { api } from '../../convex/_generated/api'
 import { useOrganization } from '@/hooks/use-organization'
@@ -22,6 +25,7 @@ type ReportType = 'income-statement' | 'expense-breakdown' | 'contribution-analy
 
 export function FinancialReports() {
     const { organization } = useOrganization()
+    const money = useMoney()
     const [reportType, setReportType] = useState<ReportType>('income-statement')
     const [dateRange, setDateRange] = useState('this-month')
     const [customStartDate, setCustomStartDate] = useState<Date>()
@@ -32,12 +36,12 @@ export function FinancialReports() {
     )
 
     const dateRangeOptions = [
-        { value: 'this-month', label: 'This Month' },
-        { value: 'last-month', label: 'Last Month' },
-        { value: 'this-quarter', label: 'This Quarter' },
-        { value: 'this-year', label: 'This Year' },
-        { value: 'last-year', label: 'Last Year' },
-        { value: 'custom', label: 'Custom Range' }
+        { value: 'this-month', label: 'This month' },
+        { value: 'last-month', label: 'Last month' },
+        { value: 'this-quarter', label: 'This quarter' },
+        { value: 'this-year', label: 'This year' },
+        { value: 'last-year', label: 'Last year' },
+        { value: 'custom', label: 'Custom dates' }
     ]
 
     const filteredTransactions = useMemo(() => {
@@ -136,33 +140,33 @@ export function FinancialReports() {
 
         switch (reportType) {
             case 'income-statement':
-                csvContent = `Financial Report - ${dateRangeOptions.find(d => d.value === dateRange)?.label}\n\n`
-                csvContent += `Total Income,${formatCurrency(reportData.totalIncome)}\n`
-                csvContent += `Total Expenses,${formatCurrency(reportData.totalExpenses)}\n`
-                csvContent += `Net Income,${formatCurrency(reportData.netIncome)}\n\n`
-                csvContent += `Income by Category\n`
+                csvContent = `Income statement: ${dateRangeOptions.find(d => d.value === dateRange)?.label}\n\n`
+                csvContent += `Total income,"${money(reportData.totalIncome)}"\n`
+                csvContent += `Total expenses,"${money(reportData.totalExpenses)}"\n`
+                csvContent += `Net,"${money(reportData.netIncome)}"\n\n`
+                csvContent += `Income by category\n`
                 Object.entries(reportData.incomeByCategory).forEach(([category, amount]) => {
-                    csvContent += `${TRANSACTION_CATEGORIES[category as unknown as TransactionCategory]?.label || category},${formatCurrency(amount)}\n`
+                    csvContent += `${TRANSACTION_CATEGORIES[category as unknown as TransactionCategory]?.label || category},"${money(amount)}"\n`
                 })
-                csvContent += `\nExpenses by Category\n`
+                csvContent += `\nExpenses by category\n`
                 Object.entries(reportData.expensesByCategory).forEach(([category, amount]) => {
-                    csvContent += `${TRANSACTION_CATEGORIES[category as unknown as TransactionCategory]?.label || category},${formatCurrency(amount)}\n`
+                    csvContent += `${TRANSACTION_CATEGORIES[category as unknown as TransactionCategory]?.label || category},"${money(amount)}"\n`
                 })
                 break
 
             case 'trend-analysis':
-                csvContent = `Monthly Trends - ${dateRangeOptions.find(d => d.value === dateRange)?.label}\n\n`
-                csvContent += `Month,Income,Expenses,Net Income\n`
+                csvContent = `Monthly trends: ${dateRangeOptions.find(d => d.value === dateRange)?.label}\n\n`
+                csvContent += `Month,Income,Expenses,Net\n`
                 Object.entries(reportData.monthlyData).forEach(([month, data]) => {
-                    csvContent += `${month},${formatCurrency(data.income)},${formatCurrency(data.expenses)},${formatCurrency(data.net)}\n`
+                    csvContent += `${month},"${money(data.income)}","${money(data.expenses)}","${money(data.net)}"\n`
                 })
                 break
 
             default:
-                csvContent = `Transaction Report - ${dateRangeOptions.find(d => d.value === dateRange)?.label}\n\n`
-                csvContent += `Date,Type,Category,Description,Amount,Payment Method\n`
+                csvContent = `Transactions: ${dateRangeOptions.find(d => d.value === dateRange)?.label}\n\n`
+                csvContent += `Date,Type,Category,Description,Amount,Payment method\n`
                 filteredTransactions.forEach(t => {
-                    csvContent += `${t.date},${t.type},${TRANSACTION_CATEGORIES[t.category as unknown as TransactionCategory]?.label || t.category},"${t.description}",${formatCurrency(t.amount)},${t.payment_method}\n`
+                    csvContent += `${t.date},${t.type},${TRANSACTION_CATEGORIES[t.category as unknown as TransactionCategory]?.label || t.category},"${t.description}","${money(t.amount)}",${t.payment_method}\n`
                 })
         }
 
@@ -181,7 +185,7 @@ export function FinancialReports() {
         return (
             <div className="flex flex-col items-center justify-center h-64 border border-dashed border-border/50 rounded-xl bg-muted/10 animate-pulse">
                 <Loader2 className="h-10 w-10 animate-spin mb-4 text-primary" />
-                <span className="text-sm text-muted-foreground">Gathering intelligence...</span>
+                <span className="text-sm text-muted-foreground">Loading the report…</span>
             </div>
         )
     }
@@ -189,49 +193,33 @@ export function FinancialReports() {
     return (
         <div className="space-y-8">
             {/* Report Controls */}
-            <Card className="glass-card border-border/50 shadow-soft rounded-xl overflow-hidden">
-                <div className="h-1 bg-gradient-primary"></div>
+            <Card className="rounded-xl overflow-hidden">
                 <CardHeader className="p-6">
-                    <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
-                        <div>
-                            <CardTitle className="flex items-center gap-3 text-2xl tracking-tight">
-                                <div className="p-2.5 bg-[#5b21b6] text-white rounded-xl shadow-md">
-                                    <FileText className="h-6 w-6" />
-                                </div>
-                                Intelligence Hub
-                            </CardTitle>
-                            <CardDescription className="text-muted-foreground mt-2">
-                                Secure financial analytics & audit generation
-                            </CardDescription>
-                        </div>
-                        <div className="flex items-center gap-3">
-                            <Badge variant="outline" className="bg-emerald-500/10 text-emerald-600 border-emerald-500/20 px-3 py-1 rounded-full">
-                                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 mr-2 animate-pulse"></span>
-                                System Online
-                            </Badge>
-                        </div>
-                    </div>
+                    <CardTitle className="text-lg font-semibold">Reports</CardTitle>
+                    <CardDescription className="text-sm text-muted-foreground">
+                        Totals by category and by month for the period you choose.
+                    </CardDescription>
                 </CardHeader>
                 <CardContent className="p-6 pt-0">
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                         <div className="space-y-2">
-                            <label className="text-sm text-muted-foreground ml-1">Analysis Type</label>
+                            <label className="text-sm text-muted-foreground ml-1">Report</label>
                             <Select value={reportType} onValueChange={(value: ReportType) => setReportType(value)}>
                                 <SelectTrigger className="h-11 rounded-lg border-input-border bg-background/50 hover:bg-accent/50 transition-colors">
                                     <SelectValue />
                                 </SelectTrigger>
                                 <SelectContent className="rounded-xl shadow-lg border-border/50">
-                                    <SelectItem value="income-statement">Income Statement</SelectItem>
-                                    <SelectItem value="expense-breakdown">Expense Breakdown</SelectItem>
-                                    <SelectItem value="contribution-analysis">Contribution Analysis</SelectItem>
-                                    <SelectItem value="budget-comparison">Budget Comparison</SelectItem>
-                                    <SelectItem value="trend-analysis">Trend Analysis</SelectItem>
+                                    <SelectItem value="income-statement">Income statement</SelectItem>
+                                    <SelectItem value="expense-breakdown">Expense breakdown</SelectItem>
+                                    <SelectItem value="contribution-analysis">Contributions</SelectItem>
+                                    <SelectItem value="budget-comparison">Budget comparison</SelectItem>
+                                    <SelectItem value="trend-analysis">Monthly trends</SelectItem>
                                 </SelectContent>
                             </Select>
                         </div>
 
                         <div className="space-y-2">
-                            <label className="text-sm text-muted-foreground ml-1">Temporal Range</label>
+                            <label className="text-sm text-muted-foreground ml-1">Period</label>
                             <Select value={dateRange} onValueChange={setDateRange}>
                                 <SelectTrigger className="h-11 rounded-lg border-input-border bg-background/50 hover:bg-accent/50 transition-colors">
                                     <SelectValue />
@@ -247,13 +235,13 @@ export function FinancialReports() {
                         </div>
 
                         <div className="space-y-2">
-                            <label className="text-sm text-muted-foreground ml-1">Actions</label>
+                            <label className="text-sm text-muted-foreground ml-1">Download</label>
                             <Button
                                 onClick={exportReport}
                                 className="w-full h-11 rounded-lg bg-primary text-primary-foreground shadow-soft hover:shadow-soft-lg transition-all"
                             >
                                 <Download className="h-4 w-4 mr-2" />
-                                Extract Data
+                                Download CSV
                             </Button>
                         </div>
                     </div>
@@ -261,12 +249,12 @@ export function FinancialReports() {
                     {dateRange === 'custom' && (
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-6 p-4 bg-muted/30 rounded-xl border border-dashed border-border">
                             <div className="space-y-2">
-                                <label className="text-xs text-muted-foreground tracking-wide ml-1">Start Date</label>
+                                <label className="text-xs text-muted-foreground ml-1">Start date</label>
                                 <Popover>
                                     <PopoverTrigger asChild>
                                         <Button variant="outline" className={cn("w-full h-10 justify-start text-left font-normal rounded-lg border-input-border", !customStartDate && "text-muted-foreground")}>
                                             <CalendarIcon className="mr-2 h-4 w-4" />
-                                            {customStartDate ? format(customStartDate, "PPP") : <span>Select Date</span>}
+                                            {customStartDate ? format(customStartDate, "d MMM yyyy") : <span>Pick a date</span>}
                                         </Button>
                                     </PopoverTrigger>
                                     <PopoverContent className="w-auto p-0 rounded-xl shadow-lg border-border/50">
@@ -276,12 +264,12 @@ export function FinancialReports() {
                             </div>
 
                             <div className="space-y-2">
-                                <label className="text-xs text-muted-foreground tracking-wide ml-1">End Date</label>
+                                <label className="text-xs text-muted-foreground ml-1">End date</label>
                                 <Popover>
                                     <PopoverTrigger asChild>
                                         <Button variant="outline" className={cn("w-full h-10 justify-start text-left font-normal rounded-lg border-input-border", !customEndDate && "text-muted-foreground")}>
                                             <CalendarIcon className="mr-2 h-4 w-4" />
-                                            {customEndDate ? format(customEndDate, "PPP") : <span>Select Date</span>}
+                                            {customEndDate ? format(customEndDate, "d MMM yyyy") : <span>Pick a date</span>}
                                         </Button>
                                     </PopoverTrigger>
                                     <PopoverContent className="w-auto p-0 rounded-xl shadow-lg border-border/50">
@@ -297,67 +285,47 @@ export function FinancialReports() {
             {/* Report Content */}
             <Tabs value={reportType} onValueChange={(value) => setReportType(value as ReportType)} className="space-y-8">
                 <TabsList className="bg-muted/50 p-1 rounded-xl w-full md:w-auto inline-flex overflow-x-auto">
-                    <TabsTrigger value="income-statement" className="rounded-lg data-[state=active]:bg-background data-[state=active]:shadow-sm px-4">Income Statement</TabsTrigger>
-                    <TabsTrigger value="expense-breakdown" className="rounded-lg data-[state=active]:bg-background data-[state=active]:shadow-sm px-4">Expense Breakdown</TabsTrigger>
+                    <TabsTrigger value="income-statement" className="rounded-lg data-[state=active]:bg-background data-[state=active]:shadow-sm px-4">Income statement</TabsTrigger>
+                    <TabsTrigger value="expense-breakdown" className="rounded-lg data-[state=active]:bg-background data-[state=active]:shadow-sm px-4">Expense breakdown</TabsTrigger>
                     <TabsTrigger value="contribution-analysis" className="rounded-lg data-[state=active]:bg-background data-[state=active]:shadow-sm px-4">Contributions</TabsTrigger>
                     <TabsTrigger value="trend-analysis" className="rounded-lg data-[state=active]:bg-background data-[state=active]:shadow-sm px-4">Trends</TabsTrigger>
                 </TabsList>
 
                 <TabsContent value="income-statement" className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                        <Card className="glass-card shadow-sm border-border/50 rounded-xl overflow-hidden hover:shadow-md transition-all">
-                            <CardHeader className="flex flex-row items-center justify-between p-6 pb-2">
-                                <CardTitle className="text-sm text-muted-foreground tracking-wide">Total Inflow</CardTitle>
-                                <div className="p-2 bg-emerald-500/10 text-emerald-600 rounded-lg">
-                                    <TrendingUp className="h-4 w-4" />
-                                </div>
-                            </CardHeader>
-                            <CardContent className="px-6 pb-6">
-                                <div className="text-3xl tracking-tight text-foreground">{formatCurrency(reportData.totalIncome)}</div>
-                            </CardContent>
-                        </Card>
+                    <StatGrid className="lg:grid-cols-3">
+                        <StatCard
+                            label="Income"
+                            value={money(reportData.totalIncome)}
+                            icon={TrendingUp}
+                        />
+                        <StatCard
+                            label="Expenses"
+                            value={money(reportData.totalExpenses)}
+                            icon={TrendingDown}
+                        />
+                        <StatCard
+                            label="Net"
+                            value={money(reportData.netIncome)}
+                            icon={Wallet}
+                            hint={reportData.netIncome >= 0 ? "Surplus" : "Deficit"}
+                            hintTone={reportData.netIncome >= 0 ? "positive" : "negative"}
+                        />
+                    </StatGrid>
 
-                        <Card className="glass-card shadow-sm border-border/50 rounded-xl overflow-hidden hover:shadow-md transition-all">
-                            <CardHeader className="flex flex-row items-center justify-between p-6 pb-2">
-                                <CardTitle className="text-sm text-muted-foreground tracking-wide">Total Outflow</CardTitle>
-                                <div className="p-2 bg-rose-500/10 text-rose-600 rounded-lg">
-                                    <TrendingDown className="h-4 w-4" />
-                                </div>
-                            </CardHeader>
-                            <CardContent className="px-6 pb-6">
-                                <div className="text-3xl tracking-tight text-foreground">{formatCurrency(reportData.totalExpenses)}</div>
-                            </CardContent>
-                        </Card>
-
-                        <Card className="glass-card shadow-sm border-border/50 rounded-xl overflow-hidden hover:shadow-md transition-all">
-                            <CardHeader className="flex flex-row items-center justify-between p-6 pb-2">
-                                <CardTitle className="text-sm text-muted-foreground tracking-wide">Net Position</CardTitle>
-                                <div className={cn("p-2 rounded-lg", reportData.netIncome >= 0 ? "bg-emerald-500/10 text-emerald-600" : "bg-rose-500/10 text-rose-600")}>
-                                    <DollarSign className="h-4 w-4" />
-                                </div>
-                            </CardHeader>
-                            <CardContent className="px-6 pb-6">
-                                <div className={cn("text-3xl tracking-tight", reportData.netIncome >= 0 ? "text-emerald-600" : "text-rose-600")}>
-                                    {formatCurrency(reportData.netIncome)}
-                                </div>
-                            </CardContent>
-                        </Card>
-                    </div>
-
-                    <Card className="glass-card border-border/50 shadow-soft rounded-xl overflow-hidden">
+                    <Card className="rounded-xl overflow-hidden">
                         <CardHeader className="p-6 border-b border-border/50 bg-muted/20">
                             <CardTitle className="text-lg font-semibold flex items-center gap-2">
                                 <BarChart3 className="h-5 w-5 text-muted-foreground" />
-                                Inflow Categorization Matrix
+                                Income by category
                             </CardTitle>
                         </CardHeader>
                         <CardContent className="p-0">
                             <Table>
                                 <TableHeader>
                                     <TableRow className="hover:bg-transparent border-border/50">
-                                        <TableHead className="pl-6 h-12">Source</TableHead>
+                                        <TableHead className="pl-6 h-12">Category</TableHead>
                                         <TableHead className="text-right h-12">Amount</TableHead>
-                                        <TableHead className="text-right pr-6 h-12">Distribution</TableHead>
+                                        <TableHead className="text-right pr-6 h-12">Share</TableHead>
                                     </TableRow>
                                 </TableHeader>
                                 <TableBody>
@@ -366,14 +334,11 @@ export function FinancialReports() {
                                             <TableRow key={category} className="border-border/50 hover:bg-muted/30 transition-colors">
                                                 <TableCell className="pl-6 py-4">
                                                     <div className="flex items-center gap-3">
-                                                        <div className={cn("w-8 h-8 rounded-lg flex items-center justify-center text-lg", TRANSACTION_CATEGORIES[category as unknown as TransactionCategory]?.color.replace('bg-', 'bg-').replace('500', '100') || "bg-gray-100")}>
-                                                            {TRANSACTION_CATEGORIES[category as unknown as TransactionCategory]?.icon || '💰'}
-                                                        </div>
                                                         <span className="font-medium text-foreground">{TRANSACTION_CATEGORIES[category as unknown as TransactionCategory]?.label || category}</span>
                                                     </div>
                                                 </TableCell>
-                                                <TableCell className="text-right text-emerald-600">
-                                                    {formatCurrency(amount)}
+                                                <TableCell className="text-right text-success-strong">
+                                                    {money(amount)}
                                                 </TableCell>
                                                 <TableCell className="text-right pr-6">
                                                     <Badge variant="secondary" className="font-medium">
@@ -384,7 +349,7 @@ export function FinancialReports() {
                                         ))
                                     ) : (
                                         <TableRow>
-                                            <TableCell colSpan={3} className="h-24 text-center text-muted-foreground italic">No active inflow channels found for this period</TableCell>
+                                            <TableCell colSpan={3} className="h-24 text-center text-muted-foreground">No income recorded for this period</TableCell>
                                         </TableRow>
                                     )}
                                 </TableBody>
@@ -394,11 +359,11 @@ export function FinancialReports() {
                 </TabsContent>
 
                 <TabsContent value="expense-breakdown" className="animate-in fade-in slide-in-from-bottom-4 duration-500">
-                    <Card className="glass-card border-border/50 shadow-soft rounded-xl overflow-hidden">
+                    <Card className="rounded-xl overflow-hidden">
                         <CardHeader className="p-6 border-b border-border/50 bg-muted/20">
                             <CardTitle className="text-lg font-semibold flex items-center gap-2">
                                 <PieChart className="h-5 w-5 text-muted-foreground" />
-                                Expense Breakdown
+                                Expenses by category
                             </CardTitle>
                         </CardHeader>
                         <CardContent className="p-0">
@@ -407,7 +372,7 @@ export function FinancialReports() {
                                     <TableRow className="hover:bg-transparent border-border/50">
                                         <TableHead className="pl-6 h-12">Category</TableHead>
                                         <TableHead className="text-right h-12">Amount</TableHead>
-                                        <TableHead className="text-right pr-6 h-12">Impact</TableHead>
+                                        <TableHead className="text-right pr-6 h-12">Share</TableHead>
                                     </TableRow>
                                 </TableHeader>
                                 <TableBody>
@@ -416,25 +381,22 @@ export function FinancialReports() {
                                             <TableRow key={category} className="border-border/50 hover:bg-muted/30 transition-colors">
                                                 <TableCell className="pl-6 py-4">
                                                     <div className="flex items-center gap-3">
-                                                        <div className={cn("w-8 h-8 rounded-lg flex items-center justify-center text-lg", TRANSACTION_CATEGORIES[category as unknown as TransactionCategory]?.color.replace('bg-', 'bg-').replace('500', '100') || "bg-gray-100")}>
-                                                            {TRANSACTION_CATEGORIES[category as unknown as TransactionCategory]?.icon || '💸'}
-                                                        </div>
                                                         <span className="font-medium text-foreground">{TRANSACTION_CATEGORIES[category as unknown as TransactionCategory]?.label || category}</span>
                                                     </div>
                                                 </TableCell>
-                                                <TableCell className="text-right text-rose-600">
-                                                    {formatCurrency(amount)}
+                                                <TableCell className="text-right text-destructive-strong">
+                                                    {money(amount)}
                                                 </TableCell>
                                                 <TableCell className="text-right pr-6">
-                                                    <Badge variant="secondary" className="font-medium text-rose-600 bg-rose-50/50">
-                                                        {((amount / reportData.totalExpenses) * 100).toFixed(1)}% Share
+                                                    <Badge variant="secondary" className="font-medium text-destructive-strong bg-destructive/10">
+                                                        {((amount / reportData.totalExpenses) * 100).toFixed(1)}%
                                                     </Badge>
                                                 </TableCell>
                                             </TableRow>
                                         ))
                                     ) : (
                                         <TableRow>
-                                            <TableCell colSpan={3} className="h-24 text-center text-muted-foreground italic">No expenses recorded for this period</TableCell>
+                                            <TableCell colSpan={3} className="h-24 text-center text-muted-foreground">No expenses recorded for this period</TableCell>
                                         </TableRow>
                                     )}
                                 </TableBody>
@@ -444,25 +406,23 @@ export function FinancialReports() {
                 </TabsContent>
 
                 <TabsContent value="contribution-analysis" className="animate-in fade-in slide-in-from-bottom-4 duration-500">
-                    <Card className="glass-card border-border/50 border-dashed bg-muted/10 rounded-xl">
-                        <CardContent className="flex flex-col items-center justify-center p-20 text-center">
-                            <div className="p-6 bg-gradient-primary/5 rounded-full mb-6">
-                                <PieChart className="h-12 w-12 text-primary/40" />
-                            </div>
-                            <h3 className="text-xl font-semibold text-foreground mb-2">Analytics Module Pending</h3>
-                            <p className="text-muted-foreground max-w-sm">
-                                High-density contribution telemetry and donor analysis tools are currently under development.
-                            </p>
+                    <Card className="rounded-xl">
+                        <CardContent className="p-6">
+                            <EmptyState
+                                icon={PieChart}
+                                title="Contribution reports aren't available yet"
+                                description="Giving by member will appear here. Until then, the ledger lists every gift."
+                            />
                         </CardContent>
                     </Card>
                 </TabsContent>
 
                 <TabsContent value="trend-analysis" className="animate-in fade-in slide-in-from-bottom-4 duration-500">
-                    <Card className="glass-card border-border/50 shadow-soft rounded-xl overflow-hidden">
+                    <Card className="rounded-xl overflow-hidden">
                         <CardHeader className="p-6 border-b border-border/50 bg-muted/20">
                             <CardTitle className="text-lg font-semibold flex items-center gap-2">
                                 <TrendingUp className="h-5 w-5 text-muted-foreground" />
-                                Monthly Trends
+                                Monthly trends
                             </CardTitle>
                         </CardHeader>
                         <CardContent className="p-0">
@@ -472,7 +432,7 @@ export function FinancialReports() {
                                         <TableHead className="pl-6 h-12">Period</TableHead>
                                         <TableHead className="text-right h-12">Income</TableHead>
                                         <TableHead className="text-right h-12">Expenses</TableHead>
-                                        <TableHead className="text-right pr-6 h-12">Net Result</TableHead>
+                                        <TableHead className="text-right pr-6 h-12">Net</TableHead>
                                     </TableRow>
                                 </TableHeader>
                                 <TableBody>
@@ -480,18 +440,18 @@ export function FinancialReports() {
                                         Object.entries(reportData.monthlyData).map(([month, data]) => (
                                             <TableRow key={month} className="border-border/50 hover:bg-muted/30 transition-colors">
                                                 <TableCell className="pl-6 py-4 text-foreground">{month}</TableCell>
-                                                <TableCell className="text-right text-emerald-600">{formatCurrency(data.income)}</TableCell>
-                                                <TableCell className="text-right text-rose-600">{formatCurrency(data.expenses)}</TableCell>
+                                                <TableCell className="text-right text-success-strong">{money(data.income)}</TableCell>
+                                                <TableCell className="text-right text-destructive-strong">{money(data.expenses)}</TableCell>
                                                 <TableCell className="text-right pr-6">
-                                                    <Badge variant="outline" className={cn("font-medium border-0", data.net >= 0 ? "bg-emerald-500/10 text-emerald-700" : "bg-rose-500/10 text-rose-700")}>
-                                                        {formatCurrency(data.net)}
+                                                    <Badge variant="outline" className={cn("font-medium border-0", data.net >= 0 ? "bg-success/10 text-success-strong" : "bg-destructive/10 text-destructive-strong")}>
+                                                        {money(data.net)}
                                                     </Badge>
                                                 </TableCell>
                                             </TableRow>
                                         ))
                                     ) : (
                                         <TableRow>
-                                            <TableCell colSpan={4} className="h-24 text-center text-muted-foreground italic">No historical data available</TableCell>
+                                            <TableCell colSpan={4} className="h-24 text-center text-muted-foreground">No transactions in this period</TableCell>
                                         </TableRow>
                                     )}
                                 </TableBody>
@@ -501,27 +461,19 @@ export function FinancialReports() {
                 </TabsContent>
             </Tabs>
 
-            {/* Summary Footer */}
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
-                <Card className="glass-card border-border/50 shadow-sm p-4 flex flex-col items-center justify-center text-center">
-                    <span className="text-xs text-muted-foreground tracking-wide mb-1">Total Income</span>
-                    <span className="text-lg text-emerald-600">{formatCurrency(reportData.totalIncome)}</span>
-                </Card>
-                <Card className="glass-card border-border/50 shadow-sm p-4 flex flex-col items-center justify-center text-center">
-                    <span className="text-xs text-muted-foreground tracking-wide mb-1">Total Expenses</span>
-                    <span className="text-lg text-rose-600">{formatCurrency(reportData.totalExpenses)}</span>
-                </Card>
-                <Card className="glass-card border-border/50 shadow-sm p-4 flex flex-col items-center justify-center text-center">
-                    <span className="text-xs text-muted-foreground tracking-wide mb-1">Net Result</span>
-                    <span className={cn("text-lg", reportData.netIncome >= 0 ? "text-primary" : "text-rose-600")}>
-                        {formatCurrency(reportData.netIncome)}
-                    </span>
-                </Card>
-                <Card className="glass-card border-border/50 shadow-sm p-4 flex flex-col items-center justify-center text-center">
-                    <span className="text-xs text-muted-foreground tracking-wide mb-1">Transactions</span>
-                    <span className="text-lg text-foreground">{reportData.transactionCount}</span>
-                </Card>
-            </div>
+            {/* Summary footer */}
+            <StatGrid>
+                <StatCard label="Total income" value={money(reportData.totalIncome)} icon={TrendingUp} />
+                <StatCard label="Total expenses" value={money(reportData.totalExpenses)} icon={TrendingDown} />
+                <StatCard
+                    label="Net"
+                    value={money(reportData.netIncome)}
+                    icon={Wallet}
+                    hint={reportData.netIncome >= 0 ? "Surplus" : "Deficit"}
+                    hintTone={reportData.netIncome >= 0 ? "positive" : "negative"}
+                />
+                <StatCard label="Transactions" value={reportData.transactionCount} icon={Receipt} />
+            </StatGrid>
         </div>
     )
 }

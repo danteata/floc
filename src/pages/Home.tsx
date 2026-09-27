@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react'
 import { useUser, SignInButton } from '@clerk/clerk-react'
-import { useNavigate } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import { Button } from '@/components/ui/button'
+import { FREE_MEMBER_LIMIT, PRO_PRICE_GHS } from '@/lib/plans'
 import {
     Church,
     Calendar,
@@ -31,97 +32,97 @@ const SUNDAY_TIMELINE = [
         time: '8:45 AM',
         icon: QrCode,
         title: 'Check-in opens',
-        detail: 'Members scan at the door — no register, no queue.',
+        detail: 'Members scan a code at the door. No register, no queue.',
     },
     {
         time: '9:15 AM',
         icon: Users,
         title: '412 checked in · 23 first-timers',
-        detail: '94% self-served through the QR link.',
+        detail: 'Most checked themselves in on their phones.',
     },
     {
         time: '11:20 AM',
         icon: DollarSign,
-        title: '₵20,770 recorded',
-        detail: 'Tithes, offering and special giving tallied.',
+        title: '20,770 in giving recorded',
+        detail: 'Tithes, offering and special giving, added up for you.',
     },
     {
         time: 'Monday',
         icon: Share2,
-        title: '6 drifting members flagged for outreach',
-        detail: 'Ranked by who you’re most likely to win back — sent to 3 volunteers.',
+        title: '6 members flagged for a call',
+        detail: 'Those most likely to come back are at the top, and the list goes to 3 volunteers.',
     },
 ]
 
 const PROOF = [
     {
         icon: Eye,
-        title: 'Know who’s slipping',
-        desc: 'Drift is flagged automatically — before you’d ever notice by eye.',
+        title: 'See who’s drifting',
+        desc: 'Floc spots falling attendance before anyone would notice it.',
     },
     {
         icon: PhoneCall,
-        title: 'Know who to reach first',
-        desc: 'A care queue ranked by who you’re most likely to win back.',
+        title: 'Know who to call first',
+        desc: 'A care list with the people most likely to come back at the top.',
     },
     {
         icon: TrendingUp,
-        title: 'Know it’s working',
-        desc: '“Members Recovered” shows you the ones who came home.',
+        title: 'See it working',
+        desc: 'Floc counts the members who came back after your team reached out.',
     },
 ]
 
 const HOW_IT_WORKS = [
     {
-        title: 'Check-in logs itself',
-        desc: 'QR scan, kiosk tap, or self-service — attendance is recorded the moment someone walks in.',
+        title: 'Attendance takes care of itself',
+        desc: 'Members scan a QR code at the door, or a steward checks them in at the kiosk.',
     },
     {
-        title: 'The drifting surface on their own',
-        desc: 'The moment someone starts sliding — a couple of missed weeks, or weekly quietly turning into monthly — Floc flags them, long before it’s a real gap.',
+        title: 'Floc notices who’s drifting',
+        desc: 'A few missed weeks, or weekly quietly becoming monthly: Floc flags it early, while there’s still time to help.',
     },
     {
-        title: 'Reach them — and see who came back',
-        desc: 'Share a secure list with your care team, then watch “Members Recovered” climb as people return.',
+        title: 'Reach out, and see who returns',
+        desc: 'Send the list to your care team, then watch the people they called come back.',
     },
 ]
 
 const FEATURE_ROWS = [
     {
-        kicker: 'Care & retention — the heart of Floc',
-        title: 'See who’s slipping — and bring them back',
-        desc: 'This is what Floc is really for. It watches every attendance pattern so no quiet exit goes unnoticed, ranks who to reach first by who you’re most likely to win back, then shows you the ones who returned.',
+        kicker: 'Care and follow-up',
+        title: 'See who’s drifting, and bring them back',
+        desc: 'This is what Floc is for. It watches attendance so no quiet exit goes unnoticed, tells you who to call first, and shows you who came back.',
         bullets: [
-            'Impact-ranked care queue — who to call first, and why',
-            'Catch the slide early: sliding attendance + consecutive absences',
-            '“Members Recovered” — proof your follow-up is working',
-            'Shareable follow-up links — no login for volunteers',
+            'Who to call first, and why',
+            'Early warning from missed weeks and falling attendance',
+            'A count of the members who came back',
+            'Lists volunteers open from a link, with no login',
         ],
         visual: 'members',
         visualSide: 'left' as const,
     },
     {
         kicker: 'Attendance',
-        title: 'Check-in that just works',
-        desc: 'QR self-check-in, kiosk mode for stewards, geofencing, lateness tracking, and a full audit trail. Members scan, you get data.',
+        title: 'Check-in that runs itself',
+        desc: 'Members check in with a QR code, stewards use a kiosk at the door, and you watch the headcount as it happens.',
         bullets: [
-            'Live headcount as members check in',
-            'Geofence enforcement (strict or soft)',
-            'Automatic lateness detection',
-            'Kiosk mode for door stewards',
+            'A live headcount on the day',
+            'Check-in only at the venue, if you want it',
+            'Late arrivals noted for you',
+            'A kiosk mode for stewards',
         ],
         visual: 'qr',
         visualSide: 'right' as const,
     },
     {
-        kicker: 'Financial',
-        title: 'Every cedi, accounted for',
-        desc: 'Track tithes, offerings and expenses per service. Split by cash and electronic, attach receipts, and generate reports your finance team will love.',
+        kicker: 'Giving',
+        title: 'Every gift, accounted for',
+        desc: 'Record tithes, offerings and expenses for each service, cash and electronic, with receipts attached, and give your finance team reports they can use.',
         bullets: [
-            'Per-service income breakdown',
-            'Cash vs electronic tracking',
-            'Expense management with receipts',
-            'CSV export for accountants',
+            'Giving for each service',
+            'Cash and electronic kept apart',
+            'Expenses with their receipts',
+            'Exports for your accountant',
         ],
         visual: 'financial',
         visualSide: 'left' as const,
@@ -131,63 +132,61 @@ const FEATURE_ROWS = [
 const SECONDARY_FEATURES = [
     {
         icon: Layers,
-        title: 'Groups and Units',
-        desc: 'Hierarchical org structure with departments, zones, and small groups. Assign leaders, manage membership, and visualize your church’s shape.',
+        title: 'Groups and units',
+        desc: 'Departments, zones and small groups in one picture, each with its leaders and members.',
     },
     {
         icon: Calendar,
         title: 'Events',
-        desc: 'Event catalog with custom types, default times, grace windows, and unit scoping. The backbone of your attendance system.',
+        desc: 'Your services and events, when they start, and who they’re for.',
     },
     {
         icon: BarChart3,
-        title: 'Reports and Insights',
-        desc: 'Weekly and monthly trends, event comparisons, demographic breakdowns, retention rates, and exportable data for your leadership meetings.',
+        title: 'Reports and insights',
+        desc: 'Attendance trends, retention, and age and gender breakdowns, ready for your leadership meeting.',
     },
     {
         icon: UserCog,
-        title: 'Member Portal',
-        desc: 'Self-service for your members: check attendance history, view profile details, and link their account. No admin needed.',
+        title: 'Member portal',
+        desc: 'Members sign in to see their own attendance, giving and details.',
     },
     {
         icon: ShieldCheck,
-        title: 'Roles and Permissions',
-        desc: 'Six-level role hierarchy from super admin to member. Unit admins only see what they manage. Every change is audit-logged.',
+        title: 'Roles and permissions',
+        desc: 'Leaders see only the people they look after, and every change is recorded.',
     },
     {
         icon: Share2,
-        title: 'Follow-up Sharing',
-        desc: 'Generate secure public links for absent-member lists. Volunteers can call and follow up without needing an app account.',
+        title: 'Follow-up sharing',
+        desc: 'Share a private link to a list of absent members. Volunteers can call and follow up without an account.',
     },
 ]
 
 const PRICING = [
     {
         name: 'Free',
-        priceUsd: '$0',
-        priceGhs: '₵0',
+        price: 'GH₵0',
         period: '/month',
-        description: 'Everything a growing church needs to get organized and start tracking.',
-        features: ['Up to 200 members', 'QR check-in & kiosk mode', 'Attendance tracking', 'Basic financial records', 'Member portal & absent-list sharing'],
+        description: 'Everything a growing church needs to get organised and start taking attendance.',
+        features: [`Up to ${FREE_MEMBER_LIMIT} members`, 'QR check-in and kiosk mode', 'Attendance tracking', 'Basic financial records', 'Member portal and absent-list sharing'],
         cta: 'Get started free',
         highlight: false,
     },
     {
         name: 'Pro',
-        priceUsd: '$10',
-        priceGhs: '₵120',
+        price: `GH₵${PRO_PRICE_GHS}`,
         period: '/month',
-        description: 'For churches serious about keeping everyone — the full care engine and room to grow.',
+        description: 'For churches set on keeping everyone: the full care tools, and room to grow.',
         features: [
-            'At-risk scoring + impact-ranked care queue',
-            '“Members Recovered” outcome tracking',
-            'Automated follow-ups (if-this-then-that)',
+            'Early warning and a care list of who to call first',
+            'A count of members who came back',
+            'Automated follow-ups',
             'Unlimited members and units',
-            'Member map + geofenced check-in',
-            'Advanced reports, CSV export & full audit trail',
+            'Member map and geofenced check-in',
+            'Advanced reports, CSV export and a full audit trail',
             'Priority support',
         ],
-        cta: 'Choose Pro',
+        cta: 'Start with Pro',
         highlight: true,
     },
 ]
@@ -195,31 +194,31 @@ const PRICING = [
 const FAQS = [
     {
         q: 'How does Floc actually keep people from slipping away?',
-        a: 'Floc watches attendance for you: it catches members whose attendance is starting to slide — a couple of missed weeks, or weekly turning into monthly — well before they’re gone. It then builds a ranked “care queue” of who to reach first, prioritized by who you’re most likely to win back, and as those members return its “Members Recovered” metric shows your follow-up is working. You can tune exactly how early you’re alerted. It turns good intentions into a repeatable habit.',
+        a: 'Floc watches attendance for you. It catches members whose attendance is starting to slide, a couple of missed weeks or weekly turning into monthly, well before they’re gone. It then builds a care queue of who to reach first, ranked by who you’re most likely to win back, and as they return, “Members recovered” shows your follow-up is working. Good intentions become a habit.',
     },
     {
         q: 'How quickly can we get started?',
-        a: "Most churches are up and running in under 30 minutes. Import your member data, set up your first service, and you're ready — no long onboarding required.",
+        a: "Import your members from a spreadsheet, set up your first service, and you can take attendance the same day. There's no onboarding programme to sit through.",
     },
     {
         q: "Is my congregation's data secure?",
-        a: 'Yes. Data is encrypted in transit and at rest, backed up continuously, and never shared or sold. You own your data and can export it at any time.',
+        a: 'Your data travels over encrypted connections and is stored encrypted by our database provider. Each church sees only its own records, and leaders see only the units they lead. We never sell or share it, and you can export your members at any time. The privacy policy has the details.',
     },
     {
         q: 'Can I bring my existing data?',
-        a: 'Of course. Import members and units via CSV, or paste a spreadsheet. We keep imports simple and reversible.',
+        a: 'Yes. Upload your member list as a CSV or Excel file and Floc matches the columns, shows you a preview, and creates any units it names. Members already on file are updated rather than duplicated.',
     },
     {
         q: 'How does pricing work?',
-        a: 'Start free. When you need more — unlimited members, advanced reports, and priority support — upgrade to Pro for ₵150/month per organization. No setup fees, cancel anytime.',
+        a: `Start free, with up to ${FREE_MEMBER_LIMIT} members. When you need more, such as unlimited members, the care engine and advanced reports, upgrade to Pro for GH₵${PRO_PRICE_GHS} a month per church. No setup fees, and you can cancel at any time.`,
     },
     {
         q: 'Do members need an account?',
-        a: 'No. Admins manage the church; members can check in via QR or portal without a separate login. Invite-only access keeps your data safe.',
+        a: 'No. Members check in by scanning a QR code, with no account needed. Those who want to see their own attendance and giving can sign in to the member portal. Only the people you invite can manage the church.',
     },
     {
         q: 'What size church is Floc for?',
-        a: 'From church plants of 50 to congregations of 1,000+. Pricing scales with your needs, so you only pay for what you use.',
+        a: `From church plants to congregations in the thousands. The free plan covers up to ${FREE_MEMBER_LIMIT} members; Pro has no limit.`,
     },
 ]
 
@@ -291,15 +290,15 @@ export default function HomePage() {
                     <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 lg:gap-16 items-center">
                         <div>
                             <p className="text-sm font-medium text-primary mb-4">
-                                Not another member database
+                                Church management with care at its heart
                             </p>
                             <h1 className="font-serif text-4xl md:text-5xl lg:text-6xl font-medium tracking-tight leading-[1.08]">
                                 Make sure no one slips away.
                             </h1>
                             <p className="mt-6 text-lg text-neutral-600 leading-relaxed max-w-xl">
-                                Floc runs quietly behind your Sunday — check-ins, giving and attendance all
-                                handled — then flags the one who&apos;s drifting and hands your team the moment
-                                to reach them. So no one in your care quietly disappears.
+                                Floc takes care of the Sunday admin: check-in, attendance and giving. Then it
+                                tells you who has started drifting away, so your team can reach them while a
+                                phone call still makes a difference.
                             </p>
                             <div className="mt-8 flex flex-col sm:flex-row items-start gap-3">
                                 <SignInButton mode="modal">
@@ -315,9 +314,9 @@ export default function HomePage() {
                                 </a>
                             </div>
                             <div className="mt-8 flex flex-wrap items-center gap-x-6 gap-y-2 text-sm text-neutral-500">
-                                <span className="flex items-center gap-1.5"><Check className="h-4 w-4 text-primary" /> Free plan forever</span>
-                                <span className="flex items-center gap-1.5"><Check className="h-4 w-4 text-primary" /> No credit card needed</span>
-                                <span className="flex items-center gap-1.5"><Check className="h-4 w-4 text-primary" /> Set up in 5 minutes</span>
+                                <span className="flex items-center gap-1.5"><Check className="h-4 w-4 text-primary" /> Free for up to 200 members</span>
+                                <span className="flex items-center gap-1.5"><Check className="h-4 w-4 text-primary" /> No card needed</span>
+                                <span className="flex items-center gap-1.5"><Check className="h-4 w-4 text-primary" /> Set up the same day</span>
                             </div>
                         </div>
 
@@ -355,8 +354,8 @@ export default function HomePage() {
                         Proverbs 27:23
                     </p>
                     <p className="mt-8 text-neutral-600 text-lg leading-relaxed max-w-xl mx-auto">
-                        Floc takes its name from that charge. We built it to make knowing the condition of
-                        your flock effortless — so attention turns into action, and no one drifts away unseen.
+                        Floc takes its name from that charge. We built it so knowing the condition of your
+                        flock takes no effort, and caring for them gets the time instead.
                     </p>
                 </div>
             </section>
@@ -371,8 +370,8 @@ export default function HomePage() {
                         See everyone. Miss no one.
                     </h2>
                     <p className="mt-5 text-neutral-600 text-lg leading-relaxed">
-                        Floc connects every Sunday touchpoint, then turns quiet attendance patterns into a
-                        simple &ldquo;who to reach&rdquo; — before a gap becomes a goodbye.
+                        Floc brings check-in, attendance and giving together, then turns quiet changes in
+                        who comes into a short list of who to call, before a gap becomes a goodbye.
                     </p>
                 </div>
                 <div className="max-w-5xl mx-auto mt-16 relative grid grid-cols-1 md:grid-cols-3 gap-10">
@@ -429,7 +428,7 @@ export default function HomePage() {
                 <div className="max-w-6xl mx-auto">
                     <div className="max-w-2xl mx-auto text-center mb-14">
                         <h2 className="font-serif text-3xl md:text-4xl font-medium tracking-tight">
-                            And that&apos;s just the start
+                            Everything else your church runs on
                         </h2>
                     </div>
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -457,8 +456,8 @@ export default function HomePage() {
                             Simple, honest pricing
                         </h2>
                         <p className="mt-4 text-neutral-600 text-lg leading-relaxed">
-                            Start free, forever. Upgrade to Pro when you're ready for more — no setup fees,
-                            cancel anytime.
+                            Start free, for as long as you like. Upgrade to Pro when you're ready for more.
+                            No setup fees, and you can cancel at any time.
                         </p>
                     </div>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-5 max-w-3xl mx-auto items-stretch">
@@ -473,15 +472,14 @@ export default function HomePage() {
                             >
                                 {plan.highlight && (
                                     <span className="absolute -top-3 right-8 inline-flex items-center gap-1 rounded-full bg-primary px-3 py-1 text-xs font-semibold text-primary-foreground">
-                                        <Crown className="h-3.5 w-3.5" /> Most popular
+                                        <Crown className="h-3.5 w-3.5" /> Recommended
                                     </span>
                                 )}
                                 <p className="text-xs font-semibold tracking-[0.15em] text-neutral-400 uppercase">{plan.name}</p>
                                 <div className="flex items-baseline gap-1 mt-3">
-                                    <span className="font-serif text-5xl font-medium tracking-tight">{plan.priceUsd}</span>
+                                    <span className="font-serif text-5xl font-medium tracking-tight">{plan.price}</span>
                                     <span className="text-sm text-neutral-500">{plan.period}</span>
                                 </div>
-                                <p className="mt-1 text-xs text-neutral-400">≈ {plan.priceGhs} GHS</p>
                                 <p className="mt-3 text-sm text-neutral-600">{plan.description}</p>
                                 <ul className="mt-6 space-y-3 text-sm flex-1">
                                     {plan.features.map((f) => (
@@ -504,7 +502,7 @@ export default function HomePage() {
                         ))}
                     </div>
                     <p className="mt-8 text-center text-sm text-neutral-500">
-                        Billed in Ghana cedis (GHS). USD shown for reference — rates may vary.
+                        Prices are in Ghana cedis (GHS), billed monthly.
                     </p>
                 </div>
             </section>
@@ -517,7 +515,7 @@ export default function HomePage() {
                             Questions, answered
                         </h2>
                         <p className="mt-4 text-neutral-600 text-lg">
-                            Everything you need to know about Floc.
+                            The things churches ask us first.
                         </p>
                     </div>
                     <div className="space-y-3">
@@ -559,14 +557,14 @@ export default function HomePage() {
                     />
                     <p className="font-serif italic text-white/70 text-lg mb-5">
                         &ldquo;Of those you gave me, I have lost not one.&rdquo;
-                        <span className="not-italic text-white/40 text-sm">&nbsp;— John 18:9</span>
+                        <span className="not-italic text-white/40 text-sm">&nbsp;John 18:9</span>
                     </p>
                     <h2 className="font-serif text-3xl md:text-4xl font-medium tracking-tight text-white">
                         No one else has to slip away.
                     </h2>
                     <p className="mt-4 text-white/60 text-lg leading-relaxed max-w-xl mx-auto">
-                        Set up your first service in minutes and let Floc keep watch over everyone in your
-                        care. Start free — upgrade to Pro whenever you like.
+                        Set up your first service today and let Floc watch over everyone in your care.
+                        Start free, and move to Pro whenever you're ready.
                     </p>
                     <div className="mt-8 flex flex-col sm:flex-row items-center justify-center gap-3">
                         <SignInButton mode="modal">
@@ -582,14 +580,14 @@ export default function HomePage() {
                         </a>
                     </div>
                     <div className="mt-6 flex items-center justify-center gap-2 text-sm text-white/50">
-                        No credit card required · Cancel anytime
+                        No card needed for the free plan · Cancel at any time
                     </div>
                 </div>
             </section>
 
             {/* Footer */}
             <footer className="border-t border-black/[0.06] py-14 px-6">
-                <div className="max-w-6xl mx-auto grid grid-cols-2 md:grid-cols-5 gap-10">
+                <div className="max-w-6xl mx-auto grid grid-cols-2 md:grid-cols-3 gap-10">
                     <div className="col-span-2 md:col-span-1 pr-4">
                         <div className="flex items-center gap-2 mb-3">
                             <div className="h-6 w-6 rounded-md bg-primary text-primary-foreground flex items-center justify-center">
@@ -598,7 +596,7 @@ export default function HomePage() {
                             <span className="font-serif font-medium">Floc</span>
                         </div>
                         <p className="text-sm text-neutral-500 leading-relaxed">
-                            The ops layer that keeps your flock whole — so no one quietly slips away.
+                            Church management that keeps everyone in view, so no one quietly slips away.
                         </p>
                     </div>
                     <div>
@@ -610,31 +608,16 @@ export default function HomePage() {
                         </div>
                     </div>
                     <div>
-                        <h4 className="text-sm font-semibold mb-4">Resources</h4>
-                        <div className="space-y-2.5 text-sm">
-                            <a href="#" className="block text-neutral-500 hover:text-black transition-colors">Documentation</a>
-                            <a href="#" className="block text-neutral-500 hover:text-black transition-colors">Support</a>
-                            <a href="#" className="block text-neutral-500 hover:text-black transition-colors">Contact us</a>
-                        </div>
-                    </div>
-                    <div>
-                        <h4 className="text-sm font-semibold mb-4">Company</h4>
-                        <div className="space-y-2.5 text-sm">
-                            <a href="#" className="block text-neutral-500 hover:text-black transition-colors">About</a>
-                            <a href="#" className="block text-neutral-500 hover:text-black transition-colors">Our story</a>
-                        </div>
-                    </div>
-                    <div>
                         <h4 className="text-sm font-semibold mb-4">Legal</h4>
                         <div className="space-y-2.5 text-sm">
-                            <a href="#" className="block text-neutral-500 hover:text-black transition-colors">Privacy policy</a>
-                            <a href="#" className="block text-neutral-500 hover:text-black transition-colors">Terms of service</a>
+                            <Link to="/privacy" className="block text-neutral-500 hover:text-black transition-colors">Privacy policy</Link>
+                            <Link to="/terms" className="block text-neutral-500 hover:text-black transition-colors">Terms of service</Link>
                         </div>
                     </div>
                 </div>
                 <div className="max-w-6xl mx-auto mt-12 pt-8 border-t border-black/[0.06] flex flex-col sm:flex-row items-center justify-between gap-4 text-sm text-neutral-500">
-                    <p>© 2026 Floc. Built for churches.</p>
-                    <p>Built with love for churches</p>
+                    <p>© {new Date().getFullYear()} Floc</p>
+                    <p>Made for churches</p>
                 </div>
             </footer>
         </div>
@@ -647,11 +630,11 @@ function SundayTimelineCard() {
         <div className="rounded-3xl border border-black/[0.08] bg-white shadow-2xl shadow-black/5 p-6 max-w-md mx-auto lg:mx-0 w-full">
             <div className="flex items-center justify-between mb-6">
                 <div>
-                    <div className="text-sm font-semibold">Sunday Service</div>
-                    <div className="text-xs text-neutral-500">Today&apos;s timeline</div>
+                    <div className="text-sm font-semibold">A Sunday with Floc</div>
+                    <div className="text-xs text-neutral-500">From the doors opening to Monday&apos;s follow-up</div>
                 </div>
-                <span className="flex items-center gap-1.5 rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-medium text-emerald-700">
-                    <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" /> Live
+                <span className="rounded-full bg-neutral-100 px-2.5 py-1 text-xs font-medium text-neutral-600">
+                    Example
                 </span>
             </div>
             <div className="relative">
@@ -679,8 +662,8 @@ function SundayTimelineCard() {
 function FeatureVisual({ kind }: { kind: string }) {
     if (kind === 'members') {
         const rows = [
-            { name: 'Kwame Owusu', sub: "Ushering · Men's Fellowship", color: 'bg-rose-500', status: '3 wks absent', variant: 'absent' },
-            { name: 'Esi Danso', sub: 'Was 4 wks absent · returned', color: 'bg-teal-500', status: 'Recovered', variant: 'recovered' },
+            { name: 'Kwame Owusu', sub: "Ushering · Men's Fellowship", color: 'bg-rose-500', status: '3 weeks away', variant: 'absent' },
+            { name: 'Esi Danso', sub: 'Back after 4 weeks away', color: 'bg-teal-500', status: 'Recovered', variant: 'recovered' },
             { name: 'Ama Mensah', sub: 'Youth Ministry · Choir', color: 'bg-blue-500', status: 'Active', variant: 'active' },
             { name: 'Sarah Adjei', sub: 'First-time visitor', color: 'bg-emerald-500', status: 'Visitor', variant: 'visitor' },
         ]
@@ -733,9 +716,9 @@ function FeatureVisual({ kind }: { kind: string }) {
                     })}
                 </div>
                 <div className="mt-5 flex items-center gap-1.5 rounded-full bg-emerald-50 px-3 py-1.5 text-xs font-medium text-emerald-700">
-                    <Check className="h-3.5 w-3.5" /> Checked in successfully
+                    <Check className="h-3.5 w-3.5" /> Checked in
                 </div>
-                <p className="mt-2 text-xs text-neutral-500">Sunday Service · 9:02 AM · On time</p>
+                <p className="mt-2 text-xs text-neutral-500">Sunday service · 9:02 AM · On time</p>
             </div>
         )
     }

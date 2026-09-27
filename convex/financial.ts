@@ -356,8 +356,8 @@ export const createPendingGivingTransaction = internalMutation({
             category: args.category,
             amount: args.amount,
             description: args.giver_name
-                ? `Online gift via Paystack — ${args.giver_name}`
-                : "Online gift via Paystack",
+                ? `Online gift from ${args.giver_name}`
+                : "Online gift",
             date: new Date().toISOString().slice(0, 10),
             payment_method: "online",
             member_id: args.member_id,

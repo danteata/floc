@@ -12,7 +12,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
+import { MemberAvatar } from "@/components/ui/member-avatar"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Checkbox } from "@/components/ui/checkbox"
@@ -54,6 +54,12 @@ import { useMutation, useQuery } from "convex/react"
 import { api } from "../../convex/_generated/api"
 import { useToast } from "@/hooks/use-toast"
 import { useOrganization } from "@/hooks/use-organization"
+import { formatDay as formatDisplayDay } from '@/lib/display'
+
+/** "26 Sep 2026", or null when there is no date. */
+function formatDay(value?: string | null): string | null {
+  return value ? formatDisplayDay(value) : null
+}
 
 export function MembersTable({
   members,
@@ -97,12 +103,12 @@ export function MembersTable({
   const handleArchive = async (member: Member) => {
     try {
       await archiveMember({ id: member.id as any });
-      toast({ title: "Member archived", description: `${member.name} has been archived.` });
+      toast({ title: "Member archived", description: `${member.name} is hidden from active lists. Restore them from the Archived tab.` });
       onMemberUpdate?.();
     } catch (error: any) {
       toast({
-        title: "Failed to archive member",
-        description: error?.message || "Something went wrong. Please try again.",
+        title: "Couldn't archive the member",
+        description: error?.message || "Something went wrong. Try again.",
         variant: "destructive",
       });
     } finally {
@@ -117,8 +123,8 @@ export function MembersTable({
       onMemberUpdate?.();
     } catch (error: any) {
       toast({
-        title: "Failed to restore member",
-        description: error?.message || "Something went wrong. Please try again.",
+        title: "Couldn't restore the member",
+        description: error?.message || "Something went wrong. Try again.",
         variant: "destructive",
       });
     }
@@ -127,12 +133,12 @@ export function MembersTable({
   const handleDeletePermanently = async (member: Member) => {
     try {
       await deleteMember({ id: member.id as any });
-      toast({ title: "Member permanently deleted" });
+      toast({ title: "Member deleted", description: `${member.name} and their records have been removed.` });
       onMemberUpdate?.();
     } catch (error: any) {
       toast({
-        title: "Failed to delete member",
-        description: error?.message || "Something went wrong. Please try again.",
+        title: "Couldn't delete the member",
+        description: error?.message || "Something went wrong. Try again.",
         variant: "destructive",
       });
     } finally {
@@ -213,15 +219,11 @@ export function MembersTable({
   const getStatusBadge = (status: string) => {
     switch (status) {
       case "active":
-        return <Badge className="bg-green-500">Active</Badge>;
+        return <Badge className="bg-success/15 text-success-strong">Active</Badge>;
       case "inactive":
-        return (
-          <Badge variant="outline" className="text-amber-500 border-amber-500">
-            Inactive
-          </Badge>
-        );
+        return <Badge className="bg-warning/15 text-warning-strong">Inactive</Badge>;
       case "visitor":
-        return <Badge variant="secondary">Visitor</Badge>;
+        return <Badge className="bg-info/15 text-info-strong">Visitor</Badge>;
       default:
         return null;
     }
@@ -230,17 +232,13 @@ export function MembersTable({
   const getRiskBadge = (level?: string) => {
     switch (level) {
       case "low":
-        return <Badge className="bg-green-500 text-[10px]">Low</Badge>;
+        return <Badge className="bg-success/15 text-success-strong">Low risk</Badge>;
       case "medium":
-        return (
-          <Badge variant="outline" className="text-amber-500 border-amber-500 text-[10px]">
-            Medium
-          </Badge>
-        );
+        return <Badge className="bg-warning/15 text-warning-strong">Medium risk</Badge>;
       case "high":
-        return <Badge variant="destructive" className="text-[10px]">High</Badge>;
+        return <Badge className="bg-destructive/15 text-destructive-strong">High risk</Badge>;
       case "new":
-        return <Badge variant="secondary" className="text-[10px]">New</Badge>;
+        return <Badge className="bg-muted text-muted-foreground">New member</Badge>;
       default:
         return null;
     }
@@ -250,31 +248,26 @@ export function MembersTable({
     <div className="space-y-4">
       {/* Bulk Actions Bar */}
       {selectedMembers.length > 0 && (
-        <div className="flex items-center justify-between p-4 bg-white dark:bg-card border-4 border-black dark:border-white rounded-lg shadow-brutal">
-          <div className="flex items-center gap-3">
-            <div className="p-2 rounded-lg bg-blue-100 dark:bg-blue-900/50">
-              <Users className="w-5 h-5 text-blue-600 dark:text-blue-400" />
-            </div>
-            <span className="text-sm text-blue-900 dark:text-blue-100">
-              {selectedMembers.length} member{selectedMembers.length !== 1 ? 's' : ''} selected
-            </span>
-          </div>
-          <div className="flex items-center gap-2">
+        <div className="flex flex-col gap-3 rounded-xl bg-card p-3 ring-1 ring-foreground/10 sm:flex-row sm:items-center sm:justify-between">
+          <span className="text-sm font-medium text-foreground">
+            {selectedMembers.length} member{selectedMembers.length !== 1 ? 's' : ''} selected
+          </span>
+          <div className="flex flex-wrap items-center gap-2">
             <BulkLabelDialog
               selectedMembers={members.filter((m: any) => selectedMembers.includes(m.id || ''))}
               trigger={
-                <Button variant="outline" size="sm" className="gap-2 border-blue-300 hover:bg-blue-100 dark:border-blue-700 dark:hover:bg-blue-900/50">
-                  <Tag className="w-4 h-4 text-blue-600 dark:text-blue-400" />
-                  Manage Labels
+                <Button variant="outline" size="sm" className="gap-2">
+                  <Tag className="h-4 w-4 text-muted-foreground" />
+                  Labels
                 </Button>
               }
             />
             <BulkAddToUnitDialog
               selectedMembers={members.filter((m: any) => selectedMembers.includes(m.id || ''))}
               trigger={
-                <Button variant="outline" size="sm" className="gap-2 border-blue-300 hover:bg-blue-100 dark:border-blue-700 dark:hover:bg-blue-900/50">
-                  <Building2 className="w-4 h-4 text-blue-600 dark:text-blue-400" />
-                  Add to Unit
+                <Button variant="outline" size="sm" className="gap-2">
+                  <Building2 className="h-4 w-4 text-muted-foreground" />
+                  Add to unit
                 </Button>
               }
               onSuccess={() => {
@@ -285,9 +278,9 @@ export function MembersTable({
             <BulkAddToHouseholdDialog
               selectedMembers={members.filter((m: any) => selectedMembers.includes(m.id || ''))}
               trigger={
-                <Button variant="outline" size="sm" className="gap-2 border-blue-300 hover:bg-blue-100 dark:border-blue-700 dark:hover:bg-blue-900/50">
-                  <Home className="w-4 h-4 text-blue-600 dark:text-blue-400" />
-                  Add to Household
+                <Button variant="outline" size="sm" className="gap-2">
+                  <Home className="h-4 w-4 text-muted-foreground" />
+                  Add to household
                 </Button>
               }
               onSuccess={() => {
@@ -298,9 +291,9 @@ export function MembersTable({
             <BulkStatusDialog
               selectedMembers={members.filter((m: any) => selectedMembers.includes(m.id || ''))}
               trigger={
-                <Button variant="outline" size="sm" className="gap-2 border-blue-300 hover:bg-blue-100 dark:border-blue-700 dark:hover:bg-blue-900/50">
-                  <Users className="w-4 h-4 text-blue-600 dark:text-blue-400" />
-                  Set Status
+                <Button variant="outline" size="sm" className="gap-2">
+                  <Users className="h-4 w-4 text-muted-foreground" />
+                  Set status
                 </Button>
               }
               onSuccess={() => {
@@ -312,7 +305,7 @@ export function MembersTable({
               variant="ghost"
               size="sm"
               onClick={() => onSelectedMembersChange([])}
-              className="text-gray-600 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-800"
+              className="text-muted-foreground"
             >
               Clear selection
             </Button>
@@ -329,7 +322,7 @@ export function MembersTable({
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="w-44">
-            <DropdownMenuLabel>Toggle columns</DropdownMenuLabel>
+            <DropdownMenuLabel>Show columns</DropdownMenuLabel>
             <DropdownMenuSeparator />
             {([
               ["contact", "Contact"],
@@ -353,65 +346,65 @@ export function MembersTable({
         </DropdownMenu>
       </div>
 
-      <div className="rounded-xl border overflow-x-auto shadow-sm">
-        <Table>
+      <div className="overflow-hidden rounded-xl bg-card ring-1 ring-foreground/10">
+        <Table className="min-w-max">
           <TableHeader>
-            <TableRow className="bg-muted/30">
-              <TableHead className="w-[50px]">
+            <TableRow className="bg-muted hover:bg-muted [&>th]:whitespace-nowrap">
+              <TableHead className="w-12">
                 <Checkbox
                   checked={allLoadedSelected}
                   onCheckedChange={handleSelectAll}
                   aria-label="Select all members"
                 />
               </TableHead>
-              <TableHead className="min-w-[180px]">
-                <div className="flex items-center space-x-2 cursor-pointer" onClick={() => handleSort("name")}>
-                  <span className="font-bold">Name</span>
-                  <ArrowUpDown className="h-4 w-4" />
+              <TableHead className="min-w-48">
+                <div className="flex cursor-pointer items-center gap-2" onClick={() => handleSort("name")}>
+                  <span className="font-medium">Name</span>
+                  <ArrowUpDown className="h-3.5 w-3.5 text-muted-foreground" />
                 </div>
               </TableHead>
               {visibleCols.contact && <TableHead className="hidden md:table-cell">Contact</TableHead>}
               {visibleCols.address && <TableHead className="hidden md:table-cell">Address</TableHead>}
               {visibleCols.household && <TableHead className="hidden md:table-cell">Household</TableHead>}
               <TableHead className="hidden md:table-cell">
-                <div className="flex items-center space-x-2 cursor-pointer" onClick={() => handleSort("status")}>
-                  <span className="font-bold">Status</span>
-                  <ArrowUpDown className="h-4 w-4" />
+                <div className="flex cursor-pointer items-center gap-2" onClick={() => handleSort("status")}>
+                  <span className="font-medium">Status</span>
+                  <ArrowUpDown className="h-3.5 w-3.5 text-muted-foreground" />
                 </div>
               </TableHead>
               {visibleCols.units && (
                 <TableHead className="hidden md:table-cell">
                   <div className="flex items-center gap-2">
-                    <Users className="h-4 w-4" />
-                    <span className="font-bold">Units</span>
+                    <Users className="h-4 w-4 text-muted-foreground" />
+                    <span className="font-medium">Units</span>
                   </div>
                 </TableHead>
               )}
               {visibleCols.labels && (
                 <TableHead className="hidden xl:table-cell">
                   <div className="flex items-center gap-2">
-                    <Tag className="h-4 w-4" />
-                    <span className="font-bold">Labels</span>
+                    <Tag className="h-4 w-4 text-muted-foreground" />
+                    <span className="font-medium">Labels</span>
                   </div>
                 </TableHead>
               )}
               {visibleCols.lastAttendance && (
                 <TableHead className="hidden lg:table-cell">
-                  <div className="flex items-center space-x-2 cursor-pointer" onClick={() => handleSort("last_attendance")}>
-                    <span className="font-bold whitespace-nowrap">Last Attendance</span>
-                    <ArrowUpDown className="h-4 w-4" />
+                  <div className="flex cursor-pointer items-center gap-2" onClick={() => handleSort("last_attendance")}>
+                    <span className="font-medium">Last attendance</span>
+                    <ArrowUpDown className="h-3.5 w-3.5 text-muted-foreground" />
                   </div>
                 </TableHead>
               )}
               {visibleCols.score && (
                 <TableHead className="hidden lg:table-cell">
-                  <div className="flex items-center space-x-2 cursor-pointer" onClick={() => handleSort("score")}>
-                    <span className="font-bold whitespace-nowrap">Engagement</span>
-                    <ArrowUpDown className="h-4 w-4" />
+                  <div className="flex cursor-pointer items-center gap-2" onClick={() => handleSort("score")}>
+                    <span className="font-medium">Engagement</span>
+                    <ArrowUpDown className="h-3.5 w-3.5 text-muted-foreground" />
                   </div>
                 </TableHead>
               )}
-              <TableHead className="sticky right-0 z-20 bg-muted/30 text-right w-[120px] shadow-[-8px_0_8px_-8px_rgba(0,0,0,0.1)]">
+              <TableHead className="sticky right-0 z-20 w-32 min-w-32 border-l border-border bg-muted text-right">
                 Actions
               </TableHead>
             </TableRow>
@@ -428,18 +421,15 @@ export function MembersTable({
                 </TableCell>
                 <TableCell>
                   <div className="flex items-center gap-3">
-                    <Avatar className="ring-2 ring-primary/20">
-                      <AvatarImage src={member.avatar_url || member.avatar} alt={member.name} />
-                      <AvatarFallback className="bg-muted text-foreground font-semibold text-sm border border-border/50">{member.initials}</AvatarFallback>
-                    </Avatar>
+                    <MemberAvatar name={member.name} src={member.avatar_url || member.avatar} className="ring-2 ring-primary/20" />
                     <div className="flex flex-col gap-1 min-w-0">
-                      <div className="font-bold truncate">{member.name}</div>
-                      {/* Phone + status only shown here on mobile — the
+                      <div className="font-medium truncate">{member.name}</div>
+                      {/* Phone + status only shown here on mobile: the
                           Status column is hidden below md, and Contact is
                           hidden below md too, so this is the only place
                           either is visible on a small screen. */}
                       <div className="flex items-center gap-2 md:hidden">
-                        <span className="text-xs text-muted-foreground truncate">{member.phone || '—'}</span>
+                        <span className="text-xs text-muted-foreground truncate">{member.phone || 'No phone'}</span>
                         {getStatusBadge(member.status)}
                       </div>
                     </div>
@@ -449,23 +439,23 @@ export function MembersTable({
                   <TableCell className="hidden md:table-cell">
                     <div className="flex items-center text-sm text-muted-foreground">
                       <Phone className="mr-1 h-3 w-3" />
-                      <span>{member.phone || '—'}</span>
+                      <span>{member.phone || 'No phone'}</span>
                     </div>
                   </TableCell>
                 )}
                 {visibleCols.address && (
                   <TableCell className="hidden md:table-cell max-w-[160px] truncate text-sm text-muted-foreground">
-                    {member.address || member.city || '—'}
+                    {member.address || member.city || <span className="text-muted-foreground/70">No address</span>}
                   </TableCell>
                 )}
                 {visibleCols.household && (
                   <TableCell className="hidden md:table-cell">
                     {member.household_id ? (
-                      <Badge variant="outline" className="text-xs">
+                      <Badge variant="outline" className="font-normal">
                         {householdNameById.get(member.household_id as string) ?? "Household"}
                       </Badge>
                     ) : (
-                      <span className="text-xs text-muted-foreground/60">Not in a household</span>
+                      <span className="text-sm text-muted-foreground">Not in a household</span>
                     )}
                   </TableCell>
                 )}
@@ -475,12 +465,12 @@ export function MembersTable({
                     <div className="flex flex-wrap gap-1">
                       {((member as any).unit_names || []).length > 0 ? (
                         ((member as any).unit_names || []).map((unitName: string, idx: number) => (
-                          <Badge key={idx} variant="outline" className="text-xs">
+                          <Badge key={idx} variant="outline" className="font-normal">
                             {unitName}
                           </Badge>
                         ))
                       ) : (
-                        <span className="text-muted-foreground text-sm">—</span>
+                        <span className="text-muted-foreground text-sm">No units</span>
                       )}
                     </div>
                   </TableCell>
@@ -491,7 +481,9 @@ export function MembersTable({
                   </TableCell>
                 )}
                 {visibleCols.lastAttendance && (
-                  <TableCell className="hidden lg:table-cell font-medium">{member.last_attendance}</TableCell>
+                  <TableCell className="hidden lg:table-cell whitespace-nowrap">
+                    {formatDay(member.last_attendance) ?? <span className="text-muted-foreground">No record</span>}
+                  </TableCell>
                 )}
                 {visibleCols.score && (
                   <TableCell className="hidden lg:table-cell">
@@ -501,11 +493,11 @@ export function MembersTable({
                         {getRiskBadge(member.engagement_risk_level)}
                       </div>
                     ) : (
-                      <span className="text-muted-foreground text-sm">—</span>
+                      <span className="text-muted-foreground text-sm">Not scored</span>
                     )}
                   </TableCell>
                 )}
-                <TableCell className="sticky right-0 z-10 bg-card group-hover:bg-muted/50 shadow-[-8px_0_8px_-8px_rgba(0,0,0,0.1)]">
+                <TableCell className="sticky right-0 z-10 w-32 min-w-32 border-l border-border bg-card group-hover:bg-muted">
                   <div className="flex items-center justify-end gap-1">
                     <Button
                       variant="ghost"
@@ -595,7 +587,7 @@ export function MembersTable({
               <AlertDialogTitle>Archive {memberToArchive?.name}?</AlertDialogTitle>
               <AlertDialogDescription>
                 They'll be hidden from active lists and pickers, but their attendance and history are
-                preserved. You can restore them anytime from the Archived tab.
+                kept. You can restore them at any time from the Archived tab.
               </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>
@@ -612,7 +604,7 @@ export function MembersTable({
             <AlertDialogHeader>
               <AlertDialogTitle>Permanently delete {memberToDelete?.name}?</AlertDialogTitle>
               <AlertDialogDescription>
-                This cannot be undone. Their attendance records, unit assignments, and labels will be erased.
+                This can't be undone. Their attendance records, unit assignments and labels will be erased.
               </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>
@@ -621,7 +613,7 @@ export function MembersTable({
                 onClick={() => memberToDelete && handleDeletePermanently(memberToDelete)}
                 className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
               >
-                Delete Permanently
+                Delete permanently
               </AlertDialogAction>
             </AlertDialogFooter>
           </AlertDialogContent>

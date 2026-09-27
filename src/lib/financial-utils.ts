@@ -1,3 +1,5 @@
+import { DEFAULT_CURRENCY, formatMoney } from '@/lib/money'
+import { formatMonth } from '@/lib/display'
 import { FinancialTransaction, TransactionType, TransactionCategory, BudgetCategory } from '@/types/database'
 
 export const TRANSACTION_CATEGORIES: Record<TransactionCategory, { label: string; color: string; icon: string }> = {
@@ -16,26 +18,21 @@ export const TRANSACTION_CATEGORIES: Record<TransactionCategory, { label: string
 export const PAYMENT_METHODS = [
     { value: 'cash', label: 'Cash' },
     { value: 'check', label: 'Check' },
-    { value: 'bank_transfer', label: 'Bank Transfer' },
-    { value: 'credit_card', label: 'Credit Card' },
-    { value: 'online', label: 'Online Payment' },
+    { value: 'bank_transfer', label: 'Bank transfer' },
+    { value: 'credit_card', label: 'Card' },
+    { value: 'online', label: 'Online' },
     { value: 'other', label: 'Other' }
 ] as const
 
-export function formatCurrency(amount: number): string {
-    return new Intl.NumberFormat('en-US', {
-        style: 'currency',
-        currency: 'USD'
-    }).format(amount)
+/** Money in the church's currency (see src/lib/money.ts). This used to be
+ *  hard-wired to US dollars, whatever the church's books were kept in. */
+export function formatCurrency(amount: number, currency: string = DEFAULT_CURRENCY): string {
+    return formatMoney(amount, currency)
 }
 
-/** Online giving is GHS-only (see convex/paystack.ts) — format accordingly,
- *  rather than reusing formatCurrency's hardcoded USD. */
+/** Online giving settles in cedis only (see convex/paystack.ts). */
 export function formatGHS(amount: number): string {
-    return new Intl.NumberFormat('en-GB', {
-        style: 'currency',
-        currency: 'GHS'
-    }).format(amount)
+    return formatMoney(amount, 'GHS')
 }
 
 // Online gifts can sit as "pending" (checkout started, not yet confirmed) or
@@ -77,6 +74,38 @@ export function calculateTransactionTotals(transactions: FinancialTransaction[])
     })
 
     return totals
+}
+
+/**
+ * This calendar month's total of one type against last month's, from the
+ * transactions' own dates. `change` is a whole-number percentage, or null when
+ * last month had nothing to compare against (a percentage of zero is meaningless).
+ */
+export function monthOnMonth(
+    transactions: Array<{ type: string; amount: number; date: string; status?: string }>,
+    type: TransactionType,
+    now: Date = new Date(),
+): { current: number; previous: number; change: number | null } {
+    const thisMonth = now.getFullYear() * 12 + now.getMonth()
+    let current = 0
+    let previous = 0
+    for (const t of transactions) {
+        if (t.type !== type || !isCountedTransaction(t)) continue
+        const d = new Date(t.date)
+        if (Number.isNaN(d.getTime())) continue
+        const month = d.getFullYear() * 12 + d.getMonth()
+        if (month === thisMonth) current += t.amount
+        else if (month === thisMonth - 1) previous += t.amount
+    }
+    const change = previous > 0 ? Math.round(((current - previous) / previous) * 100) : null
+    return { current, previous, change }
+}
+
+/** "12% up on last month", "Level with last month", or null with nothing to compare. */
+export function describeMonthOnMonth(change: number | null): string | null {
+    if (change === null) return null
+    if (change === 0) return 'Level with last month'
+    return `${Math.abs(change)}% ${change > 0 ? 'up' : 'down'} on last month`
 }
 
 export function calculateBudgetVariance(budgets: BudgetCategory[], transactions: FinancialTransaction[]) {
@@ -189,7 +218,7 @@ export function getMonthlyTrend(transactions: FinancialTransaction[], months = 1
         const totals = calculateTransactionTotals(monthTransactions)
 
         trend.push({
-            month: date.toLocaleDateString('en-US', { month: 'short', year: 'numeric' }),
+            month: formatMonth(date),
             income: totals.income,
             expense: totals.expense,
             net: totals.net

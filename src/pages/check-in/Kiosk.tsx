@@ -22,8 +22,11 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
+import { MemberAvatar } from "@/components/ui/member-avatar"
 import { cn } from "@/lib/utils"
+import { errorMessage } from "@/lib/errors"
 import { toast } from "sonner"
+import { formatDay, sessionName, titleCase } from '@/lib/display'
 
 type SearchResult = {
     member_id: string
@@ -99,16 +102,16 @@ export default function KioskPage() {
                 memberId: suggestion.id as any,
             })
             if (res.status === "checked_in" || res.status === "already_checked_in") {
-                toast.success(`Checked in: ${res.member_name ?? suggestion.name}`)
+                toast.success(`${res.member_name ?? suggestion.name} is checked in`)
             } else {
-                toast.error(res.status ?? "Check-in failed")
+                toast.error(`Couldn't check in ${suggestion.name}`, { description: checkInProblem(res.status) })
             }
         } catch (err: any) {
-            toast.error(err?.message ?? "Check-in failed")
+            toast.error(`Couldn't check in ${suggestion.name}`, { description: errorMessage(err, "Check the connection and try again.") })
         }
     }
 
-    // Big QR for the kiosk screen — kiosk needs the token, so we regenerate one
+    // Big QR for the kiosk screen: kiosk needs the token, so we regenerate one
     // for display. Simpler: derive a short-lived display URL via regenerate is
     // too churny; instead the kiosk links members to the portal where they can
     // self-check-in. We surface the session display info + a "scan at door"
@@ -132,7 +135,7 @@ export default function KioskPage() {
             setSearch("")
             searchInputRef.current?.focus()
         } catch (err: any) {
-            toast.error(err?.message ?? "Check-in failed")
+            toast.error(`Couldn't check in ${member.name}`, { description: errorMessage(err, "Check the connection and try again.") })
         }
     }
 
@@ -145,7 +148,7 @@ export default function KioskPage() {
                 is_late: res.is_late,
                 created_new: res.created_new,
             })
-            toast.success(`Checked in: ${res.member_name ?? fallbackName}`)
+            toast.success(`${res.member_name ?? fallbackName} is checked in`)
         } else if (res.status === "already_checked_in") {
             setLastCheckIn({
                 memberId: memberId ?? "",
@@ -153,17 +156,9 @@ export default function KioskPage() {
                 status: "already_checked_in",
                 is_late: res.is_late,
             })
-            toast.info(`Already checked in: ${res.member_name ?? fallbackName}`)
-        } else if (res.status === "session_closed") {
-            toast.error("Session is closed")
-        } else if (res.status === "event_not_applicable") {
-            toast.error("This event doesn't apply to that member")
-        } else if (res.status === "wrong_org") {
-            toast.error("Member belongs to a different organization")
-        } else if (res.status === "out_of_scope") {
-            toast.error("That member isn't in a unit you manage")
+            toast.info(`${res.member_name ?? fallbackName} is already checked in`)
         } else {
-            toast.error(res.status ?? "Check-in failed")
+            toast.error(`Couldn't check in ${fallbackName}`, { description: checkInProblem(res.status) })
         }
         // Auto-clear the success banner after a few seconds.
         setTimeout(() => setLastCheckIn(null), 4000)
@@ -171,7 +166,7 @@ export default function KioskPage() {
 
     if (sessionLoading) {
         return (
-            <div className="min-h-screen flex items-center justify-center bg-muted/20">
+            <div className="min-h-dvh flex items-center justify-center bg-muted/20">
                 <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
             </div>
         )
@@ -179,35 +174,42 @@ export default function KioskPage() {
 
     if (!session) {
         return (
-            <div className="min-h-screen flex flex-col items-center justify-center bg-muted/20 p-6 gap-4">
-                <p className="text-sm text-muted-foreground">Session not found.</p>
-                <Link to="/attendance">
-                    <Button variant="outline" size="sm">
+            <div className="min-h-dvh flex flex-col items-center justify-center bg-muted/20 p-6 gap-4 text-center">
+                <div className="space-y-1">
+                    <p className="text-base font-semibold">We couldn't find this check-in</p>
+                    <p className="text-sm text-muted-foreground">It may have been removed. Open the kiosk again from Attendance.</p>
+                </div>
+                <Button asChild variant="outline" className="h-11">
+                    <Link to="/attendance">
                         <ArrowLeft className="mr-2 h-4 w-4" /> Back to attendance
-                    </Button>
-                </Link>
+                    </Link>
+                </Button>
             </div>
         )
     }
 
     return (
-        <div className="min-h-screen bg-muted/20 flex flex-col">
+        <div className="min-h-dvh bg-muted/20 flex flex-col">
             {/* Kiosk header */}
-            <header className="border-b bg-background px-6 py-3 flex items-center justify-between sticky top-0 z-10">
-                <div className="flex items-center gap-3">
-                    <Link to="/attendance" className="text-muted-foreground hover:text-foreground">
+            <header className="border-b bg-background px-4 py-3 sm:px-6 flex flex-wrap items-center justify-between gap-x-4 gap-y-2 sticky top-0 z-10">
+                <div className="flex min-w-0 items-center gap-2">
+                    <Link
+                        to="/attendance"
+                        aria-label="Back to attendance"
+                        className="-ml-2 flex h-11 w-11 shrink-0 items-center justify-center rounded-lg text-muted-foreground hover:text-foreground"
+                    >
                         <ArrowLeft className="h-5 w-5" />
                     </Link>
-                    <div>
-                        <h1 className="text-lg font-semibold leading-tight">{session.display_name}</h1>
-                        <p className="text-xs text-muted-foreground">
-                            {session.organization_name} · {session.date}
+                    <div className="min-w-0">
+                        <h1 className="truncate text-lg font-semibold leading-tight">{sessionName(session.display_name)}</h1>
+                        <p className="truncate text-xs text-muted-foreground">
+                            {[session.organization_name, formatDay(session.date)].filter(Boolean).join(" · ")}
                         </p>
                     </div>
                 </div>
                 <div className="flex items-center gap-4">
-                    <Badge variant={isOpen ? "default" : "secondary"} className={cn(isOpen && "bg-success/15 text-success border-success/30")}>
-                        {session.status}
+                    <Badge variant={isOpen ? "default" : "secondary"} className={cn(isOpen && "bg-success/15 text-success-strong")}>
+                        {sessionStatusLabel(session.status)}
                     </Badge>
                     <div className="flex items-center gap-2 text-sm">
                         <Users className="h-4 w-4 text-muted-foreground" />
@@ -219,7 +221,7 @@ export default function KioskPage() {
 
             {/* Success / already-checked-in banner */}
             {lastCheckIn && (
-                <div className="px-6 pt-4">
+                <div className="px-4 pt-4 sm:px-6">
                     <div
                         className={cn(
                             "rounded-xl border p-4 flex items-center gap-3 animate-in fade-in slide-in-from-top-2 duration-300",
@@ -230,38 +232,38 @@ export default function KioskPage() {
                     >
                         <CheckCircle2
                             className={cn(
-                                "h-8 w-8",
+                                "h-8 w-8 shrink-0",
                                 lastCheckIn.status === "checked_in" ? "text-success" : "text-primary",
                             )}
                         />
-                        <div className="flex-1">
-                            <p className="font-semibold text-lg">{lastCheckIn.name}</p>
+                        <div className="min-w-0 flex-1">
+                            <p className="truncate font-semibold text-lg">{lastCheckIn.name}</p>
                             <p className="text-sm text-muted-foreground">
                                 {lastCheckIn.status === "checked_in"
                                     ? lastCheckIn.created_new
-                                        ? "Welcome! New visitor checked in."
+                                        ? "Welcome. Checked in as a new visitor."
                                         : "Checked in."
                                     : "Already checked in."}
                                 {lastCheckIn.is_late && (
-                                    <span className="ml-2 text-amber-600 flex items-center gap-1 inline-flex">
-                                        <Clock className="h-3 w-3" /> late
+                                    <span className="ml-2 inline-flex items-center gap-1 text-warning-strong">
+                                        <Clock className="h-3 w-3" /> Late
                                     </span>
                                 )}
                             </p>
                         </div>
-                        <Button variant="ghost" size="icon" onClick={() => setLastCheckIn(null)}>
+                        <Button variant="ghost" size="icon" className="h-11 w-11 shrink-0" aria-label="Dismiss" onClick={() => setLastCheckIn(null)}>
                             <X className="h-4 w-4" />
                         </Button>
                     </div>
 
                     {householdSuggestions && householdSuggestions.length > 0 && (
                         <div className="mt-2 rounded-xl border border-dashed p-3 flex items-center gap-3 flex-wrap">
-                            <span className="text-sm text-muted-foreground">Also check in:</span>
+                            <span className="text-sm text-muted-foreground">Check in their household too:</span>
                             {householdSuggestions.map((s) => (
                                 <Button
                                     key={s.id}
-                                    size="sm"
                                     variant="outline"
+                                    className="h-11"
                                     onClick={() => handleCheckInSuggested(s)}
                                 >
                                     <UserCheck className="mr-1.5 h-3.5 w-3.5" />
@@ -273,7 +275,7 @@ export default function KioskPage() {
                 </div>
             )}
 
-            <div className="flex-1 grid gap-6 p-6 lg:grid-cols-[1fr_360px]">
+            <div className="flex-1 grid gap-6 p-4 sm:p-6 lg:grid-cols-[1fr_360px]">
                 {/* Search + results */}
                 <div className="flex flex-col gap-4">
                     <div className="relative">
@@ -281,7 +283,8 @@ export default function KioskPage() {
                         <Input
                             ref={searchInputRef}
                             autoFocus
-                            placeholder="Type a name, phone, or email…"
+                            placeholder="Type a name, phone or email…"
+                            aria-label="Find a member"
                             value={search}
                             onChange={(e) => setSearch(e.target.value)}
                             className="h-16 pl-14 text-lg rounded-xl"
@@ -291,7 +294,8 @@ export default function KioskPage() {
                             <Button
                                 variant="ghost"
                                 size="icon"
-                                className="absolute right-2 top-1/2 -translate-y-1/2 h-10 w-10"
+                                aria-label="Clear search"
+                                className="absolute right-2 top-1/2 -translate-y-1/2 h-11 w-11"
                                 onClick={() => {
                                     setSearch("")
                                     searchInputRef.current?.focus()
@@ -313,9 +317,9 @@ export default function KioskPage() {
                                 <Card className="border-dashed">
                                     <CardContent className="p-6 text-center">
                                         <p className="text-sm text-muted-foreground mb-3">
-                                            No matching member found for “{search}”.
+                                            No one called “{search}” yet. If they're new, check them in as a visitor.
                                         </p>
-                                        <Button onClick={() => setShowVisitorForm(true)} disabled={!isOpen}>
+                                        <Button className="h-11" onClick={() => setShowVisitorForm(true)} disabled={!isOpen}>
                                             <UserPlus className="mr-2 h-4 w-4" />
                                             Check in as visitor
                                         </Button>
@@ -329,37 +333,35 @@ export default function KioskPage() {
                                             onClick={() => handleCheckInMember(r)}
                                             disabled={r.already_checked_in || !isOpen}
                                             className={cn(
-                                                "w-full text-left rounded-xl border bg-background p-4 flex items-center justify-between transition-colors",
+                                                "w-full text-left rounded-xl border bg-background p-4 flex items-center justify-between gap-3 transition-colors",
                                                 r.already_checked_in
                                                     ? "opacity-60 cursor-default"
                                                     : "hover:border-primary/40 hover:bg-primary/5 active:bg-primary/10",
                                                 !isOpen && "opacity-50",
                                             )}
                                         >
-                                            <div className="flex items-center gap-3">
-                                                <div className="h-11 w-11 rounded-full bg-muted flex items-center justify-center text-sm font-semibold">
-                                                    {r.name.slice(0, 2).toUpperCase()}
-                                                </div>
-                                                <div>
-                                                    <p className="font-medium text-base">
+                                            <div className="flex min-w-0 items-center gap-3">
+                                                <MemberAvatar name={`${r.name}${r.other_names ? ` ${r.other_names}` : ""}`} size="lg" />
+                                                <div className="min-w-0">
+                                                    <p className="truncate font-medium text-base">
                                                         {r.name}
                                                         {r.other_names ? ` ${r.other_names}` : ""}
                                                     </p>
-                                                    <p className="text-xs text-muted-foreground">
-                                                        {r.phone ?? r.email ?? "No contact"}
+                                                    <p className="truncate text-xs text-muted-foreground">
+                                                        {r.phone ?? r.email ?? "No phone or email"}
                                                     </p>
                                                 </div>
                                             </div>
-                                            <div className="flex items-center gap-2">
+                                            <div className="flex shrink-0 flex-wrap items-center justify-end gap-2">
                                                 {r.status === "visitor" && (
-                                                    <Badge variant="outline">visitor</Badge>
+                                                    <Badge variant="outline">Visitor</Badge>
                                                 )}
                                                 {r.already_checked_in ? (
                                                     <Badge variant="secondary" className="gap-1">
-                                                        <CheckCircle2 className="h-3 w-3" /> in
+                                                        <CheckCircle2 className="h-3 w-3" /> Checked in
                                                     </Badge>
                                                 ) : (
-                                                    <span className="text-sm text-primary flex items-center gap-1">
+                                                    <span className="text-sm text-primary flex items-center gap-1 whitespace-nowrap">
                                                         <UserCheck className="h-4 w-4" /> Check in
                                                     </span>
                                                 )}
@@ -367,9 +369,9 @@ export default function KioskPage() {
                                         </button>
                                     ))}
                                     <div className="pt-2">
-                                        <Button variant="outline" onClick={() => setShowVisitorForm(true)} disabled={!isOpen}>
+                                        <Button variant="outline" className="h-11 w-full sm:w-auto" onClick={() => setShowVisitorForm(true)} disabled={!isOpen}>
                                             <UserPlus className="mr-2 h-4 w-4" />
-                                            Not in the list? Check in as visitor
+                                            Not listed? Check in a visitor
                                         </Button>
                                     </div>
                                 </>
@@ -380,11 +382,12 @@ export default function KioskPage() {
                     {/* Idle hint when no search */}
                     {search.trim().length < 2 && !lastCheckIn && (
                         <div className="flex flex-col items-center justify-center py-16 text-center text-muted-foreground">
-                            <Search className="h-10 w-10 mb-2 opacity-40" />
-                            <p className="text-sm">Start typing to find a member to check in.</p>
+                            <Search className="h-8 w-8 mb-2 text-muted-foreground/30" />
+                            <p className="text-sm font-medium text-foreground">{isOpen ? "Find someone to check in" : "Check-in is closed"}</p>
+                            <p className="text-sm">{isOpen ? "Type at least two letters of their name, or their phone or email." : "Open the check-in again from Attendance to use this kiosk."}</p>
                             <Button
                                 variant="outline"
-                                className="mt-4"
+                                className="mt-4 h-11"
                                 onClick={() => setShowVisitorForm(true)}
                                 disabled={!isOpen}
                             >
@@ -410,26 +413,26 @@ export default function KioskPage() {
                             </div>
                         ) : roster.length === 0 ? (
                             <div className="p-8 text-center text-sm text-muted-foreground">
-                                No one checked in yet.
+                                No one checked in yet. Names appear here as people arrive.
                             </div>
                         ) : (
                             <div className="divide-y">
                                 {roster.map((r: RosterEntry) => (
-                                    <div key={r.member_id + (r.checked_in_at ?? "")} className="p-3 flex items-center justify-between">
-                                        <div>
-                                            <p className="text-sm font-medium">{r.member_name}</p>
+                                    <div key={r.member_id + (r.checked_in_at ?? "")} className="p-3 flex items-center justify-between gap-3">
+                                        <div className="min-w-0">
+                                            <p className="truncate text-sm font-medium">{r.member_name}</p>
                                             <p className="text-xs text-muted-foreground">
                                                 {r.checked_in_at
-                                                    ? new Date(r.checked_in_at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
-                                                    : "—"}
+                                                    ? new Date(r.checked_in_at).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" })
+                                                    : "Time not recorded"}
                                             </p>
                                         </div>
-                                        <div className="flex items-center gap-2">
+                                        <div className="flex shrink-0 items-center gap-2">
                                             {r.is_late && (
-                                                <Badge variant="outline" className="text-amber-600 border-amber-600/30">late</Badge>
+                                                <Badge className="bg-warning/15 text-warning-strong">Late</Badge>
                                             )}
                                             {r.member_status === "visitor" && (
-                                                <Badge variant="outline">visitor</Badge>
+                                                <Badge variant="outline">Visitor</Badge>
                                             )}
                                         </div>
                                     </div>
@@ -459,7 +462,7 @@ export default function KioskPage() {
                             setSearch("")
                             searchInputRef.current?.focus()
                         } catch (err: any) {
-                            toast.error(err?.message ?? "Visitor check-in failed")
+                            toast.error(`Couldn't check in ${name}`, { description: errorMessage(err, "Check the connection and try again.") })
                         }
                     }}
                 />
@@ -496,37 +499,44 @@ function VisitorDialog({
     }
 
     return (
-        <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4" onClick={onClose}>
+        <div className="fixed inset-0 z-50 bg-black/50 flex items-end justify-center p-4 sm:items-center" onClick={onClose}>
             <div
-                className="bg-background rounded-2xl shadow-xl w-full max-w-md p-6"
+                role="dialog"
+                aria-modal="true"
+                aria-labelledby="visitor-dialog-title"
+                className="bg-background rounded-xl ring-1 ring-foreground/10 shadow-xl w-full max-w-md max-h-[90dvh] overflow-y-auto p-5 sm:p-6"
                 onClick={(e) => e.stopPropagation()}
             >
                 <div className="flex items-center justify-between mb-4">
-                    <h2 className="text-lg font-semibold flex items-center gap-2">
-                        <UserPlus className="h-5 w-5" /> New visitor
+                    <h2 id="visitor-dialog-title" className="text-lg font-semibold flex items-center gap-2">
+                        <UserPlus className="h-5 w-5 text-muted-foreground" /> New visitor
                     </h2>
-                    <Button variant="ghost" size="icon" onClick={onClose}>
+                    <Button variant="ghost" size="icon" className="h-11 w-11" aria-label="Close" onClick={onClose}>
                         <X className="h-4 w-4" />
                     </Button>
                 </div>
                 <form onSubmit={handleSubmit} className="space-y-4">
                     <div className="space-y-2">
-                        <Label htmlFor="vname">Full name *</Label>
+                        <Label htmlFor="vname">Full name</Label>
                         <Input
                             id="vname"
                             value={name}
                             onChange={(e) => setName(e.target.value)}
                             autoFocus
-                            placeholder="e.g. Kwame Mensah"
+                            required
+                            placeholder="Kwame Mensah"
+                            className="h-11"
                         />
                     </div>
                     <div className="space-y-2">
-                        <Label htmlFor="vphone">Phone (helps us recognize them next time)</Label>
+                        <Label htmlFor="vphone">Phone (optional, helps us recognise them next time)</Label>
                         <Input
                             id="vphone"
                             value={phone}
                             onChange={(e) => setPhone(e.target.value)}
-                            placeholder="e.g. +233 24 123 4567"
+                            type="tel"
+                            placeholder="+233 24 123 4567"
+                            className="h-11"
                         />
                     </div>
                     <div className="space-y-2">
@@ -537,17 +547,18 @@ function VisitorDialog({
                             value={email}
                             onChange={(e) => setEmail(e.target.value)}
                             placeholder="visitor@example.com"
+                            className="h-11"
                         />
                     </div>
                     <p className="text-xs text-muted-foreground">
-                        Visitors are saved as member records with “visitor” status. When they become a member,
-                        their attendance history carries over — nothing is lost.
+                        We save visitors as members marked “Visitor”. If they join the church later, their
+                        attendance comes with them.
                     </p>
                     <div className="flex gap-2 pt-2">
-                        <Button type="button" variant="outline" className="flex-1" onClick={onClose}>
+                        <Button type="button" variant="outline" className="h-11 flex-1" onClick={onClose}>
                             Cancel
                         </Button>
-                        <Button type="submit" className="flex-1" disabled={!canSubmit}>
+                        <Button type="submit" className="h-11 flex-1" disabled={!canSubmit}>
                             {submitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                             Check in visitor
                         </Button>
@@ -557,3 +568,40 @@ function VisitorDialog({
         </div>
     )
 }
+/** What went wrong with a check-in, and what to do about it. */
+function checkInProblem(status?: string): string {
+    switch (status) {
+        case "session_closed":
+        case "outside_window":
+            return "Check-in for this event is closed. Reopen it from Attendance to keep checking people in."
+        case "event_not_applicable":
+            return "This event is only for certain groups, and they aren't in one of them."
+        case "wrong_org":
+            return "They're a member of a different church."
+        case "out_of_scope":
+            return "They aren't in a unit you look after. Ask an admin to check them in."
+        case "member_inactive":
+            return "Their member record is inactive. Update it in Members, then try again."
+        default:
+            return "Something unexpected happened. Try again, or record them from Attendance."
+    }
+}
+
+function sessionStatusLabel(status?: string | null): string {
+    switch (status) {
+        case "open":
+            return "Open"
+        case "closed":
+            return "Closed"
+        case "draft":
+            return "Not open yet"
+        case "expired":
+            return "Expired"
+        case "revoked":
+            return "Cancelled"
+        default:
+            return status ? status.charAt(0).toUpperCase() + status.slice(1) : ""
+    }
+}
+
+

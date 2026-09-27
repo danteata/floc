@@ -1,12 +1,8 @@
 "use client"
 
-import { useState } from "react"
-import { Cake, Heart, Sparkles } from "lucide-react"
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import { Card, CardContent } from "@/components/ui/card"
+import { MemberAvatar } from "@/components/ui/member-avatar"
 import { Badge } from "@/components/ui/badge"
 import type { BirthdayMember } from "@/lib/birthday-utils"
-import { formatBirthdayDate, getBirthdayMessage } from "@/lib/birthday-utils"
 import { cn } from "@/lib/utils"
 
 interface BirthdayCardProps {
@@ -14,117 +10,55 @@ interface BirthdayCardProps {
     index?: number
 }
 
-export function BirthdayCard({ member, index }: BirthdayCardProps) {
-    const [isHovered, setIsHovered] = useState(false)
+/** "27 September", as the rest of the app writes dates. */
+function birthdayDate(month: number, day: number): string {
+    return new Date(2000, month - 1, day).toLocaleDateString("en-GB", { day: "numeric", month: "long" })
+}
 
-    const birthdayMessage = getBirthdayMessage(member.daysUntilBirthday, member.isToday)
-    const formattedDate = formatBirthdayDate(member.birth_month, member.birth_day)
+/** "Today", "Tomorrow", "In 5 days": plain words, no emoji or exclamation marks. */
+function whenLabel(daysUntil: number, isToday: boolean): string {
+    if (isToday || daysUntil === 0) return "Today"
+    if (daysUntil === 1) return "Tomorrow"
+    return `In ${daysUntil} days`
+}
+
+// `index` is kept for callers; cards no longer stagger their entrance.
+export function BirthdayCard({ member }: BirthdayCardProps) {
+    const when = whenLabel(member.daysUntilBirthday, member.isToday)
+    const formattedDate = birthdayDate(member.birth_month, member.birth_day)
 
     return (
-        <Card
+        <div
             className={cn(
-                "relative overflow-hidden transition-all duration-300 rounded-xl border border-border bg-card",
-                member.isToday
-                    ? 'ring-2 ring-pink-500/20 shadow-lg shadow-pink-500/10'
-                    : 'hover:shadow-soft-lg hover:-translate-y-1'
+                "flex min-w-0 items-center gap-3 rounded-lg border p-3",
+                member.isToday ? "border-primary/40 bg-primary/5" : "border-border bg-card"
             )}
-            onMouseEnter={() => setIsHovered(true)}
-            onMouseLeave={() => setIsHovered(false)}
         >
-            {/* Gradient accent bar for today */}
-            {member.isToday && (
-                <div className="absolute top-0 left-0 right-0 h-1.5 bg-gradient-to-r from-pink-500 to-purple-500" />
-            )}
+            <MemberAvatar name={member.name} src={member.avatar_url || member.avatar} size="lg" />
 
-            {/* Floating sparkles animation */}
-            {isHovered && member.isToday && (
-                <div className="absolute inset-0 pointer-events-none fade-in">
-                    <Sparkles className="absolute top-2 right-2 h-4 w-4 text-pink-400 animate-pulse" />
-                    <Sparkles className="absolute top-8 left-4 h-3 w-3 text-purple-400 animate-pulse delay-100" />
-                    <Sparkles className="absolute bottom-4 right-8 h-3 w-3 text-yellow-400 animate-pulse delay-200" />
+            <div className="min-w-0 flex-1">
+                <div className="flex items-center justify-between gap-2">
+                    <p className="truncate text-sm font-semibold text-foreground">{member.name}</p>
+                    {member.age && (
+                        <Badge variant="secondary" className="shrink-0">
+                            Age {member.age}
+                        </Badge>
+                    )}
                 </div>
-            )}
-
-            <CardContent className="p-4 relative z-10">
-                <div className="flex items-center space-x-3">
-                    {/* Avatar with special styling for today */}
-                    <div className="relative">
-                        <Avatar className={cn(
-                            "h-12 w-12 transition-all duration-300 border-2 border-background",
-                            member.isToday ? 'ring-2 ring-pink-500' : 'ring-1 ring-border',
-                            isHovered ? 'scale-105' : ''
-                        )}>
-                            <AvatarImage
-                                src={member.avatar_url || member.avatar}
-                                alt={member.name}
-                                className="object-cover"
-                            />
-                            <AvatarFallback className={cn(
-                                "font-semibold",
-                                member.isToday ? 'bg-pink-100 text-pink-600' : 'bg-muted text-muted-foreground'
-                            )}>
-                                {member.initials}
-                            </AvatarFallback>
-                        </Avatar>
-
-                        {/* Birthday cake icon for today's birthdays */}
-                        {member.isToday && (
-                            <div className="absolute -top-1 -right-1 bg-white dark:bg-card rounded-full p-0.5 shadow-sm">
-                                <div className="bg-gradient-to-br from-pink-500 to-purple-500 text-white rounded-full p-1">
-                                    <Cake className="h-2.5 w-2.5" />
-                                </div>
-                            </div>
-                        )}
-                    </div>
-
-                    <div className="flex-1 min-w-0">
-                        <div className="flex items-center justify-between">
-                            <h3 className={cn(
-                                "font-semibold truncate transition-colors",
-                                member.isToday ? 'text-pink-600 dark:text-pink-400' : 'text-foreground',
-                                isHovered && !member.isToday ? 'text-primary' : ''
-                            )}>
-                                {member.name}
-                            </h3>
-
-                            {/* Age badge if available */}
-                            {member.age && (
-                                <Badge
-                                    variant={member.isToday ? "default" : "secondary"}
-                                    className={cn(
-                                        "text-[10px] px-1.5 h-5 ml-2",
-                                        member.isToday ? "bg-pink-500 hover:bg-pink-600" : ""
-                                    )}
-                                >
-                                    {member.age}
-                                </Badge>
-                            )}
-                        </div>
-
-                        <div className="text-xs text-muted-foreground mt-0.5">
-                            {formattedDate}
-                        </div>
-
-                        <div className={cn(
-                            "text-xs mt-1 transition-colors duration-300",
-                            member.isToday
-                                ? 'text-pink-500 dark:text-pink-300'
-                                : member.daysUntilBirthday <= 7
-                                    ? 'text-orange-500 dark:text-orange-400'
-                                    : 'text-muted-foreground/70'
-                        )}>
-                            {birthdayMessage}
-                        </div>
-                    </div>
-                </div>
-
-                {/* Heart animation for today's birthdays */}
-                {member.isToday && (
-                    <div className="absolute bottom-2 right-2 opacity-10">
-                        <Heart className="h-6 w-6 text-pink-500 animate-pulse" />
-                    </div>
-                )}
-            </CardContent>
-        </Card>
+                <p className="mt-0.5 text-xs text-muted-foreground">{formattedDate}</p>
+                <p
+                    className={cn(
+                        "mt-0.5 text-xs",
+                        member.isToday
+                            ? "font-medium text-primary"
+                            : member.daysUntilBirthday <= 7
+                                ? "text-warning-strong"
+                                : "text-muted-foreground"
+                    )}
+                >
+                    {when}
+                </p>
+            </div>
+        </div>
     )
 }

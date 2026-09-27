@@ -62,26 +62,24 @@ export function MergeUnitDialog({ open, onOpenChange, source, units, onMerge, me
 
   return (
     <Dialog open={open} onOpenChange={(o) => { if (!o) setTargetId(''); onOpenChange(o); }}>
-      <DialogContent className="sm:max-w-[500px] glass-card border-border/50 shadow-soft">
+      <DialogContent className="sm:max-w-[500px]">
         <DialogHeader>
-          <DialogTitle className="flex items-center gap-2 text-xl">
-            <div className="p-2 bg-primary/10 rounded-lg text-primary">
-              <GitMerge className="h-5 w-5" />
-            </div>
+          <DialogTitle className="flex items-center gap-2 text-lg">
+            <GitMerge className="h-4 w-4 text-muted-foreground" />
             Merge unit
           </DialogTitle>
           <DialogDescription>
             Move everything from <span className="font-medium text-foreground">{source?.name}</span> into
-            another unit, then delete it. Members, admins, sub-units, and event/automation scoping all move over.
+            another unit, then delete it. Its members, admins and sub-units move over, along with any events and automations set up for it.
           </DialogDescription>
         </DialogHeader>
 
         <div className="space-y-5 py-4">
           <div className="space-y-2">
-            <Label className="text-xs font-semibold text-muted-foreground tracking-wider">Merge into (survivor) *</Label>
+            <Label className="text-sm font-medium">Merge into *</Label>
             <Select value={targetId} onValueChange={setTargetId} disabled={merging}>
               <SelectTrigger className="bg-background/50 border-input-border">
-                <SelectValue placeholder="Select the unit to keep" />
+                <SelectValue placeholder="Choose the unit to keep" />
               </SelectTrigger>
               <SelectContent>
                 {candidates.map((u) => (
@@ -98,21 +96,21 @@ export function MergeUnitDialog({ open, onOpenChange, source, units, onMerge, me
                 <ArrowRight className="h-4 w-4 text-muted-foreground" />
                 <span>{preview.targetName}</span>
               </div>
-              <ul className="text-muted-foreground text-[13px] space-y-1">
+              <ul className="text-muted-foreground text-sm space-y-1">
                 <li>• {preview.newMembers} member{preview.newMembers === 1 ? '' : 's'} will move over
                   {preview.overlap > 0 && <span> ({preview.overlap} already in {preview.targetName}, kept once)</span>}
                   , for {preview.resultingMembers} total.
                 </li>
                 {preview.sourceAdmins > 0 && <li>• {preview.sourceAdmins} admin{preview.sourceAdmins === 1 ? '' : 's'} move over.</li>}
-                {preview.sourceChildren > 0 && <li>• {preview.sourceChildren} sub-unit{preview.sourceChildren === 1 ? '' : 's'} re-parented.</li>}
+                {preview.sourceChildren > 0 && <li>• {preview.sourceChildren} sub-unit{preview.sourceChildren === 1 ? '' : 's'} move{preview.sourceChildren === 1 ? 's' : ''} beneath it.</li>}
               </ul>
             </div>
           )}
 
           {targetId && (
-            <div className="flex items-start gap-2 text-[13px] text-amber-600 dark:text-amber-500">
+            <div className="flex items-start gap-2 text-sm text-warning-strong dark:text-warning-strong">
               <AlertTriangle className="h-4 w-4 mt-0.5 shrink-0" />
-              <span><span className="font-medium">{source?.name}</span> will be permanently deleted. Members and data are preserved on the survivor.</span>
+              <span><span className="font-medium">{source?.name}</span> will be deleted. Its members and records stay, in the unit you keep.</span>
             </div>
           )}
         </div>

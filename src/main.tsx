@@ -13,6 +13,7 @@ import { SubscriptionProvider } from './providers/SubscriptionProvider'
 import { AnalyticsProviderType } from './services/analytics'
 import { Toaster } from './components/ui/toaster'
 import { Toaster as SonnerToaster } from './components/ui/sonner'
+import { clerkLocalization } from './lib/clerk'
 
 const convexUrl = import.meta.env.VITE_CONVEX_URL as string | undefined
 const clerkKey = import.meta.env.VITE_CLERK_PUBLISHABLE_KEY as string | undefined
@@ -34,7 +35,7 @@ const analyticsApiKey =
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
     <React.StrictMode>
-        <ClerkProvider publishableKey={clerkKey}>
+        <ClerkProvider publishableKey={clerkKey} localization={clerkLocalization}>
             <ConvexProviderWithClerk client={convex} useAuth={useAuth}>
                 <ThemeProvider defaultTheme="light">
                     <AnalyticsProvider

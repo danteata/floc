@@ -2,15 +2,12 @@
 
 import { useState } from 'react'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import {
     Building2,
     Settings,
     BarChart3,
-    Shield,
     Layout,
-    ArrowUpRight
 } from 'lucide-react'
 import { UnitManagement } from '@/components/unit-management'
 import { OrganizationChart } from '@/components/organization-chart'
@@ -19,42 +16,26 @@ import { EventTypesManagement } from '@/components/event-types-management'
 import { OrganizationLinks } from '@/components/organization-links'
 import { LayoutWrapper } from '@/components/layout-wrapper'
 import { useUserRole } from '@/hooks/use-user-role'
-import { useOrganization } from '@/hooks/use-organization'
-import { useQuery } from 'convex/react'
-import { api } from '../../../convex/_generated/api'
+import { PageHeader } from '@/components/ui/page-header'
+import { NoAccess } from "@/components/ui/no-access"
+import { LoadingState } from "@/components/ui/loading-state"
 
 export default function OrganizationPage() {
-    const { isAdmin, role } = useUserRole()
-    const { organization } = useOrganization()
+    const { isAdmin, role, isLoading: roleLoading } = useUserRole()
     const [activeTab, setActiveTab] = useState('units')
     const [settingsDialogOpen, setSettingsDialogOpen] = useState(false)
-
-    // Powers the header subtitle ("oversight of {org name}").
-    const chartData = useQuery(api.organizations.getChartData, {
-        organization_id: organization?._id
-    })
 
     const hasAccess = isAdmin ||
         role === 'organization_admin' ||
         role === 'division_admin' ||
         role === 'unit_admin'
 
+    if (roleLoading) return <LayoutWrapper><LoadingState message="Checking your access…" /></LayoutWrapper>
     if (!hasAccess) {
         return (
             <LayoutWrapper>
-                <div className="container p-20 flex items-center justify-center">
-                    <div className="text-center space-y-6 max-w-md p-10 border border-border bg-card shadow-soft-lg rounded-xl">
-                        <div className="mx-auto h-20 w-20 bg-destructive/10 text-destructive rounded-full flex items-center justify-center">
-                            <Shield className="h-10 w-10" />
-                        </div>
-                        <h2 className="text-2xl tracking-tight">Access Denied</h2>
-                        <p className="font-medium text-muted-foreground">
-                            Your security clearance is insufficient for organization architecture protocols.
-                        </p>
-                        <Button variant="outline" className="shadow-sm hover:shadow-md rounded-lg" onClick={() => window.history.back()}>
-                            Return to Dashboard
-                        </Button>
-                    </div>
+                <div className="container py-10">
+                    <NoAccess what="manage your church's structure" who="organization and unit leaders" />
                 </div>
             </LayoutWrapper>
         )
@@ -63,111 +44,98 @@ export default function OrganizationPage() {
     return (
         <LayoutWrapper>
             <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-700">
-                {/* Header Area */}
-                <div className="flex flex-col md:flex-row items-start md:items-end justify-between gap-6 pb-6 border-b border-border/50">
-                    <div className="space-y-1">
-                        <div className="flex items-center gap-3">
-                            <div className="p-2.5 bg-[#5b21b6] text-white rounded-xl shadow-md">
-                                <Building2 className="h-6 w-6" />
-                            </div>
-                            <h1 className="text-3xl tracking-tight text-foreground">Command Center</h1>
-                        </div>
-                        <p className="text-muted-foreground pl-12 text-sm">
-                            Architectural oversight of {chartData?.organization?.name || "The Organization"}
-                        </p>
-                    </div>
-
-                    <div className="flex items-center gap-3">
-                        <Badge variant="secondary" className="h-9 px-4 rounded-lg bg-muted text-muted-foreground shadow-sm">
-                            Role: {role?.replace('_', ' ')}
-                        </Badge>
-
+                <PageHeader
+                    title="Organization"
+                    description="How your church is structured: units, leaders and event types."
+                    actions={<>
                         <Button
                             className="bg-primary text-primary-foreground shadow-soft hover:shadow-soft-lg transition-all rounded-lg"
                             onClick={() => setSettingsDialogOpen(true)}
                         >
                             <Settings className="h-4 w-4 mr-2" />
-                            Global Params
+                            Church settings
                         </Button>
-                    </div>
-                </div>
+                    </>}
+                />
 
-                {/* Operational Tabs */}
+                {/* Tabs: scroll sideways on phones rather than clip */}
                 <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-8">
-                    <TabsList className="bg-muted/50 p-1 rounded-xl w-full md:w-auto inline-flex">
+                    <div className="-mx-4 overflow-x-auto px-4 md:mx-0 md:px-0">
+                    <TabsList className="bg-muted/50 p-1 rounded-xl w-max inline-flex">
                         <TabsTrigger
                             value="units"
-                            className="rounded-lg data-[state=active]:bg-background data-[state=active]:shadow-sm px-6 transition-all"
+                            className="rounded-lg data-[state=active]:bg-background data-[state=active]:shadow-sm px-4 md:px-6 transition-all"
                         >
                             <Layout className="h-4 w-4 mr-2" />
-                            Unit Management
+                            Units
                         </TabsTrigger>
                         <TabsTrigger
                             value="chart"
-                            className="rounded-lg data-[state=active]:bg-background data-[state=active]:shadow-sm px-6 transition-all"
+                            className="rounded-lg data-[state=active]:bg-background data-[state=active]:shadow-sm px-4 md:px-6 transition-all"
                         >
                             <BarChart3 className="h-4 w-4 mr-2" />
-                            Hierarchy Visualizer
+                            Org chart
                         </TabsTrigger>
                         <TabsTrigger
                             value="event-types"
-                            className="rounded-lg data-[state=active]:bg-background data-[state=active]:shadow-sm px-6 transition-all"
+                            className="rounded-lg data-[state=active]:bg-background data-[state=active]:shadow-sm px-4 md:px-6 transition-all"
                         >
                             <Settings className="h-4 w-4 mr-2" />
-                            Event Types
+                            Event types
                         </TabsTrigger>
                         <TabsTrigger
                             value="org-links"
-                            className="rounded-lg data-[state=active]:bg-background data-[state=active]:shadow-sm px-6 transition-all"
+                            className="rounded-lg data-[state=active]:bg-background data-[state=active]:shadow-sm px-4 md:px-6 transition-all"
                         >
                             <Building2 className="h-4 w-4 mr-2" />
-                            Linked Orgs
+                            Linked churches
                         </TabsTrigger>
                     </TabsList>
+                    </div>
 
                     <TabsContent value="units" className="animate-in fade-in duration-500">
-                        <div className="rounded-xl overflow-hidden shadow-soft border border-border/50 bg-card p-6">
+                        <div className="rounded-xl overflow-hidden shadow-soft border border-border/50 bg-card p-4 md:p-6">
                             <UnitManagement />
                         </div>
                     </TabsContent>
 
                     <TabsContent value="chart" className="animate-in fade-in duration-500">
-                        <div className="rounded-xl overflow-hidden shadow-soft border border-border/50 bg-card p-6">
+                        <div className="rounded-xl overflow-hidden shadow-soft border border-border/50 bg-card p-4 md:p-6">
                             <OrganizationChart />
                         </div>
                     </TabsContent>
 
                     <TabsContent value="event-types" className="animate-in fade-in duration-500">
-                        <div className="rounded-xl overflow-hidden shadow-soft border border-border/50 bg-card p-6">
+                        <div className="rounded-xl overflow-hidden shadow-soft border border-border/50 bg-card p-4 md:p-6">
                             <EventTypesManagement />
                         </div>
                     </TabsContent>
 
                     <TabsContent value="org-links" className="animate-in fade-in duration-500">
-                        <div className="rounded-xl overflow-hidden shadow-soft border border-border/50 bg-card p-6">
+                        <div className="rounded-xl overflow-hidden shadow-soft border border-border/50 bg-card p-4 md:p-6">
                             <OrganizationLinks />
                         </div>
                     </TabsContent>
                 </Tabs>
 
-                {/* Knowledge Base Area */}
+                {/* How-to notes */}
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
                     <InfoBlock
-                        title="Unit Management"
+                        title="Working with units"
                         items={[
-                            "Configure and relocate operational units between sector divisions",
-                            "Batch execute terminology updates and structural changes",
-                            "Monitor personnel distribution across the entire hierarchy",
-                            "Perform real-time architectural validation of unit status"
+                            "Add a unit, or a sub-unit beneath an existing one, from Create",
+                            "Give each unit a leader so they can look after its members",
+                            "Save a template for units you set up often, then create from it",
+                            "Merge two units when they have become one"
                         ]}
                     />
                     <InfoBlock
-                        title="Strategic Visualization"
+                        title="Using the org chart"
                         items={[
-                            "Execute drag-and-drop structural updates via the Visualizer",
-                            "Isolate specific branches for granular personnel review",
-                            "Track organizational growth through integrated trend data",
-                            "Sync high-level terminology with global application states"
+                            "Drag a unit onto another to move it beneath that unit",
+                            "Collapse a branch to focus on one part of the church",
+                            "Zoom in and out, or fit the whole chart to the screen",
+                            "Show details to see how many members each unit has"
                         ]}
                     />
                 </div>
@@ -183,18 +151,11 @@ export default function OrganizationPage() {
 
 function InfoBlock({ title, items }: { title: string, items: string[] }) {
     return (
-        <div className="p-6 rounded-xl border border-border/50 bg-card shadow-sm hover:shadow-md transition-all flex flex-col gap-4">
-            <h3 className="text-lg flex items-center gap-3">
-                <div className="h-1.5 w-8 bg-primary rounded-full" /> {title}
-            </h3>
-            <ul className="space-y-3">
+        <div className="p-6 rounded-xl bg-card ring-1 ring-foreground/10 flex flex-col gap-4">
+            <h3 className="text-base font-semibold">{title}</h3>
+            <ul className="list-disc space-y-2 pl-5 text-sm text-muted-foreground marker:text-muted-foreground/60">
                 {items.map((item, i) => (
-                    <li key={i} className="flex items-start gap-3 group">
-                        <div className="h-5 w-5 rounded-full bg-primary/10 text-primary flex items-center justify-center shrink-0 mt-0.5 group-hover:bg-primary group-hover:text-primary-foreground transition-colors">
-                            <ArrowUpRight className="h-3 w-3" />
-                        </div>
-                        <span className="text-sm text-muted-foreground group-hover:text-foreground transition-colors">{item}</span>
-                    </li>
+                    <li key={i}>{item}</li>
                 ))}
             </ul>
         </div>

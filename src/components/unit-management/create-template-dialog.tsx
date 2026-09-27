@@ -79,33 +79,31 @@ export function CreateTemplateDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[500px] glass-card border-border/50 shadow-soft">
+      <DialogContent className="sm:max-w-[500px]">
         <DialogHeader>
-          <DialogTitle className="flex items-center gap-2 text-xl">
-            <div className="p-2 bg-primary/10 rounded-lg text-primary">
-              <Crown className="h-5 w-5" />
-            </div>
-            {isEdit ? 'Edit Template' : 'Create Template'}
+          <DialogTitle className="flex items-center gap-2 text-lg">
+            <Crown className="h-4 w-4 text-muted-foreground" />
+            {isEdit ? 'Edit template' : 'New template'}
           </DialogTitle>
           <DialogDescription>
-            A reusable unit blueprint. Instantiate it as units, and optionally cascade it to every sub-organization.
+            A unit you set up once and create again whenever you need it. It can also be added to every church linked under yours.
           </DialogDescription>
         </DialogHeader>
 
         <div className="space-y-6 py-4">
           <div className="space-y-2">
-            <Label className="text-xs font-semibold text-muted-foreground tracking-wider">Name *</Label>
+            <Label className="text-sm font-medium">Name *</Label>
             <Input
               value={name}
               onChange={(e) => setName(e.target.value)}
-              placeholder="e.g. Ushers, Worship Team"
+              placeholder="e.g. Ushers, worship team"
               className="bg-background/50 border-input-border"
               disabled={saving}
             />
           </div>
 
           <div className="space-y-2">
-            <Label className="text-xs font-semibold text-muted-foreground tracking-wider">Description</Label>
+            <Label className="text-sm font-medium">Description</Label>
             <Input
               value={description}
               onChange={(e) => setDescription(e.target.value)}
@@ -117,7 +115,7 @@ export function CreateTemplateDialog({
 
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label className="text-xs font-semibold text-muted-foreground tracking-wider">Type *</Label>
+              <Label className="text-sm font-medium">Type *</Label>
               <Select value={type} onValueChange={(v: TemplateType) => setType(v)} disabled={saving}>
                 <SelectTrigger className="bg-background/50 border-input-border">
                   <SelectValue />
@@ -131,11 +129,11 @@ export function CreateTemplateDialog({
             </div>
             {type === 'functional' && (
               <div className="space-y-2">
-                <Label className="text-xs font-semibold text-muted-foreground tracking-wider">Category</Label>
+                <Label className="text-sm font-medium">Category</Label>
                 <Input
                   value={category}
                   onChange={(e) => setCategory(e.target.value)}
-                  placeholder="Worship, Youth..."
+                  placeholder="Worship, youth…"
                   className="bg-background/50 border-input-border"
                   disabled={saving}
                 />
@@ -145,8 +143,8 @@ export function CreateTemplateDialog({
 
           <div className="flex items-start justify-between gap-4 rounded-lg border border-border/50 p-4 bg-muted/20">
             <div className="space-y-1">
-              <Label className="text-sm font-medium">Apply to all sub-organizations</Label>
-              <p className="text-[11px] text-muted-foreground">
+              <Label className="text-sm font-medium">Add to every linked church</Label>
+              <p className="text-xs text-muted-foreground">
                 Auto-creates this unit in every organization linked under yours, now and in future. Each can rename its own copy.
               </p>
             </div>
@@ -160,7 +158,7 @@ export function CreateTemplateDialog({
           </Button>
           <Button onClick={handleSubmit} disabled={saving || !name.trim()}>
             {saving ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Crown className="h-4 w-4 mr-2" />}
-            {isEdit ? 'Save Template' : 'Create Template'}
+            {isEdit ? 'Save template' : 'Create template'}
           </Button>
         </div>
       </DialogContent>

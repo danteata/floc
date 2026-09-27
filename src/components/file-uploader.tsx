@@ -157,7 +157,7 @@ export function FileUploader({ onUploadComplete, showPreview = false }: FileUplo
                                     {isDragOver ? 'Drop image here' : 'Click to upload'}
                                 </p>
                                 <p className="text-xs text-muted-foreground">
-                                    or drag and drop — JPG or PNG, up to 4MB
+                                    or drag and drop. JPG or PNG, up to 4 MB.
                                 </p>
                             </div>
                         </>
@@ -167,23 +167,23 @@ export function FileUploader({ onUploadComplete, showPreview = false }: FileUplo
 
             {/* Preview Area (opt-in; parents usually show their own preview) */}
             {showPreview && imageUrl && (
-                <div className="p-4 border border-border/50 bg-slate-50/50 rounded-xl relative shadow-sm animate-in zoom-in-95 duration-200">
+                <div className="p-4 border border-border/50 bg-muted/50 rounded-xl relative shadow-sm animate-in zoom-in-95 duration-200">
                     <div className="flex items-center gap-2 mb-3">
-                        <ImageIcon className="h-4 w-4 text-slate-500" />
-                        <span className="font-semibold text-xs text-slate-700">File Preview</span>
+                        <ImageIcon className="h-4 w-4 text-muted-foreground" />
+                        <span className="font-semibold text-xs text-foreground">File Preview</span>
                     </div>
                     <div className="relative inline-block border border-dashed border-border rounded-lg overflow-hidden bg-white/50">
                         <div className="w-full h-32 flex flex-col items-center justify-center p-6 text-center gap-2">
-                            <ShieldCheck className="h-8 w-8 text-emerald-500" />
-                            <p className="text-[10px] text-slate-500">File secured successfully</p>
-                            <p className="text-[9px] font-mono text-slate-400 bg-white px-2 py-0.5 rounded border border-slate-100">ID: {imageUrl.substring(0, 16)}...</p>
+                            <ShieldCheck className="h-8 w-8 text-success-strong" />
+                            <p className="text-[10px] text-muted-foreground">File secured successfully</p>
+                            <p className="text-[9px] font-mono text-muted-foreground/70 bg-white px-2 py-0.5 rounded border border-border">ID: {imageUrl.substring(0, 16)}...</p>
                         </div>
 
                         <Button
                             type="button"
                             variant="ghost"
                             size="icon"
-                            className="absolute top-1 right-1 rounded-full h-7 w-7 p-0 hover:bg-red-50 hover:text-red-500 transition-colors"
+                            className="absolute top-1 right-1 rounded-full h-7 w-7 p-0 hover:bg-destructive/10 hover:text-destructive-strong transition-colors"
                             onClick={() => {
                                 setImageUrl(null);
                                 if (onUploadComplete) {

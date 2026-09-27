@@ -54,7 +54,7 @@ export function ViewingOrgBanner() {
   }
 
   return (
-    <div className="flex items-center justify-between gap-3 px-6 py-2 bg-primary/10 border-b border-primary/20 text-sm">
+    <div className="flex items-center justify-between gap-3 px-4 py-2 sm:px-6 bg-primary/10 border-b border-primary/20 text-sm">
       <div className="flex items-center gap-2 min-w-0 text-primary">
         <Building2 className="h-4 w-4 shrink-0" />
         {chain.length > 1 ? (
@@ -87,18 +87,19 @@ export function ViewingOrgBanner() {
         ) : (
           <span className="truncate">
             Viewing <span className="font-medium">{currentOrganization.name}</span>
-            {homeOrganization && <> — part of {homeOrganization.name}</>}
+            {homeOrganization && <>, part of {homeOrganization.name}</>}
           </span>
         )}
       </div>
       <Button
         variant="ghost"
         size="sm"
-        className="h-7 gap-1.5 text-primary hover:bg-primary/15 shrink-0"
+        className="h-8 max-w-[45%] gap-1.5 text-primary hover:bg-primary/15 shrink-0"
         onClick={() => returnToHomeOrganization()}
+        aria-label={`Back to ${homeOrganization?.name ?? "your church"}`}
       >
-        <X className="h-3.5 w-3.5" />
-        Return to {homeOrganization?.name ?? "home"}
+        <X className="h-3.5 w-3.5 shrink-0" />
+        <span className="truncate">Back to {homeOrganization?.name ?? "your church"}</span>
       </Button>
     </div>
   )

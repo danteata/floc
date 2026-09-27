@@ -1,24 +1,22 @@
 import { Outlet, NavLink } from "react-router-dom"
-import { User, Calendar, QrCode, HeartHandshake } from "lucide-react"
+import { User, CalendarCheck, QrCode, HeartHandshake } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { LayoutWrapper } from "@/components/layout-wrapper"
+import { PageHeader } from "@/components/ui/page-header"
 
 const portalNav = [
-    { to: "/portal", label: "My Check-in", icon: QrCode, end: true },
-    { to: "/portal/attendance", label: "My Attendance", icon: Calendar },
-    { to: "/portal/giving", label: "My Giving", icon: HeartHandshake },
-    { to: "/portal/profile", label: "My Profile", icon: User },
+    { to: "/portal", label: "My check-in", icon: QrCode, end: true },
+    { to: "/portal/attendance", label: "My attendance", icon: CalendarCheck },
+    { to: "/portal/giving", label: "My giving", icon: HeartHandshake },
+    { to: "/portal/profile", label: "My profile", icon: User },
 ]
 
 export default function PortalLayout() {
     return (
         <LayoutWrapper showSearch={false}>
             <div className="flex flex-col gap-6">
-                <div>
-                    <h1 className="text-xl font-semibold tracking-tight">Member Portal</h1>
-                    <p className="text-sm text-muted-foreground">Your check-in, attendance, and profile</p>
-                </div>
-                <nav className="flex gap-1 border-b border-border/50">
+                <PageHeader title="My portal" description="Your check-ins, attendance, giving and details, in one place." />
+                <nav className="-mx-4 flex gap-1 overflow-x-auto border-b border-border/50 px-4 md:mx-0 md:px-0">
                     {portalNav.map((item) => {
                         const Icon = item.icon
                         return (
@@ -28,9 +26,9 @@ export default function PortalLayout() {
                                 end={item.end}
                                 className={({ isActive }) =>
                                     cn(
-                                        "flex items-center gap-2 px-4 py-2 text-sm rounded-t-md border-b-2 -mb-px transition-colors",
+                                        "-mb-px flex min-h-11 shrink-0 items-center gap-2 whitespace-nowrap rounded-t-md border-b-2 px-3 py-2 text-sm transition-colors md:px-4",
                                         isActive
-                                            ? "border-primary text-foreground"
+                                            ? "border-primary font-medium text-foreground"
                                             : "border-transparent text-muted-foreground hover:text-foreground",
                                     )
                                 }

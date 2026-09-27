@@ -151,6 +151,9 @@ export default defineSchema({
         level4_plural: v.optional(v.string()),
         // Check-in / portal configuration
         timezone: v.optional(v.string()), // IANA tz, e.g. "Africa/Accra"
+        // ISO 4217 code the church keeps its books in. Unset reads as GHS, the
+        // currency online giving settles in (convex/paystack.ts).
+        currency: v.optional(v.string()),
         hq_latitude: v.optional(v.number()),
         hq_longitude: v.optional(v.number()),
         // Brand colour. ONE hex is stored; the dozen CSS variables it becomes

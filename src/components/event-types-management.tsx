@@ -1,6 +1,7 @@
 "use client"
 
 import { useState } from "react"
+import { titleCase } from "@/lib/display"
 import { Plus, Edit, Trash2, RotateCcw, Download } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -61,6 +62,13 @@ type EventTypeFormData = z.infer<typeof eventTypeSchema>
 
 interface EventTypesManagementProps {
   onEventTypesChange?: () => void
+}
+
+const BADGE_STYLE_LABELS: Record<string, string> = {
+  default: "Default",
+  secondary: "Secondary",
+  outline: "Outline",
+  destructive: "Red",
 }
 
 export function EventTypesManagement({ onEventTypesChange }: EventTypesManagementProps) {
@@ -128,14 +136,13 @@ export function EventTypesManagement({ onEventTypesChange }: EventTypesManagemen
   }
 
   const handleDeleteEventType = async (value: string) => {
-    if (confirm("Are you sure you want to delete this event type?")) {
+    if (confirm("Delete this event type? Events already scheduled keep their details.")) {
       setIsLoading(true)
       try {
         const result = await removeEventType(value)
         if (result.success) {
           toast({
-            title: "Success",
-            description: "Event type deleted successfully",
+            title: "Event type deleted",
           })
           onEventTypesChange?.()
         } else {
@@ -143,8 +150,8 @@ export function EventTypesManagement({ onEventTypesChange }: EventTypesManagemen
         }
       } catch (error) {
         toast({
-          title: "Error",
-          description: error instanceof Error ? error.message : "Failed to delete event type",
+          title: "Couldn't delete the event type",
+          description: error instanceof Error ? error.message : undefined,
           variant: "destructive",
         })
       } finally {
@@ -165,8 +172,7 @@ export function EventTypesManagement({ onEventTypesChange }: EventTypesManagemen
 
       if (result.success) {
         toast({
-          title: "Success",
-          description: `Event type ${editingEventType ? 'updated' : 'created'} successfully`,
+          title: `Event type ${editingEventType ? 'updated' : 'created'}`,
         })
         setIsDialogOpen(false)
         onEventTypesChange?.()
@@ -175,8 +181,8 @@ export function EventTypesManagement({ onEventTypesChange }: EventTypesManagemen
       }
     } catch (error) {
       toast({
-        title: "Error",
-        description: error instanceof Error ? error.message : "Failed to save event type",
+        title: "Couldn't save the event type",
+        description: error instanceof Error ? error.message : undefined,
         variant: "destructive",
       })
     } finally {
@@ -185,14 +191,13 @@ export function EventTypesManagement({ onEventTypesChange }: EventTypesManagemen
   }
 
   const handleResetToDefaults = async () => {
-    if (confirm("Are you sure you want to reset to default event types? This will remove all custom event types.")) {
+    if (confirm("Go back to the default event types? Any you added yourself will be removed.")) {
       setIsLoading(true)
       try {
         const result = await resetToDefaults()
         if (result.success) {
           toast({
-            title: "Success",
-            description: "Event types reset to defaults",
+            title: "Event types reset to the defaults",
           })
           onEventTypesChange?.()
         } else {
@@ -200,8 +205,8 @@ export function EventTypesManagement({ onEventTypesChange }: EventTypesManagemen
         }
       } catch (error) {
         toast({
-          title: "Error",
-          description: error instanceof Error ? error.message : "Failed to reset event types",
+          title: "Couldn't reset the event types",
+          description: error instanceof Error ? error.message : undefined,
           variant: "destructive",
         })
       } finally {
@@ -211,14 +216,13 @@ export function EventTypesManagement({ onEventTypesChange }: EventTypesManagemen
   }
 
   const handleLoadTemplate = async (templateName: 'traditional' | 'contemporary' | 'multicultural') => {
-    if (confirm(`Load ${templateName} template? This will replace current event types.`)) {
+    if (confirm(`Use the ${templateName.toLowerCase()} set of event types? It replaces the ones you have now.`)) {
       setIsLoading(true)
       try {
         const result = await loadTemplate(templateName)
         if (result.success) {
           toast({
-            title: "Success",
-            description: `${templateName} template loaded successfully`,
+            title: `${templateName} event types loaded`,
           })
           onEventTypesChange?.()
         } else {
@@ -226,8 +230,8 @@ export function EventTypesManagement({ onEventTypesChange }: EventTypesManagemen
         }
       } catch (error) {
         toast({
-          title: "Error",
-          description: error instanceof Error ? error.message : "Failed to load template",
+          title: "Couldn't load those event types",
+          description: error instanceof Error ? error.message : undefined,
           variant: "destructive",
         })
       } finally {
@@ -243,7 +247,7 @@ export function EventTypesManagement({ onEventTypesChange }: EventTypesManagemen
   }
 
   if (eventTypesLoading) {
-    return <div>Loading event types...</div>
+    return <div className="py-8 text-center text-sm text-muted-foreground">Loading event types…</div>
   }
 
   return (
@@ -251,15 +255,15 @@ export function EventTypesManagement({ onEventTypesChange }: EventTypesManagemen
       <CardHeader>
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div>
-            <CardTitle>Event Types</CardTitle>
+            <CardTitle className="text-lg font-semibold">Event types</CardTitle>
             <CardDescription>
-              Manage the types of events available for scheduling
+              The kinds of events your church holds, such as services and meetings. You choose one when you schedule an event.
             </CardDescription>
           </div>
           <div className="flex flex-wrap gap-2">
             <Select onValueChange={(value) => handleLoadTemplate(value as any)}>
-              <SelectTrigger className="w-[140px]">
-                <SelectValue placeholder="Load Template" />
+              <SelectTrigger className="w-[170px]">
+                <SelectValue placeholder="Start from a set" />
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="traditional">Traditional</SelectItem>
@@ -273,7 +277,7 @@ export function EventTypesManagement({ onEventTypesChange }: EventTypesManagemen
             </Button>
             <Button onClick={handleAddEventType} disabled={isLoading}>
               <Plus className="mr-2 h-4 w-4" />
-              Add Event Type
+              New event type
             </Button>
           </div>
         </div>
@@ -282,9 +286,9 @@ export function EventTypesManagement({ onEventTypesChange }: EventTypesManagemen
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead>Label</TableHead>
-              <TableHead>Value</TableHead>
-              <TableHead>Color</TableHead>
+              <TableHead>Name</TableHead>
+              <TableHead>Key</TableHead>
+              <TableHead>Badge style</TableHead>
               <TableHead className="hidden md:table-cell">Category</TableHead>
               <TableHead className="w-[100px]">Actions</TableHead>
             </TableRow>
@@ -292,11 +296,11 @@ export function EventTypesManagement({ onEventTypesChange }: EventTypesManagemen
           <TableBody>
             {eventTypes.map((eventType) => (
               <TableRow key={eventType.value}>
-                <TableCell className="font-medium">{eventType.label}</TableCell>
+                <TableCell className="font-medium">{titleCase(eventType.label)}</TableCell>
                 <TableCell className="font-mono text-sm">{eventType.value}</TableCell>
                 <TableCell>
                   <Badge variant={eventType.color || 'outline'}>
-                    {eventType.color || 'outline'}
+                    {BADGE_STYLE_LABELS[eventType.color || 'outline'] ?? eventType.color}
                   </Badge>
                 </TableCell>
                 <TableCell className="hidden md:table-cell">
@@ -313,6 +317,7 @@ export function EventTypesManagement({ onEventTypesChange }: EventTypesManagemen
                       size="sm"
                       onClick={() => handleEditEventType(eventType)}
                       disabled={isLoading}
+                      aria-label={`Edit ${eventType.label}`}
                     >
                       <Edit className="h-4 w-4" />
                     </Button>
@@ -321,6 +326,7 @@ export function EventTypesManagement({ onEventTypesChange }: EventTypesManagemen
                       size="sm"
                       onClick={() => handleDeleteEventType(eventType._id)}
                       disabled={isLoading}
+                      aria-label={`Delete ${eventType.label}`}
                     >
                       <Trash2 className="h-4 w-4" />
                     </Button>
@@ -336,12 +342,12 @@ export function EventTypesManagement({ onEventTypesChange }: EventTypesManagemen
           <DialogContent className="sm:max-w-[500px]">
             <DialogHeader>
               <DialogTitle>
-                {editingEventType ? "Edit Event Type" : "Add Event Type"}
+                {editingEventType ? "Edit event type" : "New event type"}
               </DialogTitle>
               <DialogDescription>
                 {editingEventType
-                  ? "Update the event type information below."
-                  : "Create a new event type for your church events."
+                  ? "Change this event type's name, badge or default time."
+                  : "Add a kind of event your church holds."
                 }
               </DialogDescription>
             </DialogHeader>
@@ -353,10 +359,10 @@ export function EventTypesManagement({ onEventTypesChange }: EventTypesManagemen
                   name="label"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Label</FormLabel>
+                      <FormLabel>Name</FormLabel>
                       <FormControl>
                         <Input
-                          placeholder="e.g., Prayer Meeting"
+                          placeholder="e.g. Prayer meeting"
                           {...field}
                           onChange={(e) => {
                             field.onChange(e)
@@ -376,10 +382,10 @@ export function EventTypesManagement({ onEventTypesChange }: EventTypesManagemen
                   name="value"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Value</FormLabel>
+                      <FormLabel>Key</FormLabel>
                       <FormControl>
                         <Input
-                          placeholder="e.g., prayer-meeting"
+                          placeholder="e.g. prayer-meeting"
                           {...field}
                           disabled={!!editingEventType}
                         />
@@ -395,18 +401,18 @@ export function EventTypesManagement({ onEventTypesChange }: EventTypesManagemen
                     name="color"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Badge Color</FormLabel>
+                        <FormLabel>Badge style</FormLabel>
                         <Select onValueChange={field.onChange} value={field.value}>
                           <FormControl>
                             <SelectTrigger>
-                              <SelectValue placeholder="Select color" />
+                              <SelectValue placeholder="Choose a style" />
                             </SelectTrigger>
                           </FormControl>
                           <SelectContent>
                             <SelectItem value="default">Default</SelectItem>
                             <SelectItem value="secondary">Secondary</SelectItem>
                             <SelectItem value="outline">Outline</SelectItem>
-                            <SelectItem value="destructive">Destructive</SelectItem>
+                            <SelectItem value="destructive">Red</SelectItem>
                           </SelectContent>
                         </Select>
                         <FormMessage />
@@ -423,7 +429,7 @@ export function EventTypesManagement({ onEventTypesChange }: EventTypesManagemen
                         <Select onValueChange={field.onChange} value={field.value}>
                           <FormControl>
                             <SelectTrigger>
-                              <SelectValue placeholder="Select category" />
+                              <SelectValue placeholder="Choose a category" />
                             </SelectTrigger>
                           </FormControl>
                           <SelectContent>
@@ -448,7 +454,7 @@ export function EventTypesManagement({ onEventTypesChange }: EventTypesManagemen
                       <FormLabel>Description</FormLabel>
                       <FormControl>
                         <Textarea
-                          placeholder="Brief description of this event type..."
+                          placeholder="A line on what this event is…"
                           className="resize-none"
                           {...field}
                         />
@@ -463,17 +469,17 @@ export function EventTypesManagement({ onEventTypesChange }: EventTypesManagemen
                   name="default_time"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Default Time</FormLabel>
+                      <FormLabel>Default time</FormLabel>
                       <FormControl>
                         <Input
                           type="time"
-                          placeholder="e.g., 09:00"
+                          placeholder="e.g. 09:00"
                           {...field}
                         />
                       </FormControl>
                       <FormMessage />
                       <p className="text-xs text-muted-foreground">
-                        Default start time for events of this type (used when auto-creating events)
+                        When events of this type usually start. Used when events are created automatically.
                       </p>
                     </FormItem>
                   )}
@@ -484,7 +490,7 @@ export function EventTypesManagement({ onEventTypesChange }: EventTypesManagemen
                   name="unit_ids"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Applies to Units</FormLabel>
+                      <FormLabel>Units</FormLabel>
                       <div className="space-y-2">
                         <div className="flex flex-wrap gap-1.5">
                           {field.value?.map((unitId) => {
@@ -514,7 +520,7 @@ export function EventTypesManagement({ onEventTypesChange }: EventTypesManagemen
                         >
                           <FormControl>
                             <SelectTrigger>
-                              <SelectValue placeholder="Add unit scope (optional)" />
+                              <SelectValue placeholder="Add a unit (optional)" />
                             </SelectTrigger>
                           </FormControl>
                           <SelectContent>
@@ -530,7 +536,7 @@ export function EventTypesManagement({ onEventTypesChange }: EventTypesManagemen
                       </div>
                       <FormMessage />
                       <p className="text-xs text-muted-foreground">
-                        If no units selected, this event applies to all members. Select units to scope attendance tracking.
+                        With no units chosen, this event is for all members. Choose units to take attendance for just those units.
                       </p>
                     </FormItem>
                   )}
@@ -546,7 +552,7 @@ export function EventTypesManagement({ onEventTypesChange }: EventTypesManagemen
                     Cancel
                   </Button>
                   <Button type="submit" disabled={isLoading}>
-                    {isLoading ? "Saving..." : editingEventType ? "Update" : "Create"}
+                    {isLoading ? "Saving…" : editingEventType ? "Save changes" : "Create"}
                   </Button>
                 </DialogFooter>
               </form>

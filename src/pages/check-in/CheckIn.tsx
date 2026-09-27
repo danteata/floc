@@ -11,6 +11,8 @@ import { api } from "../../../convex/_generated/api"
 import { Id } from "../../../convex/_generated/dataModel"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
+import { errorMessage } from "@/lib/errors"
+import { sessionName, titleCase } from '@/lib/display'
 
 type CheckInResult =
     | { status: "loading" }
@@ -43,7 +45,7 @@ type CheckInResult =
     | { status: "error"; message: string }
 
 /**
- * The brand rides on `getSessionByToken`, which this page already calls — so a
+ * The brand rides on `getSessionByToken`, which this page already calls, so a
  * check-in screen at the door carries the church's colour without a second
  * request and without a public theme endpoint keyed by organization.
  */
@@ -126,22 +128,22 @@ function CheckInFlow() {
                         setResult({ status: "invalid_token" })
                         break
                     default:
-                        setResult({ status: "error", message: "Unexpected response" })
+                        setResult({ status: "error", message: "Something unexpected happened. Scan the QR code again, or ask someone on the welcome team to check you in." })
                 }
             })
             .catch((err: any) => {
-                setResult({ status: "error", message: err?.message ?? "Check-in failed" })
+                setResult({ status: "error", message: errorMessage(err, "Check your connection and scan the QR code again, or ask someone on the welcome team to check you in.") })
             })
     }, [token, isLoading, sessionInfo, isAuthenticated, attempted, checkIn])
 
-    // Invalid token — no Clerk sign-in needed, just show the error.
+    // Invalid token: no Clerk sign-in needed, just show the error.
     if (result.status === "invalid_token" || sessionInfo === null) {
         return (
             <Shell>
                 <ResultCard
-                    icon={<AlertCircle className="h-10 w-10 text-destructive" />}
-                    title="Invalid or expired QR code"
-                    description="This check-in link is no longer valid. Ask an admin to open a new session."
+                    icon={<AlertCircle className="h-10 w-10 text-muted-foreground" />}
+                    title="This QR code has expired"
+                    description="Scan the code on display today, or ask someone on the welcome team to check you in."
                 />
             </Shell>
         )
@@ -158,16 +160,16 @@ function CheckInFlow() {
         )
     }
 
-    // Needs auth — show Clerk sign-in with redirect back here.
+    // Needs auth: show Clerk sign-in with redirect back here.
     if (result.status === "needs_auth" || !isAuthenticated) {
         return (
             <Shell>
                 <div className="mx-auto max-w-md w-full">
                     <div className="text-center mb-6">
-                        <QrCode className="h-10 w-10 mx-auto mb-2 text-primary" />
+                        <QrCode className="h-8 w-8 mx-auto mb-2 text-muted-foreground" />
                         <h1 className="text-xl font-semibold">Sign in to check in</h1>
                         <p className="text-sm text-muted-foreground mt-1">
-                            {sessionInfo?.display_name} · {sessionInfo?.organization_name}
+                            {[sessionName(sessionInfo?.display_name), sessionInfo?.organization_name].filter(Boolean).join(" · ")}
                         </p>
                     </div>
                     <SignIn routing="hash" afterSignInUrl={window.location.href} />
@@ -181,7 +183,7 @@ function CheckInFlow() {
             <Shell>
                 <div className="flex flex-col items-center justify-center py-16 text-muted-foreground">
                     <Loader2 className="h-8 w-8 animate-spin mb-3" />
-                    <p className="text-sm">Checking you in to {sessionInfo?.display_name}…</p>
+                    <p className="text-sm">Checking you in to {sessionName(sessionInfo?.display_name)}…</p>
                 </div>
             </Shell>
         )
@@ -192,13 +194,13 @@ function CheckInFlow() {
             <Shell>
                 <ResultCard
                     icon={<CheckCircle2 className="h-12 w-12 text-success" />}
-                    title={`You're checked in, ${result.member_name}!`}
-                    description={result.session_display_name}
+                    title={`You're checked in, ${result.member_name}`}
+                    description={`Welcome to ${titleCase(result.session_display_name)}.`}
                 >
                     {result.is_late && (
-                        <p className="text-sm text-amber-600 flex items-center justify-center gap-1 mt-3">
+                        <p className="text-sm text-warning-strong flex items-center justify-center gap-1 mt-3">
                             <Clock className="h-4 w-4" />
-                            Checked in {result.minutes_late} min late
+                            Checked in {result.minutes_late} {result.minutes_late === 1 ? "minute" : "minutes"} after the start
                         </p>
                     )}
                     {token && result.member_id && result.attendance_id && (
@@ -210,9 +212,9 @@ function CheckInFlow() {
                         />
                     )}
                     <div className="mt-6 flex gap-2">
-                        <Link to="/portal/attendance" className="flex-1">
-                            <Button variant="outline" className="w-full">View my attendance</Button>
-                        </Link>
+                        <Button asChild variant="outline" className="h-11 flex-1">
+                            <Link to="/portal/attendance">See my attendance</Link>
+                        </Button>
                     </div>
                 </ResultCard>
             </Shell>
@@ -225,7 +227,7 @@ function CheckInFlow() {
                 <ResultCard
                     icon={<CheckCircle2 className="h-12 w-12 text-success" />}
                     title={`You're already checked in, ${result.member_name}`}
-                    description={result.session_display_name}
+                    description={`We have you down for ${titleCase(result.session_display_name)}. There's nothing more to do.`}
                     tone="muted"
                 >
                     {token && result.member_id && result.attendance_id && (
@@ -237,9 +239,9 @@ function CheckInFlow() {
                         />
                     )}
                     <div className="mt-6 flex gap-2">
-                        <Link to="/portal/attendance" className="flex-1">
-                            <Button variant="outline" className="w-full">View my attendance</Button>
-                        </Link>
+                        <Button asChild variant="outline" className="h-11 flex-1">
+                            <Link to="/portal/attendance">See my attendance</Link>
+                        </Button>
                     </div>
                 </ResultCard>
             </Shell>
@@ -252,24 +254,24 @@ function CheckInFlow() {
                 <ResultCard
                     icon={<UserX className="h-10 w-10 text-muted-foreground" />}
                     title="We couldn't find your member record"
-                    description="Your account isn't linked to a member profile yet. Link it from the portal to check in."
+                        description="Your account isn't linked to your church's member record yet. Link it once, then scan the QR code again."
                 >
-                    <Link to={`/portal/link?token=${token}`}>
-                        <Button className="mt-4">Link my account</Button>
-                    </Link>
+                    <Button asChild className="mt-4 h-11 w-full">
+                        <Link to={`/portal/link?token=${token}`}>Link my account</Link>
+                    </Button>
                 </ResultCard>
             </Shell>
         )
     }
 
     const errorStates: Partial<Record<CheckInResult["status"], { icon: React.ReactNode; title: string; description: string }>> = {
-        session_closed: { icon: <CalendarOff className="h-10 w-10 text-muted-foreground" />, title: "Check-in is closed", description: "This session is no longer accepting check-ins." },
-        outside_window: { icon: <CalendarOff className="h-10 w-10 text-muted-foreground" />, title: "Check-in is closed", description: "This session is outside its open window." },
-        wrong_org: { icon: <ShieldOff className="h-10 w-10 text-muted-foreground" />, title: "Wrong organization", description: "This check-in session belongs to a different organization than your member record." },
-        event_not_applicable: { icon: <UserX className="h-10 w-10 text-muted-foreground" />, title: "Not applicable to you", description: "This event is scoped to units you are not a member of." },
-        member_inactive: { icon: <UserX className="h-10 w-10 text-muted-foreground" />, title: "Member inactive", description: "Your member record is not active. Contact an admin." },
-        outside_geofence: { icon: <MapPinOff className="h-10 w-10 text-muted-foreground" />, title: "Outside check-in area", description: "You appear to be outside the venue. See an admin to check in manually." },
-        error: { icon: <AlertCircle className="h-10 w-10 text-destructive" />, title: "Check-in failed", description: (result as any).message ?? "Please try again or see an admin." },
+        session_closed: { icon: <CalendarOff className="h-10 w-10 text-muted-foreground" />, title: "Check-in is closed", description: "Check-in for this event has finished. If you're here, ask someone on the welcome team to check you in." },
+        outside_window: { icon: <CalendarOff className="h-10 w-10 text-muted-foreground" />, title: "Check-in isn't open", description: "Check-in isn't open at the moment. Try again closer to the start, or ask someone on the welcome team." },
+        wrong_org: { icon: <ShieldOff className="h-10 w-10 text-muted-foreground" />, title: "This QR code is for another church", description: "Your member record is with a different church. Ask someone on the welcome team to check you in." },
+        event_not_applicable: { icon: <UserX className="h-10 w-10 text-muted-foreground" />, title: "This event is for another group", description: "This event is only for certain groups in the church. If you think you should be on it, ask your group leader." },
+        member_inactive: { icon: <UserX className="h-10 w-10 text-muted-foreground" />, title: "Your membership isn't active", description: "Your member record is marked inactive. Ask someone at the church office to update it." },
+        outside_geofence: { icon: <MapPinOff className="h-10 w-10 text-muted-foreground" />, title: "You seem to be away from church", description: "Check-in works at the venue. If you're here, ask someone on the welcome team to check you in." },
+        error: { icon: <AlertCircle className="h-10 w-10 text-destructive" />, title: "We couldn't check you in", description: (result as any).message ?? "Scan the QR code again, or ask someone on the welcome team to check you in." },
     }
 
     const err = result.status in errorStates ? errorStates[result.status as keyof typeof errorStates] : null
@@ -286,7 +288,7 @@ function CheckInFlow() {
 
 function Shell({ children }: { children: React.ReactNode }) {
     return (
-        <div className="min-h-screen flex items-center justify-center bg-gradient-to-b from-background to-muted/30 p-6">
+        <div className="min-h-dvh flex items-center justify-center bg-muted/30 px-4 py-8">
             <div className="w-full max-w-md">{children}</div>
         </div>
     )
@@ -306,11 +308,11 @@ function ResultCard({
     tone?: "default" | "muted"
 }) {
     return (
-        <Card className={tone === "muted" ? "border-border/50" : "border-primary/20"}>
+        <Card data-tone={tone}>
             <CardHeader>
                 <CardTitle className="flex flex-col items-center text-center gap-3">
                     {icon}
-                    <span className="text-lg">{title}</span>
+                    <span className="text-lg font-semibold">{title}</span>
                 </CardTitle>
             </CardHeader>
             <CardContent className="text-center text-sm text-muted-foreground">
@@ -322,8 +324,8 @@ function ResultCard({
 }
 
 /**
- * "Also check in" suggestions for other members of the checked-in member's
- * household — lets a parent check in their kids (or a spouse) in one tap
+ * "Check in your household too" suggestions for other members of the checked-in member's
+ * household: lets a parent check in their kids (or a spouse) in one tap
  * without each needing their own device/QR scan.
  */
 function HouseholdSuggestions({
@@ -351,15 +353,15 @@ function HouseholdSuggestions({
 
     return (
         <div className="mt-4 rounded-lg border border-dashed p-3 text-left">
-            <p className="text-xs font-medium text-muted-foreground mb-2">Also check in:</p>
+            <p className="text-sm font-medium text-foreground mb-2">Check in your household too</p>
             <div className="flex flex-wrap gap-2">
                 {suggestions.map((s) => {
                     const isChecked = checkedIn.has(s.id)
                     return (
                         <Button
                             key={s.id}
-                            size="sm"
                             variant={isChecked ? "secondary" : "outline"}
+                            className="h-11"
                             disabled={isChecked || pending === s.id}
                             onClick={async () => {
                                 setPending(s.id)

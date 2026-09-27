@@ -193,7 +193,7 @@ export function BulkUploadDialog({ open, onOpenChange, onSuccess }: BulkUploadDi
       }
     }
 
-    // Parse first name - handle multiple names by taking only the first one
+    // Parse first name: handle multiple names by taking only the first one
     const rawFirstName = getValue(["first name", "firstname", "firstName", "first_name", "given_name", "forename"])
     const rawLastName = getValue(["last name", "lastname", "lastName", "last_name", "surname", "family_name"])
 
@@ -214,8 +214,8 @@ export function BulkUploadDialog({ open, onOpenChange, onSuccess }: BulkUploadDi
     }
 
     const errorsList: string[] = []
-    if (!firstName) errorsList.push("First name is required")
-    if (!lastName) errorsList.push("Last name is required")
+    if (!firstName) errorsList.push("First name is missing")
+    if (!lastName) errorsList.push("Last name is missing")
 
     if (!email && firstName && lastName && organization?.name) {
       const cleanOrg = organization.name.toLowerCase().replace(/[^a-z0-9]/g, '')
@@ -309,12 +309,12 @@ export function BulkUploadDialog({ open, onOpenChange, onSuccess }: BulkUploadDi
         setProgress(100)
       } catch (err: any) {
         console.error("Parse error:", err)
-        setErrorMessage("Failed to parse file. Please ensure it is a valid CSV or Excel file.")
+        setErrorMessage("Couldn't read that file. Check it's a CSV or Excel file (.csv, .xlsx or .xls) and try again.")
         setUploadStatus("error")
       }
     }
     reader.onerror = () => {
-      setErrorMessage("Failed to read file.")
+      setErrorMessage("Couldn't open that file. Try again, or save it again and re-upload.")
       setUploadStatus("error")
     }
     reader.readAsArrayBuffer(file)
@@ -340,7 +340,7 @@ export function BulkUploadDialog({ open, onOpenChange, onSuccess }: BulkUploadDi
     const invalidCount = previewData.length - validRecords.length
 
     if (validRecords.length === 0) {
-      setErrorMessage("No valid records found.")
+      setErrorMessage("No rows are ready to import. Each row needs a first and last name.")
       return
     }
 
@@ -379,12 +379,12 @@ export function BulkUploadDialog({ open, onOpenChange, onSuccess }: BulkUploadDi
         target_unit_id: !!targetUnitId,
       });
 
-      setErrorMessage(`Upload complete: ${created} created, ${updated} updated. ${invalidCount} skipped.`)
+      setErrorMessage(`${created} added, ${updated} updated, ${invalidCount} skipped.`)
       setUploadStatus("success")
       onSuccess?.()
     } catch (err: any) {
       console.error("Upload error:", err)
-      setErrorMessage(err.message || "Failed to upload members.")
+      setErrorMessage(err.message || "Couldn't import the members. Try again.")
       setUploadStatus("error")
     }
   }
@@ -428,10 +428,10 @@ export function BulkUploadDialog({ open, onOpenChange, onSuccess }: BulkUploadDi
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[1200px] max-h-[90vh] overflow-y-auto">
+      <DialogContent className="sm:max-w-6xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>Bulk Upload Members</DialogTitle>
-          <DialogDescription>Add or update members using CSV or Excel. Existing members are matched by first name + phone.</DialogDescription>
+          <DialogTitle>Bulk upload members</DialogTitle>
+          <DialogDescription>Add or update members from a CSV or Excel file. A row updates an existing member when the first name and phone number match.</DialogDescription>
         </DialogHeader>
 
         {uploadStatus === "idle" && (
@@ -440,18 +440,18 @@ export function BulkUploadDialog({ open, onOpenChange, onSuccess }: BulkUploadDi
               <TabsTrigger value="upload">Upload</TabsTrigger>
               <TabsTrigger value="template">Template</TabsTrigger>
             </TabsList>
-            <TabsContent value="upload" className="pt-4 border-2 border-dashed rounded-lg p-12 text-center" onDrop={handleDrop} onDragOver={handleDragOver}>
+            <TabsContent value="upload" className="border-2 border-dashed rounded-lg p-8 text-center sm:p-12" onDrop={handleDrop} onDragOver={handleDragOver}>
               <input type="file" id="bulk-upload-file" className="hidden" accept=".csv,.xlsx,.xls" onChange={handleFileChange} />
               <label htmlFor="bulk-upload-file" className="cursor-pointer flex flex-col items-center">
                 <Upload className="h-10 w-10 text-muted-foreground mb-2" />
-                <p className="font-medium">Drop file here or click to browse</p>
-                <p className="text-xs text-muted-foreground mt-1">Supports CSV, XLSX, XLS</p>
+                <p className="font-medium">Drop a file here, or click to choose one</p>
+                <p className="text-xs text-muted-foreground mt-1">CSV, XLSX or XLS</p>
               </label>
             </TabsContent>
             <TabsContent value="template" className="pt-4 text-center">
-              <p className="text-sm text-muted-foreground mb-4">Download the template to see required columns.</p>
+              <p className="text-sm text-muted-foreground mb-4">Download the template to see which columns to use.</p>
               <Button onClick={handleDownloadTemplate} variant="outline">
-                <Download className="mr-2 h-4 w-4" /> Download Template
+                <Download className="mr-2 h-4 w-4" /> Download template
               </Button>
             </TabsContent>
           </Tabs>
@@ -460,34 +460,34 @@ export function BulkUploadDialog({ open, onOpenChange, onSuccess }: BulkUploadDi
         {(uploadStatus === "uploading" || uploadStatus === "validating") && (
           <div className="py-8 space-y-4 text-center">
             <Loader2 className="h-8 w-8 animate-spin mx-auto text-primary" />
-            <p className="text-sm">{uploadStatus === "uploading" ? "Uploading..." : "Validating..."}</p>
+            <p className="text-sm">{uploadStatus === "uploading" ? "Uploading…" : "Checking rows…"}</p>
             <Progress value={progress} className="h-2" />
           </div>
         )}
 
         {uploadStatus === "preview" && (
           <div className="space-y-4">
-            <div className="flex items-center justify-between">
-              <p className="text-sm">{fileName}</p>
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <p className="min-w-0 truncate text-sm">{fileName}</p>
               <div className="flex gap-2">
-                <Badge variant="outline" className="bg-green-50 text-green-700">{validCount} Valid</Badge>
-                {invalidCount > 0 && <Badge variant="outline" className="bg-red-50 text-red-700">{invalidCount} Invalid</Badge>}
+                <Badge className="bg-success/15 text-success-strong">{validCount} ready</Badge>
+                {invalidCount > 0 && <Badge className="bg-destructive/15 text-destructive-strong">{invalidCount} with problems</Badge>}
               </div>
             </div>
 
             <div className="space-y-2">
-              <Label className="text-xs text-muted-foreground">Assign to Unit (Optional)</Label>
+              <Label className="text-sm">Add everyone to a unit <span className="font-normal text-muted-foreground">(optional)</span></Label>
               <Select value={targetUnitId} onValueChange={setTargetUnitId}>
-                <SelectTrigger><SelectValue placeholder="Select a unit" /></SelectTrigger>
+                <SelectTrigger><SelectValue placeholder="Choose a unit" /></SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="org_wide">Stay Organization-Wide</SelectItem>
+                  <SelectItem value="org_wide">No unit (whole church)</SelectItem>
                   {allUnits.map(u => (
                     <SelectItem key={u._id} value={u._id}>{u.name} ({u.type})</SelectItem>
                   ))}
                 </SelectContent>
               </Select>
               <p className="text-xs text-muted-foreground">
-                Note: Regions and groups found in the file will be created automatically.
+                Regions and groups named in the file are created for you if they don't exist yet.
               </p>
             </div>
 
@@ -495,72 +495,75 @@ export function BulkUploadDialog({ open, onOpenChange, onSuccess }: BulkUploadDi
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead className="sticky top-0 bg-background z-10 w-[40px]"></TableHead>
-                    <TableHead className="sticky top-0 bg-background z-10 w-[80px]">Action</TableHead>
-                    <TableHead className="sticky top-0 bg-background z-10">First Name</TableHead>
-                    <TableHead className="sticky top-0 bg-background z-10">Other Names</TableHead>
-                    <TableHead className="sticky top-0 bg-background z-10">Last Name</TableHead>
-                    <TableHead className="sticky top-0 bg-background z-10">Email</TableHead>
-                    <TableHead className="sticky top-0 bg-background z-10">Phone</TableHead>
-                    <TableHead className="sticky top-0 bg-background z-10">Status</TableHead>
-                    <TableHead className="sticky top-0 bg-background z-10">Gender</TableHead>
-                    <TableHead className="sticky top-0 bg-background z-10">Birthday</TableHead>
-                    <TableHead className="sticky top-0 bg-background z-10">Location</TableHead>
-                    <TableHead className="sticky top-0 bg-background z-10">Address</TableHead>
-                    <TableHead className="sticky top-0 bg-background z-10">GPS/Plus Code</TableHead>
-                    <TableHead className="sticky top-0 bg-background z-10">Region</TableHead>
-                    <TableHead className="sticky top-0 bg-background z-10">Units/Groups</TableHead>
-                    <TableHead className="sticky top-0 bg-background z-10 w-[60px]">Errors</TableHead>
+                    <TableHead className="sticky top-0 bg-background z-10 whitespace-nowrap w-10"><span className="sr-only">Ready</span></TableHead>
+                    <TableHead className="sticky top-0 bg-background z-10 whitespace-nowrap w-20">Action</TableHead>
+                    <TableHead className="sticky top-0 bg-background z-10 whitespace-nowrap">First name</TableHead>
+                    <TableHead className="sticky top-0 bg-background z-10 whitespace-nowrap">Other names</TableHead>
+                    <TableHead className="sticky top-0 bg-background z-10 whitespace-nowrap">Last name</TableHead>
+                    <TableHead className="sticky top-0 bg-background z-10 whitespace-nowrap">Email</TableHead>
+                    <TableHead className="sticky top-0 bg-background z-10 whitespace-nowrap">Phone</TableHead>
+                    <TableHead className="sticky top-0 bg-background z-10 whitespace-nowrap">Status</TableHead>
+                    <TableHead className="sticky top-0 bg-background z-10 whitespace-nowrap">Gender</TableHead>
+                    <TableHead className="sticky top-0 bg-background z-10 whitespace-nowrap">Birthday</TableHead>
+                    <TableHead className="sticky top-0 bg-background z-10 whitespace-nowrap">Location</TableHead>
+                    <TableHead className="sticky top-0 bg-background z-10 whitespace-nowrap">Address</TableHead>
+                    <TableHead className="sticky top-0 bg-background z-10 whitespace-nowrap">Plus code</TableHead>
+                    <TableHead className="sticky top-0 bg-background z-10 whitespace-nowrap">Region</TableHead>
+                    <TableHead className="sticky top-0 bg-background z-10 whitespace-nowrap">Units and groups</TableHead>
+                    <TableHead className="sticky top-0 bg-background z-10 whitespace-nowrap w-16">Problems</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {previewData.slice(0, 50).map((r, i) => (
-                    <TableRow key={i} className={r.isValid ? "" : "bg-red-50"}>
-                      <TableCell>{r.isValid ? <Check className="h-4 w-4 text-green-600" /> : <X className="h-4 w-4 text-red-600" />}</TableCell>
+                    <TableRow key={i} className={r.isValid ? "" : "bg-destructive/10"}>
+                      <TableCell>{r.isValid ? <Check className="h-4 w-4 text-success-strong" /> : <X className="h-4 w-4 text-destructive-strong" />}</TableCell>
                       <TableCell>
-                        <Badge variant="outline" className={r.matchStatus === "update" ? "bg-amber-50 text-amber-700" : "bg-emerald-50 text-emerald-700"}>
-                          {r.matchStatus === "update" ? "Update" : "Create"}
+                        <Badge className={r.matchStatus === "update" ? "bg-warning/15 text-warning-strong" : "bg-success/15 text-success-strong"}>
+                          {r.matchStatus === "update" ? "Update" : "Add"}
                         </Badge>
                       </TableCell>
                       <TableCell className="font-medium">{r.firstName}</TableCell>
-                      <TableCell>{r.otherNames || "—"}</TableCell>
+                      <TableCell>{r.otherNames || ""}</TableCell>
                       <TableCell className="font-medium">{r.lastName}</TableCell>
-                      <TableCell>{r.email || "—"}</TableCell>
-                      <TableCell>{r.phone || "—"}</TableCell>
+                      <TableCell>{r.email || ""}</TableCell>
+                      <TableCell>{r.phone || ""}</TableCell>
                       <TableCell>
-                        <Badge variant="outline" className={
-                          r.status === "active" ? "bg-green-50 text-green-700" :
-                            r.status === "inactive" ? "bg-gray-50 text-gray-700" :
-                              "bg-blue-50 text-blue-700"
+                        <Badge className={
+                          r.status === "active" ? "bg-success/15 text-success-strong" :
+                            r.status === "inactive" ? "bg-warning/15 text-warning-strong" :
+                              "bg-info/15 text-info-strong"
                         }>
-                          {r.status}
+                          {r.status.charAt(0).toUpperCase() + r.status.slice(1)}
                         </Badge>
                       </TableCell>
-                      <TableCell>{r.gender || "—"}</TableCell>
-                      <TableCell>{r.dob || "—"}</TableCell>
-                      <TableCell>{r.location || "—"}</TableCell>
-                      <TableCell className="max-w-[150px] truncate" title={r.address}>{r.address || "—"}</TableCell>
-                      <TableCell>{r.plusCode || "—"}</TableCell>
-                      <TableCell>{r.rawUnits.filter(u => u.type === 'geographic').map(u => u.name).join(", ") || "—"}</TableCell>
-                      <TableCell>{r.rawUnits.filter(u => u.type === 'functional').map(u => u.name).join(", ") || "—"}</TableCell>
+                      <TableCell>{r.gender || ""}</TableCell>
+                      <TableCell className="whitespace-nowrap">{r.dob ? format(new Date(`${r.dob}T00:00:00`), "d MMM yyyy") : r.birthMonth && r.birthDay ? format(new Date(2000, r.birthMonth - 1, r.birthDay), "d MMM") : ""}</TableCell>
+                      <TableCell>{r.location || ""}</TableCell>
+                      <TableCell className="max-w-[150px] truncate" title={r.address}>{r.address || ""}</TableCell>
+                      <TableCell>{r.plusCode || ""}</TableCell>
+                      <TableCell>{r.rawUnits.filter(u => u.type === 'geographic').map(u => u.name).join(", ") || ""}</TableCell>
+                      <TableCell>{r.rawUnits.filter(u => u.type === 'functional').map(u => u.name).join(", ") || ""}</TableCell>
                       <TableCell>
                         {r.errors ? (
-                          <span className="text-red-600" title={r.errors.join(", ")}>⚠️</span>
-                        ) : "—"}
+                          <span className="inline-flex items-center gap-1 text-destructive-strong" title={r.errors.join(", ")}>
+                            <AlertCircle className="h-4 w-4" aria-hidden="true" />
+                            <span className="whitespace-nowrap">{r.errors.join(", ")}</span>
+                          </span>
+                        ) : null}
                       </TableCell>
                     </TableRow>
                   ))}
                 </TableBody>
               </Table>
-              {previewData.length > 50 && <p className="p-2 text-center text-muted-foreground italic">Showing first 50 of {previewData.length} rows</p>}
+              {previewData.length > 50 && <p className="p-2 text-center text-muted-foreground">Showing the first 50 of {previewData.length} rows. Every ready row will be imported.</p>}
             </div>
           </div>
         )}
 
         {uploadStatus === "success" && (
           <div className="py-8 text-center space-y-2">
-            <Check className="h-12 w-12 text-green-600 mx-auto" />
-            <h3 className="text-lg">Success!</h3>
+            <Check className="h-12 w-12 text-success-strong mx-auto" />
+            <h3 className="text-lg font-semibold">Members imported</h3>
             <p className="text-sm text-muted-foreground">{errorMessage}</p>
           </div>
         )}
@@ -568,7 +571,7 @@ export function BulkUploadDialog({ open, onOpenChange, onSuccess }: BulkUploadDi
         {uploadStatus === "error" && (
           <Alert variant="destructive">
             <AlertCircle className="h-4 w-4" />
-            <AlertTitle>Error</AlertTitle>
+            <AlertTitle>Couldn't import the file</AlertTitle>
             <AlertDescription>{errorMessage}</AlertDescription>
           </Alert>
         )}
@@ -577,12 +580,12 @@ export function BulkUploadDialog({ open, onOpenChange, onSuccess }: BulkUploadDi
           {uploadStatus === "idle" && <Button variant="ghost" onClick={handleClose}>Cancel</Button>}
           {uploadStatus === "preview" && (
             <>
-              <Button variant="ghost" onClick={handleReset}>Reset</Button>
-              <Button onClick={handleConfirmUpload} disabled={validCount === 0}>Upload {validCount} Records</Button>
+              <Button variant="ghost" onClick={handleReset}>Choose another file</Button>
+              <Button onClick={handleConfirmUpload} disabled={validCount === 0}>Import {validCount} {validCount === 1 ? "member" : "members"}</Button>
             </>
           )}
           {uploadStatus === "success" && <Button onClick={handleClose}>Done</Button>}
-          {uploadStatus === "error" && <Button onClick={handleReset}>Try Again</Button>}
+          {uploadStatus === "error" && <Button onClick={handleReset}>Try again</Button>}
         </DialogFooter>
       </DialogContent>
     </Dialog>

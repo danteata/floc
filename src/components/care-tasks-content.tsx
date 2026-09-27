@@ -8,13 +8,14 @@ import { api } from "../../convex/_generated/api"
 import { Id } from "../../convex/_generated/dataModel"
 import { useOrganization } from "@/hooks/use-organization"
 import { useUserRole } from "@/hooks/use-user-role"
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
+import { MemberAvatar } from "@/components/ui/member-avatar"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Textarea } from "@/components/ui/textarea"
 import { EmptyState } from "@/components/ui/empty-state"
+import { PageHeader } from "@/components/ui/page-header"
 import { LoadingState } from "@/components/ui/loading-state"
 import { AssignFollowUpDialog } from "@/components/assign-follow-up-dialog"
 import { cn } from "@/lib/utils"
@@ -27,10 +28,10 @@ const STATUS_LABEL: Record<Status, string> = {
   resolved: "Resolved",
 }
 
-const STATUS_VARIANT: Record<Status, "outline" | "secondary" | "default"> = {
-  pending: "outline",
-  contacted: "secondary",
-  resolved: "default",
+const STATUS_TONE: Record<Status, string> = {
+  pending: "border-transparent bg-warning/15 text-warning-strong",
+  contacted: "border-transparent bg-info/15 text-info-strong",
+  resolved: "border-transparent bg-success/15 text-success-strong",
 }
 
 const NEXT_STATUS: Record<Status, Status | null> = {
@@ -76,12 +77,7 @@ function TaskRow({ task }: { task: CareTask }) {
     <div className="flex flex-col gap-3 border-b border-border/60 px-4 py-3 last:border-0">
       <div className="flex items-center justify-between gap-3">
         <div className="flex items-center gap-3">
-          <Avatar className="h-8 w-8">
-            <AvatarImage src={task.member_avatar_url} alt={task.member_name} />
-            <AvatarFallback className="bg-primary/10 text-primary text-xs font-semibold">
-              {task.member_name.slice(0, 2).toUpperCase()}
-            </AvatarFallback>
-          </Avatar>
+          <MemberAvatar name={task.member_name} src={task.member_avatar_url} />
           <div>
             <p className="text-sm font-medium leading-none">{task.member_name}</p>
             <p className="text-xs text-muted-foreground">
@@ -92,7 +88,7 @@ function TaskRow({ task }: { task: CareTask }) {
           </div>
         </div>
         <div className="flex items-center gap-2">
-          <Badge variant={STATUS_VARIANT[status]}>{STATUS_LABEL[status]}</Badge>
+          <Badge variant="outline" className={STATUS_TONE[status]}>{STATUS_LABEL[status]}</Badge>
           {next && (
             <Button
               size="sm"
@@ -100,7 +96,7 @@ function TaskRow({ task }: { task: CareTask }) {
               onClick={() => setShowNote((s) => !s)}
               disabled={isSubmitting}
             >
-              Mark {STATUS_LABEL[next]}
+              Mark as {STATUS_LABEL[next].toLowerCase()}
             </Button>
           )}
         </div>
@@ -142,13 +138,33 @@ type QueueMember = {
 }
 
 function impactBadgeClass(level: "high" | "medium" | "low") {
-  if (level === "high") return "bg-destructive/10 text-destructive border-destructive/30"
-  if (level === "medium") return "bg-amber-500/10 text-amber-600 border-amber-500/30"
-  return "bg-muted text-muted-foreground border-border/60"
+  if (level === "high") return "border-transparent bg-destructive/15 text-destructive"
+  if (level === "medium") return "border-transparent bg-warning/15 text-warning-strong"
+  return "border-transparent bg-muted text-muted-foreground"
+}
+
+const PRIORITY_LABEL: Record<"high" | "medium" | "low", string> = {
+  high: "High priority",
+  medium: "Medium priority",
+  low: "Low priority",
+}
+
+/** Queue reasons arrive in short form ("9w since last seen"); spell them out. */
+function readableReason(reason: string): string {
+  const weeks = reason.match(/^(\d+)w since last seen$/)
+  if (weeks) return `${weeks[1]} ${weeks[1] === "1" ? "week" : "weeks"} since last seen`
+  const days = reason.match(/^Contacted (\d+)d ago$/)
+  if (days) {
+    const n = Number(days[1])
+    if (n === 0) return "Contacted today"
+    if (n === 1) return "Contacted yesterday"
+    return `Contacted ${n} days ago`
+  }
+  return reason
 }
 
 /**
- * "Members Recovered" — proof the care loop works. Reads careImpactStats,
+ * "Members recovered": proof the care loop works. Reads careImpactStats,
  * which attributes at-risk follow-ups to subsequent recovery. Renders nothing
  * until there's something to show (Free orgs / no attributed contacts yet).
  */
@@ -163,12 +179,12 @@ function ImpactStatsBanner({ organizationId }: { organizationId: Id<"organizatio
       <Card>
         <CardContent className="p-4">
           <div className="flex items-center gap-2 mb-1">
-            <TrendingUp className="h-4 w-4 text-success" />
+            <TrendingUp className="h-4 w-4 text-muted-foreground" />
             <p className="text-sm font-medium">Care impact</p>
           </div>
           <p className="text-xs text-muted-foreground">
-            No recoveries tracked yet — assign follow-ups below and, as those at-risk members
-            re-engage, your recovery count will appear here.
+            No recoveries yet. Follow up with the members below, and as they come back
+            you'll see the count here.
           </p>
         </CardContent>
       </Card>
@@ -177,7 +193,7 @@ function ImpactStatsBanner({ organizationId }: { organizationId: Id<"organizatio
 
   const tiles = [
     { label: "Recovered", value: stats.recovered, tone: "text-success" },
-    { label: "Improving", value: stats.improving, tone: "text-amber-600" },
+    { label: "Improving", value: stats.improving, tone: "text-warning-strong" },
     { label: "No change yet", value: stats.stillAtRisk, tone: "text-muted-foreground" },
     { label: "Recovery rate", value: `${stats.recoveryRate}%`, tone: "text-foreground" },
   ]
@@ -187,16 +203,16 @@ function ImpactStatsBanner({ organizationId }: { organizationId: Id<"organizatio
       <CardContent className="p-4">
         <div className="mb-3">
           <div className="flex items-center gap-2">
-            <TrendingUp className="h-4 w-4 text-success" />
+            <TrendingUp className="h-4 w-4 text-muted-foreground" />
             <p className="text-sm font-medium">
               Care impact{" "}
               <span className="text-muted-foreground font-normal">
-                · last {stats.windowDays} days
+                (last {stats.windowDays} days)
               </span>
             </p>
           </div>
           <p className="text-xs text-muted-foreground mt-1">
-            Outcomes for the members you've followed up with — not the total at-risk count.
+            How the members you followed up with are doing. This counts only them, not every at-risk member.
           </p>
         </div>
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
@@ -226,12 +242,7 @@ function QueueRow({
   return (
     <div className="flex flex-col gap-2 border-b border-border/60 px-4 py-3 last:border-0 sm:flex-row sm:items-center sm:justify-between">
       <div className="flex items-start gap-3">
-        <Avatar className="h-8 w-8">
-          <AvatarImage src={member.avatar_url} alt={member.name} />
-          <AvatarFallback className="bg-primary/10 text-primary text-xs font-semibold">
-            {member.name.slice(0, 2).toUpperCase()}
-          </AvatarFallback>
-        </Avatar>
+        <MemberAvatar name={member.name} src={member.avatar_url} />
         <div className="min-w-0">
           <p className="text-sm font-medium leading-none">{member.name}</p>
           <div className="mt-1.5 flex flex-wrap gap-1">
@@ -239,9 +250,9 @@ function QueueRow({
               <Badge
                 key={r}
                 variant="outline"
-                className="text-[10px] font-normal text-muted-foreground"
+                className="font-normal text-muted-foreground"
               >
-                {r}
+                {readableReason(r)}
               </Badge>
             ))}
           </div>
@@ -250,15 +261,15 @@ function QueueRow({
       <div className="flex items-center gap-2 pl-11 sm:pl-0">
         <Badge
           variant="outline"
-          className={cn("text-[10px] capitalize", impactBadgeClass(member.impact_level))}
+          className={impactBadgeClass(member.impact_level)}
         >
-          {member.impact_level} priority
+          {PRIORITY_LABEL[member.impact_level]}
         </Badge>
         <AssignFollowUpDialog
           organizationId={organizationId}
           members={[{ id: member.id, name: member.name, household_id: member.household_id }]}
           trigger={
-            <Button size="sm" variant="outline" className="h-7 text-xs">
+            <Button size="sm" variant="outline">
               Follow up
             </Button>
           }
@@ -284,7 +295,7 @@ function CareQueue({ organizationId }: { organizationId: Id<"organizations"> }) 
             <EmptyState
               icon={Sparkles}
               title="No one needs a call right now"
-              description="At-risk members without an open follow-up show up here, ranked by how much your outreach is likely to help. Requires engagement scoring (Pro)."
+              description="At-risk members without an open follow-up appear here, those your call is most likely to help first. This needs engagement scoring, part of the Pro plan."
             />
           ) : (
             <div>
@@ -328,21 +339,16 @@ export function CareTasksContent() {
 
   return (
     <div className="space-y-4">
-      <div>
-        <h1 className="text-xl font-semibold flex items-center gap-2">
-          <HeartHandshake className="h-5 w-5 text-primary" />
-          Care
-        </h1>
-        <p className="text-sm text-muted-foreground">
-          Who to reach out to next, and the follow-ups already in flight.
-        </p>
-      </div>
+      <PageHeader
+        title="Care"
+        description="Who to reach out to next, and the follow-ups already under way."
+      />
 
       <Tabs value={view} onValueChange={(v) => setView(v as "queue" | "tasks")}>
         <TabsList>
           <TabsTrigger value="queue" className="gap-1.5">
             <Sparkles className="h-3.5 w-3.5" />
-            Care Queue
+            Care queue
           </TabsTrigger>
           <TabsTrigger value="tasks">Follow-ups</TabsTrigger>
         </TabsList>
@@ -385,8 +391,8 @@ export function CareTasksContent() {
                   title="No care tasks here"
                   description={
                     scope === "mine"
-                      ? "You're all caught up — nothing needs your follow-up right now."
-                      : "No follow-up tasks match this filter."
+                      ? "You're all caught up. Nothing needs your follow-up right now."
+                      : "No care tasks have this status."
                   }
                 />
               ) : (

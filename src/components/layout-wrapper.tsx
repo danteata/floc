@@ -1,10 +1,6 @@
 import { type ReactNode, useState, useEffect } from "react"
 import { useLocation } from "react-router-dom"
-import {
-  Menu,
-  X,
-  Sparkles
-} from "lucide-react"
+import { Menu, X } from "lucide-react"
 import { useUser } from "@clerk/clerk-react"
 
 import { UserNav } from "@/components/user-nav"
@@ -16,6 +12,7 @@ import { OrganizationSelector } from "@/components/organization-selector"
 import { ViewingOrgBanner } from "@/components/viewing-org-banner"
 import { ModeToggle } from "@/components/mode-toggle"
 import { NotificationsPopover } from "@/components/notifications-popover"
+import { FlocMark } from "@/components/ui/floc-mark"
 
 interface LayoutWrapperProps {
   children?: ReactNode
@@ -67,19 +64,12 @@ export function LayoutWrapper({ children, showSearch = true }: LayoutWrapperProp
         )}>
           {/* Logo */}
           <div className="flex items-center justify-between h-16 px-5 border-b border-sidebar-border/50 shrink-0">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-gradient-primary shadow-soft flex items-center justify-center">
-                <Sparkles className="h-5 w-5 text-primary-foreground" />
-              </div>
-              <div className="flex flex-col">
-                <span className="font-bold text-sidebar-foreground tracking-tight font-serif text-lg leading-none">Floc</span>
-                <span className="text-[10px] text-sidebar-foreground/50 mt-1">Church Management</span>
-              </div>
-            </div>
+            <FlocMark />
             <Button
               variant="ghost"
               size="icon"
               className="lg:hidden h-8 w-8 text-sidebar-foreground/70 hover:text-sidebar-foreground hover:bg-sidebar-foreground/10 rounded-lg"
+              aria-label="Close menu"
               onClick={() => setSidebarOpen(false)}
             >
               <X className="h-4 w-4" />
@@ -98,19 +88,21 @@ export function LayoutWrapper({ children, showSearch = true }: LayoutWrapperProp
         {/* Main content */}
         <div className="flex-1 flex flex-col min-w-0">
           {/* Header */}
-          <header className="h-16 glass border-b border-border/50 flex items-center justify-between px-6 sticky top-0 z-30 shrink-0">
+          <header className="h-16 glass border-b border-border/50 flex items-center justify-between px-4 sm:px-6 sticky top-0 z-30 shrink-0">
             {/* Left section */}
             <div className="flex items-center gap-4">
               <Button
                 variant="ghost"
                 size="icon"
+                aria-label="Open menu"
                 className="lg:hidden h-9 w-9 hover:bg-muted rounded-lg"
                 onClick={() => setSidebarOpen(true)}
               >
                 <Menu className="h-5 w-5" />
               </Button>
 
-              {/* Organization Selector */}
+              {/* On a phone the church's name has no room; the mark says where you are. */}
+              <FlocMark compact className="sm:hidden" />
               <OrganizationSelector className="hidden sm:flex" />
             </div>
 
@@ -126,7 +118,7 @@ export function LayoutWrapper({ children, showSearch = true }: LayoutWrapperProp
 
           {/* Content — keyed by route so each page fades in on navigation */}
           <main className="flex-1 overflow-auto">
-            <div key={pathname} className="p-6 w-full max-w-7xl mx-auto fade-in-up">
+            <div key={pathname} className="p-4 sm:p-6 w-full max-w-7xl mx-auto fade-in-up">
               {children}
             </div>
           </main>

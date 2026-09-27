@@ -159,7 +159,7 @@ export function BrandingPanel() {
           />
           {!valid && (
             <span className="text-xs text-destructive">
-              Hex only, like #0369a1 — not a colour name or rgb().
+              Hex only, like #0369a1 (not a colour name or rgb()).
             </span>
           )}
         </div>
@@ -199,7 +199,7 @@ export function BrandingPanel() {
       </div>
 
       {adjustments.length > 0 && (
-        <div className="rounded-lg border border-amber-500/40 bg-amber-500/5 p-3 space-y-1">
+        <div className="rounded-lg border border-warning/40 bg-warning/5 p-3 space-y-1">
           <p className="text-sm font-medium">Adjusted to stay readable</p>
           {adjustments.map((a, i) => (
             <p key={i} className="text-xs text-muted-foreground">
@@ -208,7 +208,7 @@ export function BrandingPanel() {
             </p>
           ))}
           <p className="text-xs text-muted-foreground pt-1">
-            Your colour is kept where it's legible and darkened or lightened where it isn't — the
+            Your colour is kept where it's legible and darkened or lightened where it isn't. The
             hue stays yours either way.
           </p>
         </div>
