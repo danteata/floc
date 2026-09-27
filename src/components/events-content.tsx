@@ -63,7 +63,8 @@ import { cn } from '@/lib/utils'
 import { EmptyState } from '@/components/ui/empty-state'
 import { formatDay, titleCase } from '@/lib/display'
 
-const TRAILING_ISO_DATE = /\s*-\s*(\d{4}-\d{2}-\d{2})\s*$/
+// Auto-created titles end in the date, written with a hyphen or a dash.
+const TRAILING_ISO_DATE = /\s*[-—–]\s*(\d{4}-\d{2}-\d{2})\s*$/
 
 /** "sunday service" -> "Sunday Service". Titles someone already cased are left alone. */
 

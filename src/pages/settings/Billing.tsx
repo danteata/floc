@@ -17,8 +17,8 @@ const PRO_FEATURES = [
 ]
 
 function formatDate(iso: string | null): string {
-    if (!iso) return "—"
-    return new Date(iso).toLocaleDateString(undefined, {
+    if (!iso) return "Not set"
+    return new Date(iso).toLocaleDateString("en-GB", {
         year: "numeric",
         month: "long",
         day: "numeric",

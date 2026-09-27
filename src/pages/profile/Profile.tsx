@@ -1,8 +1,11 @@
 import { LayoutWrapper } from "@/components/layout-wrapper"
 import { PageHeader } from "@/components/ui/page-header"
 import { UserProfile } from "@clerk/clerk-react"
+import { clerkAppearance } from "@/lib/clerk"
+import { useTheme } from "@/components/theme-provider"
 
 export default function ProfilePage() {
+    const { resolvedTheme } = useTheme()
     // Check if Clerk is configured
     const isClerkConfigured =
         typeof import.meta.env.VITE_CLERK_PUBLISHABLE_KEY === "string" &&
@@ -16,6 +19,7 @@ export default function ProfilePage() {
                     {isClerkConfigured ? (
                         <UserProfile
                             appearance={{
+                                ...clerkAppearance(resolvedTheme === "dark" ? "dark" : "light"),
                                 elements: {
                                     rootBox: "w-full",
                                     card: "shadow-none border-0",

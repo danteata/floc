@@ -391,7 +391,7 @@ export const seedExampleRules = mutation({
                         key: "send_in_app",
                         params: {
                             title: "We miss you",
-                            template: "Hi {{member.first_name}}, we missed you at church for {{count}} weeks. Everything okay? — {{org.name}}",
+                            template: "Hi {{member.first_name}}, we missed you at church for {{count}} weeks. Everything okay? From all of us at {{org.name}}",
                             category: "follow_up",
                         },
                     },
@@ -420,7 +420,7 @@ export const seedExampleRules = mutation({
                         key: "send_in_app",
                         params: {
                             title: "Happy birthday! 🎉",
-                            template: "Happy birthday, {{member.first_name}}! 🎉 — {{org.name}}",
+                            template: "Happy birthday, {{member.first_name}}! 🎉 From all of us at {{org.name}}",
                             category: "info",
                         },
                     },

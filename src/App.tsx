@@ -74,8 +74,8 @@ function SyncPending({ error, retry }: { error: boolean; retry: () => void }) {
       <div className="max-w-sm w-full text-center space-y-4">
         <h2 className="text-lg font-semibold">Something went wrong</h2>
         <p className="text-sm text-muted-foreground">
-          We couldn't finish setting up your account. Please try again — if the
-          problem persists, contact support.
+          We couldn't finish setting up your account. Try again, and if it
+          keeps happening, contact support.
         </p>
         <button
           onClick={retry}

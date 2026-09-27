@@ -1659,7 +1659,7 @@ export const linkMyAccount = mutation({
     handler: async (ctx, args) => {
         const identity = await requireIdentity(ctx);
         if (!identity.email) {
-            throw new Error("Your Clerk account has no email — cannot link a member record");
+            throw new Error("Your account has no email address, so it can't be linked to a member record. Add an email to your account and try again.");
         }
 
         const member = await ctx.db

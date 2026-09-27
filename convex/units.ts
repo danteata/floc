@@ -616,7 +616,7 @@ export async function mergeUnitsCore(
         }
         // Merging into a unit nested under the source would orphan/cycle the tree.
         if (source.path && target.path?.startsWith(source.path + "/")) {
-            throw new Error("Can't merge a unit into one of its own sub-units — merge the other way around.");
+            throw new Error("A unit can't be merged into one of its own sub-units. Merge them the other way round.");
         }
 
         // 1) Memberships → target, de-duplicated by member.

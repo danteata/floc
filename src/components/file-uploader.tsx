@@ -157,7 +157,7 @@ export function FileUploader({ onUploadComplete, showPreview = false }: FileUplo
                                     {isDragOver ? 'Drop image here' : 'Click to upload'}
                                 </p>
                                 <p className="text-xs text-muted-foreground">
-                                    or drag and drop — JPG or PNG, up to 4MB
+                                    or drag and drop. JPG or PNG, up to 4 MB.
                                 </p>
                             </div>
                         </>
