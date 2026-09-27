@@ -32,7 +32,7 @@ export default function GivePage() {
                         <span className="min-w-0 break-words">{org === undefined ? "Give" : `Give to ${org?.name ?? "this church"}`}</span>
                     </CardTitle>
                     <CardDescription>
-                        Thank you for giving. You'll pay securely with Paystack (mobile money or card) and come back here when it's done.
+                        Thank you for giving. You'll pay securely by mobile money or card and come back here when it's done.
                     </CardDescription>
                 </CardHeader>
                 <CardContent>

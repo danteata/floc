@@ -32,97 +32,97 @@ const SUNDAY_TIMELINE = [
         time: '8:45 AM',
         icon: QrCode,
         title: 'Check-in opens',
-        detail: 'Members scan at the door. No register, no queue.',
+        detail: 'Members scan a code at the door. No register, no queue.',
     },
     {
         time: '9:15 AM',
         icon: Users,
         title: '412 checked in · 23 first-timers',
-        detail: '94% self-served through the QR link.',
+        detail: 'Most checked themselves in on their phones.',
     },
     {
         time: '11:20 AM',
         icon: DollarSign,
         title: '20,770 in giving recorded',
-        detail: 'Tithes, offering and special giving tallied.',
+        detail: 'Tithes, offering and special giving, added up for you.',
     },
     {
         time: 'Monday',
         icon: Share2,
-        title: '6 drifting members flagged for outreach',
-        detail: 'Ranked by who you’re most likely to win back, and shared with 3 volunteers.',
+        title: '6 members flagged for a call',
+        detail: 'Those most likely to come back are at the top, and the list goes to 3 volunteers.',
     },
 ]
 
 const PROOF = [
     {
         icon: Eye,
-        title: 'Know who’s slipping',
-        desc: 'Drift is flagged automatically, before you’d notice it by eye.',
+        title: 'See who’s drifting',
+        desc: 'Floc spots falling attendance before anyone would notice it.',
     },
     {
         icon: PhoneCall,
-        title: 'Know who to reach first',
-        desc: 'A care queue ranked by who you’re most likely to win back.',
+        title: 'Know who to call first',
+        desc: 'A care list with the people most likely to come back at the top.',
     },
     {
         icon: TrendingUp,
-        title: 'Know it’s working',
-        desc: '“Members recovered” shows you the ones who came home.',
+        title: 'See it working',
+        desc: 'Floc counts the members who came back after your team reached out.',
     },
 ]
 
 const HOW_IT_WORKS = [
     {
-        title: 'Check-in logs itself',
-        desc: 'A QR scan or a kiosk tap records attendance the moment someone walks in.',
+        title: 'Attendance takes care of itself',
+        desc: 'Members scan a QR code at the door, or a steward checks them in at the kiosk.',
     },
     {
-        title: 'The drifting surface on their own',
-        desc: 'When someone starts sliding, a couple of missed weeks or weekly quietly becoming monthly, Floc flags them long before it becomes a real gap.',
+        title: 'Floc notices who’s drifting',
+        desc: 'A few missed weeks, or weekly quietly becoming monthly: Floc flags it early, while there’s still time to help.',
     },
     {
-        title: 'Reach them, and see who came back',
-        desc: 'Share a secure list with your care team, then watch “Members recovered” climb as people return.',
+        title: 'Reach out, and see who returns',
+        desc: 'Send the list to your care team, then watch the people they called come back.',
     },
 ]
 
 const FEATURE_ROWS = [
     {
-        kicker: 'Care and retention, the heart of Floc',
-        title: 'See who’s slipping, and bring them back',
-        desc: 'This is what Floc is really for. It watches every attendance pattern so no quiet exit goes unnoticed, ranks who to reach first by who you’re most likely to win back, then shows you the ones who returned.',
+        kicker: 'Care and follow-up',
+        title: 'See who’s drifting, and bring them back',
+        desc: 'This is what Floc is for. It watches attendance so no quiet exit goes unnoticed, tells you who to call first, and shows you who came back.',
         bullets: [
-            'A care queue ranked by impact: who to call first, and why',
-            'Catch the slide early: falling attendance and missed weeks in a row',
-            '“Members recovered”: proof your follow-up is working',
-            'Follow-up lists volunteers open from a link, with no login',
+            'Who to call first, and why',
+            'Early warning from missed weeks and falling attendance',
+            'A count of the members who came back',
+            'Lists volunteers open from a link, with no login',
         ],
         visual: 'members',
         visualSide: 'left' as const,
     },
     {
         kicker: 'Attendance',
-        title: 'Check-in that just works',
-        desc: 'QR self check-in, a kiosk mode for stewards, geofencing, lateness tracking and a full audit trail. Members scan; you see who came.',
+        title: 'Check-in that runs itself',
+        desc: 'Members check in with a QR code, stewards use a kiosk at the door, and you watch the headcount as it happens.',
         bullets: [
-            'Live headcount as members check in',
-            'Geofence enforcement (strict or soft)',
-            'Automatic lateness detection',
-            'Kiosk mode for door stewards',
+            'A live headcount on the day',
+            'Check-in only at the venue, if you want it',
+            'Late arrivals noted for you',
+            'A kiosk mode for stewards',
         ],
         visual: 'qr',
         visualSide: 'right' as const,
     },
     {
-        kicker: 'Financial',
+        kicker: 'Giving',
         title: 'Every gift, accounted for',
-        desc: 'Track tithes, offerings and expenses per service. Split by cash and electronic, attach receipts, and produce the reports your finance team needs.',
+        desc: 'Record tithes, offerings and expenses for each service, cash and electronic, with receipts attached, and give your finance team reports they can use.',
         bullets: [
-            'Per-service income breakdown',
-            'Cash vs electronic tracking',
-            'Expense management with receipts',
-            'CSV export for accountants',
+            'Giving for each service',
+            'Cash and electronic kept apart',
+            'Expenses with their receipts',
+            'Exports for your accountant',
         ],
         visual: 'financial',
         visualSide: 'left' as const,
@@ -133,17 +133,17 @@ const SECONDARY_FEATURES = [
     {
         icon: Layers,
         title: 'Groups and units',
-        desc: 'Departments, zones and small groups in one structure. Assign leaders, manage who belongs where, and see your church’s shape.',
+        desc: 'Departments, zones and small groups in one picture, each with its leaders and members.',
     },
     {
         icon: Calendar,
         title: 'Events',
-        desc: 'Your services and events with their usual times, a grace period for late arrivals, and which units they’re for.',
+        desc: 'Your services and events, when they start, and who they’re for.',
     },
     {
         icon: BarChart3,
         title: 'Reports and insights',
-        desc: 'Weekly and monthly trends, event comparisons, age and gender breakdowns and retention, ready to export for leadership meetings.',
+        desc: 'Attendance trends, retention, and age and gender breakdowns, ready for your leadership meeting.',
     },
     {
         icon: UserCog,
@@ -152,8 +152,8 @@ const SECONDARY_FEATURES = [
     },
     {
         icon: ShieldCheck,
-        title: 'Roles and Permissions',
-        desc: 'Roles from church administrator to member. Unit leaders see only the units they lead, and every change is logged.',
+        title: 'Roles and permissions',
+        desc: 'Leaders see only the people they look after, and every change is recorded.',
     },
     {
         icon: Share2,
@@ -167,7 +167,7 @@ const PRICING = [
         name: 'Free',
         price: 'GH₵0',
         period: '/month',
-        description: 'Everything a growing church needs to get organized and start tracking.',
+        description: 'Everything a growing church needs to get organised and start taking attendance.',
         features: [`Up to ${FREE_MEMBER_LIMIT} members`, 'QR check-in and kiosk mode', 'Attendance tracking', 'Basic financial records', 'Member portal and absent-list sharing'],
         cta: 'Get started free',
         highlight: false,
@@ -176,10 +176,10 @@ const PRICING = [
         name: 'Pro',
         price: `GH₵${PRO_PRICE_GHS}`,
         period: '/month',
-        description: 'For churches set on keeping everyone: the full care engine, and room to grow.',
+        description: 'For churches set on keeping everyone: the full care tools, and room to grow.',
         features: [
-            'At-risk scoring and a care queue ranked by impact',
-            '“Members recovered” tracking',
+            'Early warning and a care list of who to call first',
+            'A count of members who came back',
             'Automated follow-ups',
             'Unlimited members and units',
             'Member map and geofenced check-in',
@@ -290,15 +290,15 @@ export default function HomePage() {
                     <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 lg:gap-16 items-center">
                         <div>
                             <p className="text-sm font-medium text-primary mb-4">
-                                Not another member database
+                                Church management with care at its heart
                             </p>
                             <h1 className="font-serif text-4xl md:text-5xl lg:text-6xl font-medium tracking-tight leading-[1.08]">
                                 Make sure no one slips away.
                             </h1>
                             <p className="mt-6 text-lg text-neutral-600 leading-relaxed max-w-xl">
-                                Floc runs quietly behind your Sunday, handling check-ins, giving and attendance.
-                                Then it flags the one who&apos;s drifting and hands your team the moment to reach
-                                them, so no one in your care quietly disappears.
+                                Floc takes care of the Sunday admin: check-in, attendance and giving. Then it
+                                tells you who has started drifting away, so your team can reach them while a
+                                phone call still makes a difference.
                             </p>
                             <div className="mt-8 flex flex-col sm:flex-row items-start gap-3">
                                 <SignInButton mode="modal">
@@ -314,8 +314,8 @@ export default function HomePage() {
                                 </a>
                             </div>
                             <div className="mt-8 flex flex-wrap items-center gap-x-6 gap-y-2 text-sm text-neutral-500">
-                                <span className="flex items-center gap-1.5"><Check className="h-4 w-4 text-primary" /> Free plan forever</span>
-                                <span className="flex items-center gap-1.5"><Check className="h-4 w-4 text-primary" /> No credit card needed</span>
+                                <span className="flex items-center gap-1.5"><Check className="h-4 w-4 text-primary" /> Free for up to 200 members</span>
+                                <span className="flex items-center gap-1.5"><Check className="h-4 w-4 text-primary" /> No card needed</span>
                                 <span className="flex items-center gap-1.5"><Check className="h-4 w-4 text-primary" /> Set up the same day</span>
                             </div>
                         </div>
@@ -354,8 +354,8 @@ export default function HomePage() {
                         Proverbs 27:23
                     </p>
                     <p className="mt-8 text-neutral-600 text-lg leading-relaxed max-w-xl mx-auto">
-                        Floc takes its name from that charge. We built it to make knowing the condition of
-                        your flock effortless, so attention turns into action and no one drifts away unseen.
+                        Floc takes its name from that charge. We built it so knowing the condition of your
+                        flock takes no effort, and caring for them gets the time instead.
                     </p>
                 </div>
             </section>
@@ -370,8 +370,8 @@ export default function HomePage() {
                         See everyone. Miss no one.
                     </h2>
                     <p className="mt-5 text-neutral-600 text-lg leading-relaxed">
-                        Floc connects every Sunday touchpoint, then turns quiet attendance patterns into a
-                        simple &ldquo;who to reach&rdquo;, before a gap becomes a goodbye.
+                        Floc brings check-in, attendance and giving together, then turns quiet changes in
+                        who comes into a short list of who to call, before a gap becomes a goodbye.
                     </p>
                 </div>
                 <div className="max-w-5xl mx-auto mt-16 relative grid grid-cols-1 md:grid-cols-3 gap-10">
@@ -428,7 +428,7 @@ export default function HomePage() {
                 <div className="max-w-6xl mx-auto">
                     <div className="max-w-2xl mx-auto text-center mb-14">
                         <h2 className="font-serif text-3xl md:text-4xl font-medium tracking-tight">
-                            And that&apos;s just the start
+                            Everything else your church runs on
                         </h2>
                     </div>
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -502,7 +502,7 @@ export default function HomePage() {
                         ))}
                     </div>
                     <p className="mt-8 text-center text-sm text-neutral-500">
-                        Prices are in Ghana cedis (GHS), billed monthly through Paystack.
+                        Prices are in Ghana cedis (GHS), billed monthly.
                     </p>
                 </div>
             </section>
@@ -515,7 +515,7 @@ export default function HomePage() {
                             Questions, answered
                         </h2>
                         <p className="mt-4 text-neutral-600 text-lg">
-                            Everything you need to know about Floc.
+                            The things churches ask us first.
                         </p>
                     </div>
                     <div className="space-y-3">
@@ -563,8 +563,8 @@ export default function HomePage() {
                         No one else has to slip away.
                     </h2>
                     <p className="mt-4 text-white/60 text-lg leading-relaxed max-w-xl mx-auto">
-                        Set up your first service today and let Floc keep watch over everyone in your care.
-                        Start free, and upgrade to Pro whenever you like.
+                        Set up your first service today and let Floc watch over everyone in your care.
+                        Start free, and move to Pro whenever you're ready.
                     </p>
                     <div className="mt-8 flex flex-col sm:flex-row items-center justify-center gap-3">
                         <SignInButton mode="modal">
@@ -630,11 +630,11 @@ function SundayTimelineCard() {
         <div className="rounded-3xl border border-black/[0.08] bg-white shadow-2xl shadow-black/5 p-6 max-w-md mx-auto lg:mx-0 w-full">
             <div className="flex items-center justify-between mb-6">
                 <div>
-                    <div className="text-sm font-semibold">Sunday Service</div>
-                    <div className="text-xs text-neutral-500">Today&apos;s timeline</div>
+                    <div className="text-sm font-semibold">A Sunday with Floc</div>
+                    <div className="text-xs text-neutral-500">From the doors opening to Monday&apos;s follow-up</div>
                 </div>
-                <span className="flex items-center gap-1.5 rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-medium text-emerald-700">
-                    <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" /> Live
+                <span className="rounded-full bg-neutral-100 px-2.5 py-1 text-xs font-medium text-neutral-600">
+                    Example
                 </span>
             </div>
             <div className="relative">
@@ -662,8 +662,8 @@ function SundayTimelineCard() {
 function FeatureVisual({ kind }: { kind: string }) {
     if (kind === 'members') {
         const rows = [
-            { name: 'Kwame Owusu', sub: "Ushering · Men's Fellowship", color: 'bg-rose-500', status: '3 wks absent', variant: 'absent' },
-            { name: 'Esi Danso', sub: 'Was 4 wks absent · returned', color: 'bg-teal-500', status: 'Recovered', variant: 'recovered' },
+            { name: 'Kwame Owusu', sub: "Ushering · Men's Fellowship", color: 'bg-rose-500', status: '3 weeks away', variant: 'absent' },
+            { name: 'Esi Danso', sub: 'Back after 4 weeks away', color: 'bg-teal-500', status: 'Recovered', variant: 'recovered' },
             { name: 'Ama Mensah', sub: 'Youth Ministry · Choir', color: 'bg-blue-500', status: 'Active', variant: 'active' },
             { name: 'Sarah Adjei', sub: 'First-time visitor', color: 'bg-emerald-500', status: 'Visitor', variant: 'visitor' },
         ]
@@ -716,9 +716,9 @@ function FeatureVisual({ kind }: { kind: string }) {
                     })}
                 </div>
                 <div className="mt-5 flex items-center gap-1.5 rounded-full bg-emerald-50 px-3 py-1.5 text-xs font-medium text-emerald-700">
-                    <Check className="h-3.5 w-3.5" /> Checked in successfully
+                    <Check className="h-3.5 w-3.5" /> Checked in
                 </div>
-                <p className="mt-2 text-xs text-neutral-500">Sunday Service · 9:02 AM · On time</p>
+                <p className="mt-2 text-xs text-neutral-500">Sunday service · 9:02 AM · On time</p>
             </div>
         )
     }

@@ -231,7 +231,7 @@ export default function BillingPage() {
                 </div>
 
                 <p className="text-xs text-muted-foreground">
-                    Payments are handled by Paystack. You'll finish paying on their page, and your plan
+                    You'll finish paying on a secure payment page, and your plan
                     changes here as soon as the payment goes through.
                 </p>
             </div>

@@ -137,7 +137,7 @@ const TERMS: Section[] = [
         heading: "Plans and payment",
         body: (
             <p>
-                The Free plan costs nothing. Pro is billed monthly in advance through Paystack at the price shown on
+                The Free plan costs nothing. Pro is billed monthly in advance at the price shown on
                 the billing page. You can cancel at any time; Pro features stay on until the end of the period you
                 have paid for. If a payment fails, Pro features may be switched off until it is settled.
             </p>
