@@ -172,3 +172,22 @@ and widths.
    positioning; currency shown in the organization's own currency where the product
    supports it, and neutral examples on the landing page.
 5. **Legal pages**: build short Privacy and Terms pages.
+
+## Status (27 Sep 2026)
+
+Done on `feat/ui-copy-pass`: Phases 0 to 6. Typecheck clean, tests 109 → 123,
+lint errors 413 → 409.
+
+Open decisions (from the screen pass):
+- Confirm the Pro price matches the Paystack plan (`src/lib/plans.ts`, now GH₵150).
+- Deploy the backend so the currency setting saves (`npx convex dev --once`).
+- Buttons that do nothing: Finance "Import", absent members "Email everyone",
+  "Send a text", "Print contact list". Wire up or remove.
+- Placeholders: Finance "Contributions" tab and "Budget comparison" report,
+  the church settings "General" tab, the Summaries tab that never lists summaries.
+- Merge duplicates uses window.confirm/alert and a full reload.
+- Members "Last attendance" column may have no data from the server.
+- Event names: title case ("Sunday Service") or sentence case ("Sunday service").
+- Privacy and terms: review before relying on them (the 90-day deletion is a
+  commitment, not yet code); add a contact address.
+- CSV headers left in Title Case where other tools may read them.
