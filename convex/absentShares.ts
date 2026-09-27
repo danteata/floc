@@ -3,6 +3,7 @@ import { mutation, query, type QueryCtx } from "./_generated/server";
 import { Id } from "./_generated/dataModel";
 import { requireOrgAdmin, requireOrgAccess, resolveOrgId } from "./auth";
 import { publicBrandHex } from "./lib/theme/publicBrand";
+import { tenureStart } from "./lib/tenure";
 
 const DEFAULT_EXPIRY_DAYS = 30;
 
@@ -190,11 +191,13 @@ export const getByToken = query({
             .filter((record) => record.date <= share.date)
             .sort((a, b) => b.date.localeCompare(a.date));
 
-        const calculateConsecutiveAbsences = (memberId: Id<"members">) => {
+        const calculateConsecutiveAbsences = (memberId: Id<"members">, since: string | null) => {
             const attendedDates = attendedDatesByMember.get(memberId);
 
             let consecutiveAbsences = 0;
             for (const record of eventTypeRecordsOnOrBefore) {
+                // Services held before they joined don't count against them.
+                if (since && record.date < since) break;
                 if (attendedDates?.has(record.date)) break;
                 consecutiveAbsences++;
             }
@@ -216,7 +219,9 @@ export const getByToken = query({
                     (member) =>
                         !attendedMemberIds.has(member._id) &&
                         !member.archived_at &&
-                        statuses.includes(member.status),
+                        statuses.includes(member.status) &&
+                        // Not yet a member on the day: not absent.
+                        !((tenureStart(member) ?? "") > share.date),
                 )
                 .map(async (member) => {
                     const memberUnits = await ctx.db
@@ -226,7 +231,7 @@ export const getByToken = query({
                     const unitIds = memberUnits.map((mu) => String(mu.unit_id));
                     if (eventUnitIds.size > 0 && !unitIds.some((id) => eventUnitIds.has(id))) return null;
                     if (share.unit_id && !unitIds.includes(String(share.unit_id))) return null;
-                    const consecutive = calculateConsecutiveAbsences(member._id);
+                    const consecutive = calculateConsecutiveAbsences(member._id, tenureStart(member));
                     if (share.min_consecutive && consecutive < share.min_consecutive) return null;
 
                     const unitNames = (

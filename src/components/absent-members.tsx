@@ -25,6 +25,7 @@ import { downloadCsv, slugForFilename, toCsv } from "@/lib/csv"
 import { MemberProfileDialog } from "./member-profile-dialog"
 import type { Member } from "@/types/database"
 import type { Id } from "../../convex/_generated/dataModel"
+import { tenureStart } from "../../convex/lib/tenure"
 import { useOrganization } from "@/hooks/use-organization"
 import { useUserRole } from "@/hooks/use-user-role"
 import { ShareAbsentLinkDialog } from "@/components/share-absent-link-dialog"
@@ -151,9 +152,13 @@ export function AbsentMembers({ unitId, unitName }: AbsentMembersProps = {}) {
 
     const lastAttended = memberRecords[0] // Most recent (sorted desc)
 
-    // Count consecutive absences: records after last attendance where member is absent
+    // Count consecutive absences: records after last attendance where member is
+    // absent, and only since they joined
+    const since = member ? tenureStart(member) : null
     let consecutiveAbsences = 0
     for (const record of recordsOnOrBeforeBase) {
+      if (since && record.date < since) break
+
       // Stop if we've reached a record the member attended
       if (record._id === lastAttended?._id) break
 
@@ -178,6 +183,9 @@ export function AbsentMembers({ unitId, unitName }: AbsentMembersProps = {}) {
       .filter((member) => {
         // Check if member was absent
         if (selectedAttendanceRecord.members.includes(member.id)) return false
+
+        // Not yet a member on the day: not absent
+        if ((tenureStart(member) ?? "") > selectedAttendanceRecord.date) return false
 
         // Apply unit scoping: if event has unit_ids, member must be in one of those units
         if (eventUnitIds.length > 0) {
