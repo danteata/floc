@@ -1,6 +1,7 @@
 "use client"
 
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
+import { initialsOf } from "@/components/ui/member-avatar"
 import { Button } from "@/components/ui/button"
 import {
   DropdownMenu,
@@ -46,23 +47,22 @@ export function UserNav() {
   if (!isSignedIn) {
     return (
       <Button variant="outline" onClick={() => navigate("/")} className="border-primary/30 hover:bg-primary/10 hover:border-primary/50">
-        Sign In
+        Sign in
       </Button>
     )
   }
 
-  const initials =
-    user.firstName && user.lastName
-      ? `${user.firstName[0]}${user.lastName[0]}`
-      : user.emailAddresses[0]?.emailAddress?.substring(0, 2).toUpperCase() || "U"
+  // The same initials the sidebar shows: from the full name, else the username, else the email.
+  const initials = initialsOf(user.fullName || user.username || user.emailAddresses[0]?.emailAddress)
 
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
         <Button variant="ghost" className="relative h-8 w-8 rounded-full hover:bg-primary/10 transition-all duration-300">
-          <Avatar className="h-8 w-8 ring-2 ring-primary/30 hover:ring-primary/60 transition-all duration-300">
-            <AvatarImage src={user.imageUrl} alt={user.fullName || "User"} />
-            <AvatarFallback className="bg-primary/80 text-primary-foreground font-semibold">{initials}</AvatarFallback>
+          <Avatar className="h-8 w-8">
+            {/* Clerk gives everyone a default silhouette; show initials unless they uploaded a photo. */}
+            {user.hasImage && <AvatarImage src={user.imageUrl} alt="" />}
+            <AvatarFallback className="bg-primary/10 text-xs font-semibold text-primary">{initials}</AvatarFallback>
           </Avatar>
         </Button>
       </DropdownMenuTrigger>
