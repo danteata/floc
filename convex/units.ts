@@ -90,10 +90,22 @@ export const listByOrg = query({
     args: { organization_id: v.id("organizations") },
     handler: async (ctx, args) => {
         await requireOrgAccess(ctx, args.organization_id);
-        return await ctx.db
+        const units = await ctx.db
             .query("units")
             .withIndex("by_org", q => q.eq("organization_id", args.organization_id))
             .collect();
+        // The leader's name, for screens that list units with their leader.
+        const leaderIds = Array.from(new Set(units.map((u) => u.leader_id).filter((id): id is Id<"members"> => !!id)));
+        const leaders = await Promise.all(leaderIds.map((id) => ctx.db.get(id)));
+        const leaderNames = new Map<string, string>();
+        leaders.forEach((m, i) => {
+            if (!m) return;
+            if (m.name) leaderNames.set(leaderIds[i], m.name);
+        });
+        return units.map((u) => ({
+            ...u,
+            leader_name: u.leader_id ? leaderNames.get(u.leader_id) : undefined,
+        }));
     },
 });
 
@@ -188,10 +200,12 @@ export const update = mutation({
         updates: v.object({
             name: v.optional(v.string()),
             description: v.optional(v.string()),
-            parent_unit_id: v.optional(v.id("units")),
+            // null moves the unit to the top level.
+            parent_unit_id: v.optional(v.union(v.id("units"), v.null())),
             type: v.optional(v.string()),
             category: v.optional(v.string()),
-            leader_id: v.optional(v.id("members")),
+            // null removes the leader.
+            leader_id: v.optional(v.union(v.id("members"), v.null())),
             active: v.optional(v.boolean()),
             address: v.optional(v.string()),
             city: v.optional(v.string()),
@@ -225,16 +239,17 @@ export const update = mutation({
             }
         }
 
-        const leaderChanged = "leader_id" in updates && updates.leader_id !== unit.leader_id;
+        const newLeaderId = updates.leader_id === null ? undefined : updates.leader_id;
+        const leaderChanged = "leader_id" in updates && newLeaderId !== unit.leader_id;
 
         await updateUnitWithPathRecalculation(ctx, id, updates);
 
         // Keep unit_admins in sync when the primary leader changes.
         if (leaderChanged) {
-            if (updates.leader_id) {
+            if (newLeaderId) {
                 await setPrimaryLeaderInternal(ctx, {
                     unitId: id,
-                    memberId: updates.leader_id,
+                    memberId: newLeaderId,
                     organizationId: unit.organization_id,
                     addedBy: actor.clerk_user_id,
                 });
@@ -257,7 +272,7 @@ export const update = mutation({
 export const remove = mutation({
     args: { id: v.id("units") },
     handler: async (ctx, args) => {
-        await requireOrgAdmin(ctx);
+        const actor = await requireOrgAdmin(ctx);
         const unit = await ctx.db.get(args.id);
         if (!unit) throw new Error("Unit not found");
         await requireOrgAccess(ctx, unit.organization_id);
@@ -268,20 +283,53 @@ export const remove = mutation({
             .collect();
 
         if (children.length > 0) {
-            throw new Error("Cannot delete unit with child units. Move or delete children first.");
+            throw new Error("This unit has sub-units. Move or delete them first.");
         }
 
+        // Take the unit's memberships and admin rows with it: the members stay,
+        // they just stop belonging to (or leading) a unit that no longer exists.
+        const memberships = await ctx.db
+            .query("member_units")
+            .withIndex("by_unit", (q) => q.eq("unit_id", args.id))
+            .collect();
+        for (const row of memberships) await ctx.db.delete(row._id);
+
+        const admins = await ctx.db
+            .query("unit_admins")
+            .withIndex("by_unit", (q) => q.eq("unit_id", args.id))
+            .collect();
+        for (const row of admins) await ctx.db.delete(row._id);
+
         await ctx.db.delete(args.id);
+
+        await ctx.runMutation(internal.audit.logEvent, {
+            action: "unit.deleted",
+            entity_type: "unit",
+            entity_id: args.id,
+            entity_name: unit.name,
+            performed_by: actor.clerk_user_id,
+            performed_by_name: actor.name || actor.email || "Unknown",
+            performed_by_role: actor.role,
+            organization_id: unit.organization_id,
+            changes: {
+                deleted_unit: { name: unit.name, type: unit.type, parent_unit_id: unit.parent_unit_id },
+                memberships_removed: memberships.length,
+                admins_removed: admins.length,
+            },
+        });
         return true;
     },
 });
 
-// Helper function to update descendant paths when a unit's path changes
+// Helper function to update descendant paths (and depths) when a unit's path
+// or depth changes. `depthDelta` is how far the moved unit's depth changed;
+// every descendant shifts by the same amount.
 const updateDescendantPaths = async (
     ctx: { db: any },
     unitId: Id<"units">,
     oldPath: string,
-    newPath: string
+    newPath: string,
+    depthDelta = 0,
 ) => {
     const descendants = await ctx.db
         .query("units")
@@ -289,43 +337,63 @@ const updateDescendantPaths = async (
         .collect();
 
     for (const descendant of descendants) {
-        const newDescendantPath = descendant.path.replace(oldPath, newPath);
-        await ctx.db.patch(descendant._id, { path: newDescendantPath });
+        const newDescendantPath = newPath + descendant.path.slice(oldPath.length);
+        const patch: Record<string, unknown> = { path: newDescendantPath };
+        if (depthDelta !== 0) {
+            patch.depth = typeof descendant.depth === "number"
+                ? descendant.depth + depthDelta
+                // No stored depth: read it off the path ("/a" is 0, "/a/b" is 1).
+                : newDescendantPath.split("/").length - 2;
+        }
+        await ctx.db.patch(descendant._id, patch);
     }
 };
 
 // Helper function to update unit with path recalculation (shared between update,
 // moveUnit, and template propagation). Exported so unit_templates.ts can reuse
 // the path/depth rebuild when a template's name change propagates to instances.
+//
+// A `parent_unit_id` key in `updates` means "move": an id moves the unit under
+// that parent, and null or undefined moves it to the top level (depth 0). Leave
+// the key out entirely to keep the current parent. A null `leader_id` clears
+// the leader. (Convex removes a field patched to undefined; it never stores null.)
 export const updateUnitWithPathRecalculation = async (
     ctx: any,
     id: Id<"units">,
     updates: any
 ) => {
+    const patch: Record<string, unknown> = {};
+    for (const [key, value] of Object.entries(updates ?? {})) {
+        patch[key] = value === null ? undefined : value;
+    }
+    const parentChanging = updates != null && "parent_unit_id" in updates;
+
     // If parent or name changed, we need to update path and depth
-    if (updates.parent_unit_id !== undefined || updates.name) {
+    if (parentChanging || updates.name) {
         const unit = await ctx.db.get(id);
         if (!unit) throw new Error("Unit not found");
 
-        let newParentPath = "";
-        let newDepth = unit.depth ?? 0;
+        const oldDepth = unit.depth ?? 0;
+        let newDepth = oldDepth;
         let newPath = unit.path;
 
-        if (updates.parent_unit_id !== undefined) {
-            if (updates.parent_unit_id) {
-                const parent = await ctx.db.get(updates.parent_unit_id);
-                if (parent && parent.path && parent.depth !== undefined) {
-                    newParentPath = parent.path;
-                    newDepth = getUnitDepth(parent.depth);
-                }
+        if (parentChanging) {
+            let newParentPath = "";
+            newDepth = 0;
+            const newParentId = patch.parent_unit_id as Id<"units"> | undefined;
+            if (newParentId) {
+                const parent = await ctx.db.get(newParentId);
+                if (!parent) throw new Error("Parent unit not found");
+                if (parent.path) newParentPath = parent.path;
+                newDepth = getUnitDepth(parent.depth ?? 0);
             }
             // Recalculate path with new parent and current/new name
             const unitName = updates.name || unit.name;
             newPath = buildPath(newParentPath, unitName);
 
-            // Update all descendants' paths
+            // Update all descendants' paths and depths
             if (unit.path) {
-                await updateDescendantPaths(ctx, id, unit.path, newPath);
+                await updateDescendantPaths(ctx, id, unit.path, newPath, newDepth - oldDepth);
             }
         } else if (updates.name) {
             // Only name changed, rebuild path with same parent
@@ -341,20 +409,21 @@ export const updateUnitWithPathRecalculation = async (
 
         // Update the unit with new path and depth
         await ctx.db.patch(id, {
-            ...updates,
+            ...patch,
             path: newPath,
             depth: newDepth,
         });
     } else {
         // Simple update without path changes
-        await ctx.db.patch(id, updates);
+        await ctx.db.patch(id, patch);
     }
 };
 
 export const moveUnit = mutation({
     args: {
         unitId: v.id("units"),
-        newParentId: v.optional(v.id("units")),
+        // Missing or null moves the unit to the top level.
+        newParentId: v.optional(v.union(v.id("units"), v.null())),
     },
     handler: async (ctx, args) => {
         const { unitId, newParentId } = args;
@@ -376,7 +445,7 @@ export const moveUnit = mutation({
         }
 
         // Use the helper function to properly handle path and depth recalculation
-        await updateUnitWithPathRecalculation(ctx, unitId, { parent_unit_id: newParentId });
+        await updateUnitWithPathRecalculation(ctx, unitId, { parent_unit_id: newParentId ?? null });
 
         return true;
     },

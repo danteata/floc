@@ -113,10 +113,12 @@ export function UnitManagement() {
         updates: {
           name: data.name,
           description: data.description,
-          parent_unit_id: data.unit_id === "" || data.unit_id === "none" ? undefined : data.unit_id,
+          // null means "clear": top level, or no leader. undefined would be
+          // dropped in transit and leave the old value in place.
+          parent_unit_id: data.unit_id === "" || data.unit_id === "none" ? null : data.unit_id,
           type: data.type,
           category: data.category,
-          leader_id: data.leader_id,
+          leader_id: data.leader_id || null,
         }
       });
       toast({ title: "Unit updated" });
@@ -290,6 +292,7 @@ export function UnitManagement() {
         onEdit={(t) => { setEditingTemplate(t); setTemplateDialogOpen(true); }}
         onDelete={handleDeleteTemplate}
         onInstantiate={handleInstantiate}
+        canManage={isAdmin}
       />
 
       <OrganizationHierarchy
@@ -316,6 +319,7 @@ export function UnitManagement() {
           const u = chartData?.units?.find((x: any) => x._id === unitId) || null;
           setMergeSource(u);
         }}
+        canManage={isAdmin}
       />
 
       <CreateUnitDialog

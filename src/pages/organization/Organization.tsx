@@ -47,7 +47,7 @@ export default function OrganizationPage() {
                 <PageHeader
                     title="Organization"
                     description="How your church is structured: units, leaders and event types."
-                    actions={<>
+                    actions={isAdmin ? (
                         <Button
                             className="bg-primary text-primary-foreground shadow-soft hover:shadow-soft-lg transition-all rounded-lg"
                             onClick={() => setSettingsDialogOpen(true)}
@@ -55,7 +55,7 @@ export default function OrganizationPage() {
                             <Settings className="h-4 w-4 mr-2" />
                             Church settings
                         </Button>
-                    </>}
+                    ) : undefined}
                 />
 
                 {/* Tabs: scroll sideways on phones rather than clip */}
@@ -76,6 +76,7 @@ export default function OrganizationPage() {
                             <BarChart3 className="h-4 w-4 mr-2" />
                             Org chart
                         </TabsTrigger>
+                        {isAdmin && (
                         <TabsTrigger
                             value="event-types"
                             className="rounded-lg data-[state=active]:bg-background data-[state=active]:shadow-sm px-4 md:px-6 transition-all"
@@ -83,6 +84,8 @@ export default function OrganizationPage() {
                             <Settings className="h-4 w-4 mr-2" />
                             Event types
                         </TabsTrigger>
+                        )}
+                        {isAdmin && (
                         <TabsTrigger
                             value="org-links"
                             className="rounded-lg data-[state=active]:bg-background data-[state=active]:shadow-sm px-4 md:px-6 transition-all"
@@ -90,6 +93,7 @@ export default function OrganizationPage() {
                             <Building2 className="h-4 w-4 mr-2" />
                             Linked churches
                         </TabsTrigger>
+                        )}
                     </TabsList>
                     </div>
 
@@ -105,20 +109,25 @@ export default function OrganizationPage() {
                         </div>
                     </TabsContent>
 
+                    {isAdmin && (
                     <TabsContent value="event-types" className="animate-in fade-in duration-500">
                         <div className="rounded-xl overflow-hidden shadow-soft border border-border/50 bg-card p-4 md:p-6">
                             <EventTypesManagement />
                         </div>
                     </TabsContent>
+                    )}
 
+                    {isAdmin && (
                     <TabsContent value="org-links" className="animate-in fade-in duration-500">
                         <div className="rounded-xl overflow-hidden shadow-soft border border-border/50 bg-card p-4 md:p-6">
                             <OrganizationLinks />
                         </div>
                     </TabsContent>
+                    )}
                 </Tabs>
 
-                {/* How-to notes */}
+                {/* How-to notes: the changes they describe are for organization admins */}
+                {isAdmin && (
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
                     <InfoBlock
                         title="Working with units"
@@ -139,11 +148,14 @@ export default function OrganizationPage() {
                         ]}
                     />
                 </div>
+                )}
 
+                {isAdmin && (
                 <SettingsDialog
                     open={settingsDialogOpen}
                     onOpenChange={setSettingsDialogOpen}
                 />
+                )}
             </div>
         </LayoutWrapper>
     )

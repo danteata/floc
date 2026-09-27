@@ -1,5 +1,5 @@
 
-import { useState } from "react"
+import { useMemo, useState } from "react"
 import { Plus, Settings, Trash2, Edit, RefreshCw, Shield, Map, Database, Building, Layers } from "lucide-react"
 import { useQuery, useMutation } from "convex/react"
 import { api } from "../../convex/_generated/api"
@@ -19,9 +19,12 @@ import { EmptyState } from "@/components/ui/empty-state"
 import { LoadingState } from "@/components/ui/loading-state"
 import { toast } from "sonner"
 import { useOrganization } from "@/hooks/use-organization"
+import { CreateUnitDialog } from "@/components/unit-management/create-unit-dialog"
+import { EditUnitDialog } from "@/components/unit-management/edit-unit-dialog"
+import type { Id } from "../../convex/_generated/dataModel"
 
-/** Leader's name when the unit row carries one; the units query adds it for some rows. */
-const leaderName = (unit: object): string | undefined => (unit as { leader_name?: string }).leader_name
+/** Leader's name, which units.listByOrg adds to each row from its leader_id. */
+const leaderName = (unit: object): string | undefined => (unit as { leader_name?: string | null }).leader_name ?? undefined
 
 export function AdminContent() {
   const { organization } = useOrganization()
@@ -31,8 +34,10 @@ export function AdminContent() {
   const isLoading = allUnits === undefined
 
   // Convex Mutations
+  const createUnitMutation = useMutation(api.units.create)
   const updateUnitMutation = useMutation(api.units.update)
   const removeUnitMutation = useMutation(api.units.remove)
+  const [isSavingUnit, setIsSavingUnit] = useState(false)
 
   const [isUnitDialogOpen, setIsUnitDialogOpen] = useState(false)
   const [isSettingsDialogOpen, setIsSettingsDialogOpen] = useState(false)
@@ -45,10 +50,89 @@ export function AdminContent() {
     item: Unit | null
   }>({ open: false, type: 'unit', item: null })
 
-  // Filter units based on selected type
+  // Filter units based on selected type. "Functional" takes in ministry
+  // units too, as it does on the Organization page.
   const filteredUnits = unitTypeFilter === 'all'
     ? units
-    : units.filter(unit => unit.type === unitTypeFilter)
+    : units.filter(unit => unit.type === unitTypeFilter || (unitTypeFilter === 'functional' && unit.type === 'ministry'))
+
+  const closeUnitDialog = (open: boolean) => {
+    setIsUnitDialogOpen(open)
+    if (!open) setEditingUnit(null)
+  }
+
+  // The same create and edit dialogs the Organization page uses.
+  const handleCreateUnit = async (data: {
+    name: string
+    description: string
+    type: string
+    category: string
+    unitId?: string
+    leader_id?: string
+  }) => {
+    if (!organization?._id) return
+    setIsSavingUnit(true)
+    try {
+      await createUnitMutation({
+        name: data.name,
+        description: data.description,
+        organization_id: organization._id,
+        parent_unit_id: data.unitId ? (data.unitId as Id<"units">) : undefined,
+        active: true,
+        type: data.type,
+        category: data.category,
+        leader_id: data.leader_id ? (data.leader_id as Id<"members">) : undefined,
+      })
+      toast.success("Unit created")
+      closeUnitDialog(false)
+    } catch (error) {
+      toast.error("Couldn't create the unit", { description: error instanceof Error ? error.message : undefined })
+      throw error
+    } finally {
+      setIsSavingUnit(false)
+    }
+  }
+
+  const handleUpdateUnit = async (id: string, data: {
+    name: string
+    description: string
+    type: string
+    category: string
+    unit_id: string
+    leader_id?: string
+  }) => {
+    setIsSavingUnit(true)
+    try {
+      await updateUnitMutation({
+        id: id as Id<"units">,
+        updates: {
+          name: data.name,
+          description: data.description,
+          // null clears: top level, or no leader.
+          parent_unit_id: data.unit_id && data.unit_id !== 'none' ? (data.unit_id as Id<"units">) : null,
+          type: data.type,
+          category: data.category,
+          leader_id: data.leader_id ? (data.leader_id as Id<"members">) : null,
+        },
+      })
+      toast.success("Unit updated")
+      closeUnitDialog(false)
+    } catch (error) {
+      toast.error("Couldn't update the unit", { description: error instanceof Error ? error.message : undefined })
+      throw error
+    } finally {
+      setIsSavingUnit(false)
+    }
+  }
+
+  // A unit can't be moved under itself or one of its own sub-units.
+  const editableParents = useMemo(() => {
+    if (!editingUnit) return units
+    const path = (editingUnit as { path?: string }).path
+    return units.filter((u) => u._id !== editingUnit._id && !(path && u.path?.startsWith(path + '/')))
+  }, [units, editingUnit])
+
+  const deletingHasChildren = !!deleteDialog.item && units.some((u) => u.parent_unit_id === deleteDialog.item?._id)
 
   const handleDeleteUnit = async (unit: Unit) => {
     try {
@@ -150,7 +234,7 @@ export function AdminContent() {
                     <option value="organization">Organization</option>
                   </select>
                   <Button
-                    onClick={() => setIsUnitDialogOpen(true)}
+                    onClick={() => { setEditingUnit(null); setIsUnitDialogOpen(true) }}
                     className="bg-primary text-primary-foreground hover:bg-primary/90 shadow-sm rounded-lg"
                   >
                     <Plus className="mr-2 h-4 w-4" />
@@ -210,6 +294,7 @@ export function AdminContent() {
                             variant="ghost"
                             size="sm"
                             className="h-8 w-8 p-0 rounded-lg hover:bg-muted text-muted-foreground hover:text-foreground"
+                            aria-label={`Edit ${unit.name}`}
                             onClick={() => {
                               setEditingUnit(unit as any)
                               setIsUnitDialogOpen(true)
@@ -221,6 +306,7 @@ export function AdminContent() {
                             variant="ghost"
                             size="sm"
                             className="h-8 w-8 p-0 rounded-lg hover:bg-destructive/10 text-muted-foreground hover:text-destructive"
+                            aria-label={`Delete ${unit.name}`}
                             onClick={() => setDeleteDialog({
                               open: true,
                               type: 'unit',
@@ -303,12 +389,31 @@ export function AdminContent() {
         open={deleteDialog.open}
         onOpenChange={(open: boolean) => setDeleteDialog({ ...deleteDialog, open })}
         title="Delete this unit?"
-        description={`"${deleteDialog.item?.name}" and everything linked to it will be deleted. This can't be undone.`}
+        description={deletingHasChildren
+          ? `"${deleteDialog.item?.name}" has sub-units, so it can't be deleted yet. Move or delete its sub-units first.`
+          : `"${deleteDialog.item?.name}" will be deleted. Its members stay in the church but are taken out of this unit, and its leaders lose access to it. This can't be undone.`}
         onConfirm={() => {
           if (deleteDialog.type === 'unit' && deleteDialog.item) {
             handleDeleteUnit(deleteDialog.item)
           }
         }}
+      />
+
+      <CreateUnitDialog
+        open={isUnitDialogOpen && !editingUnit}
+        onOpenChange={closeUnitDialog}
+        availableUnits={units}
+        onCreateUnit={handleCreateUnit}
+        creating={isSavingUnit}
+      />
+
+      <EditUnitDialog
+        open={isUnitDialogOpen && !!editingUnit}
+        onOpenChange={closeUnitDialog}
+        unit={editingUnit ? { ...editingUnit, _id: String(editingUnit._id) } : null}
+        availableUnits={editableParents}
+        onUpdateUnit={handleUpdateUnit}
+        updating={isSavingUnit}
       />
 
       <SettingsDialog

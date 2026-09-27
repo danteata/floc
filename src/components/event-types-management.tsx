@@ -44,6 +44,7 @@ import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import * as z from "zod"
 import { useEventTypes, EventType } from "@/hooks/use-event-types"
+import { useUserRole } from "@/hooks/use-user-role"
 import { useQuery } from "convex/react"
 import { api } from "../../convex/_generated/api"
 
@@ -76,6 +77,10 @@ export function EventTypesManagement({ onEventTypesChange }: EventTypesManagemen
   const [editingEventType, setEditingEventType] = useState<EventType | null>(null)
   const [isLoading, setIsLoading] = useState(false)
   const { toast } = useToast()
+  // Reset and "Start from a set" are super-admin only on the server
+  // (event_types.resetToDefaults / loadTemplate), so only they see them.
+  const { role } = useUserRole()
+  const isSuperAdmin = role === 'super_admin'
 
   // Fetch units for scoping
   const units = useQuery(api.units.list, {}) || []
@@ -261,6 +266,7 @@ export function EventTypesManagement({ onEventTypesChange }: EventTypesManagemen
             </CardDescription>
           </div>
           <div className="flex flex-wrap gap-2">
+            {isSuperAdmin && (
             <Select onValueChange={(value) => handleLoadTemplate(value as any)}>
               <SelectTrigger className="w-[170px]">
                 <SelectValue placeholder="Start from a set" />
@@ -271,10 +277,13 @@ export function EventTypesManagement({ onEventTypesChange }: EventTypesManagemen
                 <SelectItem value="multicultural">Multicultural</SelectItem>
               </SelectContent>
             </Select>
+            )}
+            {isSuperAdmin && (
             <Button variant="outline" size="sm" onClick={handleResetToDefaults} disabled={isLoading}>
               <RotateCcw className="mr-2 h-4 w-4" />
               Reset
             </Button>
+            )}
             <Button onClick={handleAddEventType} disabled={isLoading}>
               <Plus className="mr-2 h-4 w-4" />
               New event type

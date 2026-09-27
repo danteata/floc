@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import * as z from 'zod'
-import { format } from 'date-fns'
+import { format, parse } from 'date-fns'
 import { Calendar as CalendarIcon, Clock, MapPin, Type, FileText, Sparkles, Loader2 } from 'lucide-react'
 
 import { Button } from '@/components/ui/button'
@@ -42,6 +42,7 @@ import {
 import { useToast } from '@/hooks/use-toast'
 import { useTerminology } from '@/hooks/use-terminology'
 import { useEventTypes } from '@/hooks/use-event-types'
+import { useUserRole } from '@/hooks/use-user-role'
 import { cn } from '@/lib/utils'
 import { useMutation, useQuery } from 'convex/react'
 import { useAnalytics } from '@/hooks/useAnalytics'
@@ -73,7 +74,17 @@ export function EventDialog({ open, onOpenChange, event, onSuccess }: EventDialo
   const [isLoading, setIsLoading] = useState(false)
   const { toast } = useToast()
   const { terminology } = useTerminology()
-  const { eventTypes, isLoading: eventTypesLoading } = useEventTypes()
+  const { eventTypes: allEventTypes, isLoading: eventTypesLoading } = useEventTypes()
+  const { isAdmin, role, unitLeaderships } = useUserRole()
+  // The server lets a unit-level admin write only events whose type is scoped
+  // to a unit they lead (events.ts requireEventTypeWriteAccess), so offer
+  // only those types. Org admins see them all.
+  const ledUnitIds = new Set(unitLeaderships.map((u) => String(u._id)))
+  const isUnitRole = ['unit_admin', 'division_admin', 'sub_unit_admin'].includes(role)
+  const eventTypes = isAdmin
+    ? allEventTypes
+    : allEventTypes.filter((t) =>
+        isUnitRole && (t.unit_ids ?? []).some((id) => ledUnitIds.has(String(id))))
   const { trackEvent } = useAnalytics()
 
   const currentOrg = useQuery(api.organizations.current)
@@ -97,7 +108,7 @@ export function EventDialog({ open, onOpenChange, event, onSuccess }: EventDialo
         form.reset({
           title: event.title,
           description: event.description || "",
-          date: new Date(event.date),
+          date: parse(event.date, 'yyyy-MM-dd', new Date()),
           time: event.time || "",
           location: event.location || "",
           type: event.event_type_value || "",
@@ -128,9 +139,8 @@ export function EventDialog({ open, onOpenChange, event, onSuccess }: EventDialo
         title: data.title,
         description: data.description || "",
         date: format(data.date, 'yyyy-MM-dd'),
-        // Note: time and location are not currently in the Convex schema for 'events'
-        // I should probably add them if they are needed.
-        // For now, I'll stick to what's in schema.ts
+        time: data.time?.trim() || undefined,
+        location: data.location?.trim() || undefined,
         event_type_id: selectedType?._id as Id<"event_types">,
         organization_id: currentOrg._id as Id<"organizations">,
         active: true,
@@ -144,6 +154,9 @@ export function EventDialog({ open, onOpenChange, event, onSuccess }: EventDialo
             date: eventData.date,
             description: eventData.description,
             event_type_id: eventData.event_type_id,
+            // Send an empty string (not undefined) so clearing a field is saved.
+            time: data.time?.trim() ?? "",
+            location: data.location?.trim() ?? "",
           }
         })
         toast({ title: "Event updated" })

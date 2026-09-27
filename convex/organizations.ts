@@ -16,6 +16,7 @@ import {
     getAncestorOrgIds,
 } from "./auth";
 import { internal } from "./_generated/api";
+import { unitMemberIds } from "./scope";
 import {
     provisionAncestorTemplatesToOrg,
     detachTemplatesOwnedBy,
@@ -569,21 +570,29 @@ export const getChartData = query({
             .collect()
         ).filter((m) => !m.archived_at);
 
-        // Per-unit stats: active member count (via member_units junction) and
-        // the leader's display name (resolved from leader_id). Consumed by the
-        // hierarchy cards.
-        const memberNameById = new Map(members.map((m) => [m._id, m.name]));
+        // Per-unit stats: member count and the leader's display name (resolved
+        // from leader_id). Consumed by the hierarchy cards and the chart.
+        //
+        // The count uses the same rule as the Members page unit filter
+        // (scope.ts unitMemberIds: every member_units row, whatever its
+        // is_active flag), restricted to live members, i.e. not archived, of
+        // any status (active, inactive, visitor…). So a unit's card and the
+        // Members list filtered to that unit show the same number.
+        const liveMembers = (await ctx.db
+            .query("members")
+            .withIndex("by_org", (q) => q.eq("organization_id", orgId))
+            .collect()
+        ).filter((m) => !m.archived_at);
+        const liveMemberIds = new Set(liveMembers.map((m) => m._id));
+        const memberNameById = new Map(liveMembers.map((m) => [m._id, m.name]));
         const memberCounts = await Promise.all(units.map(async (unit) => {
-            const unitMembers = await ctx.db
-                .query("member_units")
-                .withIndex("by_unit", (q) => q.eq("unit_id", unit._id))
-                .collect();
-
-            const activeMembers = unitMembers.filter(mu => mu.is_active);
+            const unitMembers = await unitMemberIds(ctx, unit._id);
+            let count = 0;
+            for (const id of unitMembers) if (liveMemberIds.has(id)) count++;
             let leaderName: string | undefined = unit.leader_id
                 ? memberNameById.get(unit.leader_id)
                 : undefined;
-            // Leader may be archived/inactive (not in `members`); fall back to a
+            // Leader may be archived (not in `liveMembers`); fall back to a
             // direct fetch so the card still shows a name.
             if (unit.leader_id && !leaderName) {
                 const leader = await ctx.db.get(unit.leader_id);
@@ -591,7 +600,7 @@ export const getChartData = query({
             }
             return {
                 unit_id: unit._id,
-                count: activeMembers.length,
+                count,
                 leaderName,
             };
         }));

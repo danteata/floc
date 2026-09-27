@@ -56,6 +56,25 @@ export async function eventTypeIdsForValue(
     );
 }
 
+/**
+ * The event type rows a reset or template load may replace: the current
+ * church's own rows when there is one, otherwise (a super admin working
+ * outside any church) the shared defaults. Never another church's rows.
+ */
+async function replaceableEventTypes(ctx: any, orgId: Id<"organizations"> | null) {
+    if (orgId) {
+        return await ctx.db
+            .query("event_types")
+            .withIndex("by_org", (q: any) => q.eq("organization_id", orgId))
+            .collect();
+    }
+    const rows = await ctx.db
+        .query("event_types")
+        .withIndex("by_org", (q: any) => q.eq("organization_id", undefined))
+        .collect();
+    return rows.filter((t: any) => !t.organization_id);
+}
+
 export const getAll = query({
     args: {},
     handler: async (ctx) => {
@@ -228,9 +247,10 @@ export const resetToDefaults = mutation({
     args: {},
     handler: async (ctx) => {
         await requireSuperAdmin(ctx);
-        // Delete all
-        const all = await ctx.db.query("event_types").collect();
-        for (const t of all) {
+        const orgId = await resolveOrgId(ctx);
+        // Replace only the current church's rows (or, outside a church, the
+        // shared defaults), never every church's event types.
+        for (const t of await replaceableEventTypes(ctx, orgId)) {
             await ctx.db.delete(t._id);
         }
 
@@ -248,7 +268,7 @@ export const resetToDefaults = mutation({
         ];
 
         for (const t of defaults) {
-            await ctx.db.insert("event_types", t);
+            await ctx.db.insert("event_types", { ...t, organization_id: orgId ?? undefined });
         }
     }
 });
@@ -257,6 +277,7 @@ export const loadTemplate = mutation({
     args: { templateName: v.string() },
     handler: async (ctx, args) => {
         await requireSuperAdmin(ctx);
+        const orgId = await resolveOrgId(ctx);
         const config = await ctx.db
             .query("app_config")
             .withIndex("by_key", (q) => q.eq("key", "event_types_templates"))
@@ -269,9 +290,9 @@ export const loadTemplate = mutation({
 
         if (!template || !Array.isArray(template)) throw new Error("Template not found");
 
-        // Delete all
-        const all = await ctx.db.query("event_types").collect();
-        for (const t of all) {
+        // Replace only the current church's rows (or, outside a church, the
+        // shared defaults), never every church's event types.
+        for (const t of await replaceableEventTypes(ctx, orgId)) {
             await ctx.db.delete(t._id);
         }
 
@@ -286,6 +307,7 @@ export const loadTemplate = mutation({
                 description: t.description,
                 is_active: true,
                 sort_order: i + 1,
+                organization_id: orgId ?? undefined,
             });
         }
     }

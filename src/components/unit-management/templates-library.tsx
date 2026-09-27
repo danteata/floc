@@ -28,9 +28,11 @@ interface TemplatesLibraryProps {
   onEdit: (template: TemplateItem) => void
   onDelete: (templateId: string) => void
   onInstantiate: (template: TemplateItem) => void
+  /** Organization admins only: the template actions menu. */
+  canManage?: boolean
 }
 
-export function TemplatesLibrary({ templates, onEdit, onDelete, onInstantiate }: TemplatesLibraryProps) {
+export function TemplatesLibrary({ templates, onEdit, onDelete, onInstantiate, canManage = true }: TemplatesLibraryProps) {
   if (!templates || templates.length === 0) return null
 
   return (
@@ -63,7 +65,7 @@ export function TemplatesLibrary({ templates, onEdit, onDelete, onInstantiate }:
                   </div>
                 </div>
 
-                {!t.inherited && (
+                {canManage && !t.inherited && (
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
                       <Button variant="ghost" size="sm" aria-label={`Actions for template ${t.name}`} className="h-8 w-8 -mr-1 opacity-0 group-hover:opacity-100 focus:opacity-100 transition-opacity rounded-full hover:bg-muted">

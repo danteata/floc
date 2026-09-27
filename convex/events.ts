@@ -1,7 +1,7 @@
 
 import { v } from "convex/values";
 import { query, mutation } from "./_generated/server";
-import { Id } from "./_generated/dataModel";
+import { Doc, Id } from "./_generated/dataModel";
 import { requireOrgAccess, requireOrgAdmin, requireUser, resolveOrgId, isSuperAdmin } from "./auth";
 import { requireWriteAccess, getAdministeredUnitIds } from "./scope";
 import { api, internal } from "./_generated/api";
@@ -31,6 +31,31 @@ async function requireEventTypeWriteAccess(
     }
 }
 
+type EventTypeDoc = Doc<"event_types">;
+
+/**
+ * Resolve each event's type the way its church sees it. An event keeps the id
+ * it was filed under, which may be the shared default; once the church edits
+ * that default it gets its own copy with the same value (see
+ * event_types.update), so the label, colour and time come from that copy.
+ * Inactive copies still count, so a renamed-then-hidden type keeps its name.
+ */
+function makeEventTypeResolver(eventTypes: EventTypeDoc[]) {
+    const byId = new Map(eventTypes.map((t) => [t._id, t]));
+    const churchCopy = new Map<string, EventTypeDoc>();
+    for (const t of eventTypes) {
+        if (t.organization_id) churchCopy.set(`${t.organization_id}|${t.value}`, t);
+    }
+    return (event: { event_type_id?: Id<"event_types">; organization_id?: Id<"organizations"> }) => {
+        if (!event.event_type_id) return { stored: undefined, shown: undefined };
+        const stored = byId.get(event.event_type_id);
+        if (!stored) return { stored: undefined, shown: undefined };
+        const orgId = stored.organization_id ?? event.organization_id;
+        const shown = (orgId && churchCopy.get(`${orgId}|${stored.value}`)) || stored;
+        return { stored, shown };
+    };
+}
+
 export const list = query({
     args: { organization_id: v.optional(v.id("organizations")) },
     handler: async (ctx, args) => {
@@ -45,15 +70,24 @@ export const list = query({
             : await ctx.db.query("events").collect();
 
         const eventTypes = await ctx.db.query("event_types").collect();
-        const typeMap = new Map(eventTypes.map(t => [t._id, t]));
+        const resolveType = makeEventTypeResolver(eventTypes);
 
-        return events.map(event => ({
-            ...event,
-            event_type_label: event.event_type_id ? typeMap.get(event.event_type_id)?.label : null,
-            event_type_color: event.event_type_id ? typeMap.get(event.event_type_id)?.color : 'default',
-            event_type_value: event.event_type_id ? typeMap.get(event.event_type_id)?.value : null,
-            event_type_default_time: event.event_type_id ? typeMap.get(event.event_type_id)?.default_time : null,
-        }));
+        return events.map(event => {
+            const { stored, shown } = resolveType(event);
+            return {
+                ...event,
+                event_type_label: event.event_type_id ? shown?.label : null,
+                event_type_color: event.event_type_id ? shown?.color : 'default',
+                event_type_value: event.event_type_id ? shown?.value : null,
+                event_type_default_time: event.event_type_id ? shown?.default_time : null,
+                // Units the church's version of the type is scoped to (empty = church-wide).
+                event_type_unit_ids: shown?.unit_ids ?? [],
+                // Units on the type row the event is filed under: the ones
+                // requireEventTypeWriteAccess checks, so the page can show
+                // edit and delete only to someone the server will allow.
+                write_unit_ids: stored?.unit_ids ?? [],
+            };
+        });
     },
 });
 
@@ -76,15 +110,18 @@ export const getByDate = query({
             : events;
 
         const eventTypes = await ctx.db.query("event_types").collect();
-        const typeMap = new Map(eventTypes.map(t => [t._id, t]));
+        const resolveType = makeEventTypeResolver(eventTypes);
 
-        return orgEvents.map(event => ({
-            ...event,
-            id: event._id,
-            event_type_label: event.event_type_id ? typeMap.get(event.event_type_id)?.label : null,
-            event_type_color: event.event_type_id ? typeMap.get(event.event_type_id)?.color : 'default',
-            event_type_value: event.event_type_id ? typeMap.get(event.event_type_id)?.value : null,
-        }));
+        return orgEvents.map(event => {
+            const { shown } = resolveType(event);
+            return {
+                ...event,
+                id: event._id,
+                event_type_label: event.event_type_id ? shown?.label : null,
+                event_type_color: event.event_type_id ? shown?.color : 'default',
+                event_type_value: event.event_type_id ? shown?.value : null,
+            };
+        });
     },
 });
 
