@@ -12,6 +12,7 @@ import {
     describeCallerScope,
     getLinkedMember,
     isOrgWideScope,
+    unitMemberIds,
 } from "./scope";
 import { assertMemberLimit } from "./entitlements";
 import { internal } from "./_generated/api";
@@ -1289,7 +1290,12 @@ export const getManagedMembers = query({
 });
 
 export const getRecent = query({
-    args: { limit: v.optional(v.number()) },
+    args: {
+        limit: v.optional(v.number()),
+        // Optional dashboard unit filter: only that unit's members, still
+        // within the caller's own scope.
+        unit_id: v.optional(v.id("units")),
+    },
     handler: async (ctx, args) => {
         const limit = args.limit ?? 5;
         const user = await getUserSafe(ctx);
@@ -1297,7 +1303,24 @@ export const getRecent = query({
         const managedIds = await resolveManagedMemberIds(ctx);
 
         let members: Doc<"members">[];
-        if (managedIds === "all") {
+        if (args.unit_id) {
+            const unitIds = await unitMemberIds(ctx, args.unit_id);
+            const orgId = managedIds === "org" ? callerOrgId(ctx, user) : null;
+            if (managedIds === "org" && !orgId) return [];
+            const candidateIds = isOrgWideScope(managedIds)
+                ? Array.from(unitIds)
+                : Array.from(unitIds).filter((id) => managedIds.has(id));
+            const unitMembers = await Promise.all(candidateIds.map((id) => ctx.db.get(id)));
+            members = unitMembers
+                .filter(
+                    (m): m is Doc<"members"> =>
+                        m !== null &&
+                        !m.archived_at &&
+                        (managedIds !== "org" || m.organization_id === orgId),
+                )
+                .sort((a, b) => b._creationTime - a._creationTime)
+                .slice(0, limit);
+        } else if (managedIds === "all") {
             members = (await ctx.db.query("members").order("desc").take(limit * 2))
                 .filter((m) => !m.archived_at)
                 .slice(0, limit);

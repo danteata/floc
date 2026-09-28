@@ -60,6 +60,7 @@ import type * as lib_theme_css from "../lib/theme/css.js";
 import type * as lib_theme_oklch from "../lib/theme/oklch.js";
 import type * as lib_theme_presets from "../lib/theme/presets.js";
 import type * as lib_theme_publicBrand from "../lib/theme/publicBrand.js";
+import type * as lib_timezone from "../lib/timezone.js";
 import type * as lib_weeks from "../lib/weeks.js";
 import type * as memberShares from "../memberShares.js";
 import type * as members from "../members.js";
@@ -132,6 +133,7 @@ declare const fullApi: ApiFromModules<{
   "lib/theme/oklch": typeof lib_theme_oklch;
   "lib/theme/presets": typeof lib_theme_presets;
   "lib/theme/publicBrand": typeof lib_theme_publicBrand;
+  "lib/timezone": typeof lib_timezone;
   "lib/weeks": typeof lib_weeks;
   memberShares: typeof memberShares;
   members: typeof members;

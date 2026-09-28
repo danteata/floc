@@ -4,6 +4,7 @@ import { Id } from "./_generated/dataModel";
 import { requireOrgAccess, requireOrgAdmin, requireUser, resolveOrgId, getUserSafe, normalizeOrgId } from "./auth";
 import { setPrimaryLeaderInternal } from "./unit_admins";
 import { internal } from "./_generated/api";
+import { appError } from "./lib/errors";
 
 // Utility functions for hierarchical operations
 export const buildPath = (parentPath: string, unitName: string): string => {
@@ -283,7 +284,40 @@ export const remove = mutation({
             .collect();
 
         if (children.length > 0) {
-            throw new Error("This unit has sub-units. Move or delete them first.");
+            throw appError("CONFLICT", "This unit has sub-units. Move or delete them first.");
+        }
+
+        // Refuse while an event type or automation rule is limited to this
+        // unit. Stripping the id could leave one with no units, which reads as
+        // church-wide (an automation would then message everyone), so the
+        // admin changes those first.
+        const orgTypes = await ctx.db
+            .query("event_types")
+            .withIndex("by_org", (q) => q.eq("organization_id", unit.organization_id))
+            .collect();
+        const churchTypeValues = new Set(orgTypes.map((t) => t.value));
+        const sharedTypes = (
+            await ctx.db
+                .query("event_types")
+                .withIndex("by_org", (q) => q.eq("organization_id", undefined))
+                .collect()
+        ).filter((t) => !t.organization_id && !churchTypeValues.has(t.value));
+        const usedBy: string[] = [];
+        for (const t of [...orgTypes, ...sharedTypes]) {
+            if (t.unit_ids?.includes(args.id)) {
+                usedBy.push(`${t.label} (${t.is_active ? "event type" : "hidden event type"})`);
+            }
+        }
+        const rules = await ctx.db
+            .query("automation_rules")
+            .withIndex("by_org", (q) => q.eq("organization_id", unit.organization_id))
+            .collect();
+        for (const r of rules) {
+            if (r.unit_ids?.includes(args.id)) usedBy.push(`${r.name} (automation)`);
+        }
+        if (usedBy.length > 0) {
+            // A ConvexError so the message reaches the page in production too.
+            throw appError("CONFLICT", `Used by: ${usedBy.join(", ")}. Change those first.`);
         }
 
         // Take the unit's memberships and admin rows with it: the members stay,
@@ -300,6 +334,13 @@ export const remove = mutation({
             .collect();
         for (const row of admins) await ctx.db.delete(row._id);
 
+        // Users whose home unit was this one no longer have one.
+        const unitUsers = await ctx.db
+            .query("users")
+            .filter((q) => q.eq(q.field("unit_id"), args.id))
+            .collect();
+        for (const u of unitUsers) await ctx.db.patch(u._id, { unit_id: undefined });
+
         await ctx.db.delete(args.id);
 
         await ctx.runMutation(internal.audit.logEvent, {
@@ -315,6 +356,7 @@ export const remove = mutation({
                 deleted_unit: { name: unit.name, type: unit.type, parent_unit_id: unit.parent_unit_id },
                 memberships_removed: memberships.length,
                 admins_removed: admins.length,
+                users_cleared: unitUsers.length,
             },
         });
         return true;

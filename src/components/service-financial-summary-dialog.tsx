@@ -82,8 +82,12 @@ interface ServiceFinancialSummaryDialogProps {
     summary?: ServiceFinancialSummary | null
 }
 
-/** Witnesses are stored as one comma-separated list of names. */
-const WITNESS_SEPARATOR = ', '
+/**
+ * Witnesses are stored as one list of names joined by " · ", which reads well
+ * in the summaries table and, unlike a comma, won't appear inside a name
+ * ("Mensah, Kofi"). Rows saved before used ", ".
+ */
+const WITNESS_SEPARATOR = ' · '
 
 function joinWitnesses(names: string[]): string | undefined {
     const list = names.map((name) => name.trim()).filter(Boolean)
@@ -91,7 +95,10 @@ function joinWitnesses(names: string[]): string | undefined {
 }
 
 function splitWitnesses(value: string | undefined): string[] {
-    return (value ?? '').split(',').map((name) => name.trim()).filter(Boolean)
+    const text = value ?? ''
+    // Older rows have no "·" and were joined with commas.
+    const parts = text.includes(WITNESS_SEPARATOR.trim()) ? text.split(WITNESS_SEPARATOR.trim()) : text.split(',')
+    return parts.map((name) => name.trim()).filter(Boolean)
 }
 
 const SERVICE_TYPES = [

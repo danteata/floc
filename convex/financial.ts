@@ -497,6 +497,10 @@ export const listServiceSummaries = query({
     args: { organization_id: v.optional(v.id("organizations")) },
     handler: async (ctx, args) => {
         const user = await requireUser(ctx);
+        // Service totals are money: the same people who can record them
+        // (requireFinancialAccess). Anyone else gets an empty list rather than
+        // an error, so a page that asks for them still renders.
+        if (!isOrgAdmin(user) && user.role !== "treasurer") return [];
         // Only a super admin with no church chosen sees every church's rows;
         // anyone else without a resolvable church sees none.
         if (isSuperAdmin(user) && !args.organization_id) {

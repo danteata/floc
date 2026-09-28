@@ -17,6 +17,7 @@ import { useMutation } from 'convex/react'
 import { api } from '../../../convex/_generated/api'
 import { Id } from '../../../convex/_generated/dataModel'
 import { useToast } from '@/hooks/use-toast'
+import { errorMessage } from '@/lib/errors'
 
 interface UnitCardProps {
   unit: {
@@ -53,8 +54,8 @@ export function UnitCard({ unit, viewMode, memberCount, leaderName, onEdit, onCr
     try {
       await removeMutation({ id: unit._id as Id<"units"> });
       toast({ title: `${unit.name} deleted` });
-    } catch (e: any) {
-      toast({ title: "Couldn't delete the unit", description: e.message, variant: "destructive" });
+    } catch (e) {
+      toast({ title: "Couldn't delete the unit", description: errorMessage(e), variant: "destructive" });
     }
   }
 

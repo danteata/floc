@@ -58,7 +58,7 @@ export function DashboardContent() {
       <ScopeBadge scope={data?.scope} />
       <p className="text-xs text-muted-foreground">
         {data?.unitName
-          ? `Figures below count ${data.unitName} only, except Recent members and your care tasks.`
+          ? `Figures below count ${data.unitName} only, except your care tasks.`
           : "Counting everyone you oversee."}
       </p>
     </div>
@@ -211,11 +211,11 @@ export function DashboardContent() {
         <CardHeader>
           <CardTitle className="text-lg font-semibold">Recent members</CardTitle>
           <CardDescription>
-            The latest people added{data.unitName ? ", across everyone you oversee" : ""}
+            The latest people added{data.unitName ? ` to ${data.unitName}` : ""}
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <RecentMembers />
+          <RecentMembers unitId={unitId} />
         </CardContent>
       </Card>
     </div>

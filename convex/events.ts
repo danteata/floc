@@ -12,16 +12,33 @@ import { api, internal } from "./_generated/api";
 // administer — never org-wide event types, and never another unit's. Event
 // READS stay org-wide on purpose: the calendar isn't sensitive and unit
 // leaders need to see org-wide services. Call AFTER requireWriteAccess.
+//
+// The unit scope checked is the church's own version of the type: an event may
+// be filed under the shared default, and once the church edits that default
+// (e.g. scopes it to units) it gets its own copy with the same value (see
+// event_types.update). `list` reports the same type's unit_ids as
+// write_unit_ids so the page offers edit only where this allows it.
 async function requireEventTypeWriteAccess(
     ctx: Parameters<typeof getAdministeredUnitIds>[0],
     eventTypeId: Id<"event_types"> | undefined,
+    orgId: Id<"organizations"> | null | undefined,
 ) {
     const scope = await getAdministeredUnitIds(ctx);
     if (scope === "all") return;
     if (!eventTypeId) {
         throw new Error("Forbidden: unit admins cannot manage org-wide events");
     }
-    const eventType = await ctx.db.get(eventTypeId);
+    const stored = await ctx.db.get(eventTypeId);
+    let eventType = stored;
+    if (stored && !stored.organization_id && orgId) {
+        const churchCopy = await ctx.db
+            .query("event_types")
+            .withIndex("by_org_and_value", (q) =>
+                q.eq("organization_id", orgId).eq("value", stored.value),
+            )
+            .first();
+        if (churchCopy) eventType = churchCopy;
+    }
     const unitIds = eventType?.unit_ids ?? [];
     if (unitIds.length === 0) {
         throw new Error("Forbidden: this event type is org-wide");
@@ -73,7 +90,7 @@ export const list = query({
         const resolveType = makeEventTypeResolver(eventTypes);
 
         return events.map(event => {
-            const { stored, shown } = resolveType(event);
+            const { shown } = resolveType(event);
             return {
                 ...event,
                 event_type_label: event.event_type_id ? shown?.label : null,
@@ -82,10 +99,10 @@ export const list = query({
                 event_type_default_time: event.event_type_id ? shown?.default_time : null,
                 // Units the church's version of the type is scoped to (empty = church-wide).
                 event_type_unit_ids: shown?.unit_ids ?? [],
-                // Units on the type row the event is filed under: the ones
-                // requireEventTypeWriteAccess checks, so the page can show
-                // edit and delete only to someone the server will allow.
-                write_unit_ids: stored?.unit_ids ?? [],
+                // Units requireEventTypeWriteAccess checks (the church's
+                // version of the type), so the page can show edit and delete
+                // only to someone the server will allow.
+                write_unit_ids: shown?.unit_ids ?? [],
             };
         });
     },
@@ -149,8 +166,8 @@ export const create = mutation({
     },
     handler: async (ctx, args) => {
         const user = await requireWriteAccess(ctx);
-        await requireEventTypeWriteAccess(ctx, args.event_type_id);
         const orgId = await resolveOrgId(ctx, args.organization_id);
+        await requireEventTypeWriteAccess(ctx, args.event_type_id, orgId ?? args.organization_id);
         const eventId = await ctx.db.insert("events", {
             ...args,
             organization_id: orgId ?? args.organization_id,
@@ -201,9 +218,9 @@ export const update = mutation({
         }
         // A unit admin may only edit an event of a type they administer, and
         // may not move it onto a type outside their units.
-        await requireEventTypeWriteAccess(ctx, event.event_type_id);
+        await requireEventTypeWriteAccess(ctx, event.event_type_id, event.organization_id);
         if (args.updates.event_type_id !== undefined) {
-            await requireEventTypeWriteAccess(ctx, args.updates.event_type_id);
+            await requireEventTypeWriteAccess(ctx, args.updates.event_type_id, event.organization_id);
         }
 
         // Capture changes for audit
@@ -283,7 +300,7 @@ export const remove = mutation({
         if (event.organization_id) {
             await requireOrgAccess(ctx, event.organization_id);
         }
-        await requireEventTypeWriteAccess(ctx, event.event_type_id);
+        await requireEventTypeWriteAccess(ctx, event.event_type_id, event.organization_id);
 
         // Block deletion once real attendance has been recorded against this
         // event — attendance/check-in history is more valuable than the
