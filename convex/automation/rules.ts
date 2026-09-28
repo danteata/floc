@@ -288,7 +288,7 @@ export const simulateRule = mutation({
         }> = [];
 
         for (const member of members) {
-            const memberFacts = await buildMemberFacts(ctx, member);
+            const memberFacts = await buildMemberFacts(ctx, member, org.timezone);
             const attendedIds = orgAttendance ? await loadMemberAttendedIds(ctx, member._id) : null;
             const { matched, facts } = matchMemberAgainstDerivedRule({
                 rule,

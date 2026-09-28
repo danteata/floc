@@ -116,7 +116,7 @@ async function processOneEvent(ctx: MutationCtx, evt: Doc<"automation_events">) 
     let memberFacts;
     if (evt.subject_member_id) {
         const member = await ctx.db.get(evt.subject_member_id);
-        if (member) memberFacts = await buildMemberFacts(ctx, member);
+        if (member) memberFacts = await buildMemberFacts(ctx, member, org.timezone);
     }
 
     const facts: FactContext = { org, member: memberFacts, event: eventFacts };

@@ -29,6 +29,10 @@ const BATCH = 50;
 const SMS_BATCH = 20;
 const QUIET_RECHECK_MS = 15 * 60 * 1000;
 
+// Outcome for a task whose member was archived after it was queued.
+const ARCHIVED_OUTCOME = "skipped_archived";
+const ARCHIVED_REASON = "This member was archived after the task was queued, so nothing was sent.";
+
 // Transactional lanes handled directly in the drain mutation.
 const TRANSACTIONAL_CHANNELS = ["in_app", "internal", "email"] as const;
 
@@ -104,6 +108,12 @@ async function processTask(ctx: MutationCtx, task: Doc<"automation_tasks">) {
 
     if (await alreadySent(ctx, task.dedup_key)) {
         await finish(ctx, task, "deduped", "deduped", preview);
+        return;
+    }
+
+    // A task queued before its member was archived must not be delivered.
+    if (await memberArchived(ctx, task.member_id)) {
+        await finish(ctx, task, ARCHIVED_OUTCOME, ARCHIVED_OUTCOME, preview, ARCHIVED_REASON);
         return;
     }
 
@@ -328,6 +338,10 @@ export const claimSmsBatch = internalMutation({
                 await finish(ctx, task, "failed", "failed", preview, "member not found");
                 continue;
             }
+            if (member.archived_at) {
+                await finish(ctx, task, ARCHIVED_OUTCOME, ARCHIVED_OUTCOME, preview, ARCHIVED_REASON);
+                continue;
+            }
             if (!isRealPhone(member.phone)) {
                 await finish(ctx, task, "failed", "failed", preview, "no usable phone");
                 continue;
@@ -469,6 +483,13 @@ async function defer(
 // ---------------------------------------------------------------------------
 // Action primitives
 // ---------------------------------------------------------------------------
+
+/** True when the task's member exists and has been archived. */
+async function memberArchived(ctx: MutationCtx, memberId?: Id<"members">): Promise<boolean> {
+    if (!memberId) return false;
+    const member = await ctx.db.get(memberId);
+    return !!member?.archived_at;
+}
 
 async function alreadySent(ctx: MutationCtx, dedupKey: string): Promise<boolean> {
     const prior = await ctx.db

@@ -107,7 +107,7 @@ async function scanMember(
     },
 ) {
     const { member, org, derivedRules, orgAttendance } = opts;
-    const memberFacts = await buildMemberFacts(ctx, member);
+    const memberFacts = await buildMemberFacts(ctx, member, org.timezone);
 
     // Load the member's attended set once, only if some rule needs streaks.
     let attendedIds: Set<string> | null = null;

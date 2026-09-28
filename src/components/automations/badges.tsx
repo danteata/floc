@@ -34,6 +34,7 @@ export function OutcomeBadge({ outcome }: { outcome: string }) {
     throttled: "bg-warning/15 text-warning-strong",
     skipped_no_provider: "bg-muted text-muted-foreground",
     skipped_no_account: "bg-muted text-muted-foreground",
+    skipped_archived: "bg-muted text-muted-foreground",
     failed: "bg-destructive/15 text-destructive",
   }
   const labels: Record<string, string> = {
@@ -45,6 +46,7 @@ export function OutcomeBadge({ outcome }: { outcome: string }) {
     throttled: "Sending limit reached",
     skipped_no_provider: "No SMS provider",
     skipped_no_account: "No Floc account",
+    skipped_archived: "Member archived",
     failed: "Failed",
   }
   const plain = outcome.replace(/_/g, " ")

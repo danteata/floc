@@ -26,6 +26,7 @@ import { DEFAULT_BRAND_HEX, brandPreset } from "./lib/theme/presets";
 import { appError, invalidArgument } from "./lib/errors";
 import { requireFlag } from "./lib/flags/server";
 import { publicBrandHex } from "./lib/theme/publicBrand";
+import { isValidTimeZone } from "./lib/timezone";
 
 export const list = query({
     handler: async (ctx) => {
@@ -633,6 +634,9 @@ export const update = mutation({
             level4_singular: v.optional(v.string()),
             level4_plural: v.optional(v.string()),
             currency: v.optional(v.string()),
+            // IANA time zone, e.g. "Africa/Accra". Used for lateness at
+            // check-in, birthdays and what counts as today.
+            timezone: v.optional(v.string()),
         }),
     },
     handler: async (ctx, args) => {
@@ -640,6 +644,9 @@ export const update = mutation({
         await requireOrgAccess(ctx, args.id);
         if (args.updates.currency !== undefined && !/^[A-Z]{3}$/.test(args.updates.currency)) {
             throw new Error("Currency must be a three-letter code, such as GHS or USD.");
+        }
+        if (args.updates.timezone !== undefined && !isValidTimeZone(args.updates.timezone)) {
+            throw invalidArgument("Choose a time zone from the list, such as Africa/Accra.");
         }
         await ctx.db.patch(args.id, args.updates);
         return true;
