@@ -13,9 +13,11 @@ import { orgIsPro } from "../entitlements";
 import { ConditionNode, FactContext, RuleAction, categoryForAction, getActionSpec } from "./catalog";
 import { evaluateCondition, isInRuleScope } from "./conditions";
 import { renderTemplate } from "./templating";
+import { localDayIn } from "../lib/timezone";
 
-function dayBucket(): string {
-    return new Date().toISOString().slice(0, 10);
+/** Today in the church's time zone (UTC when it hasn't set one). */
+function dayBucket(timeZone?: string): string {
+    return localDayIn(new Date(), timeZone);
 }
 
 function weekBucket(): string {
@@ -26,10 +28,10 @@ function weekBucket(): string {
     return `${now.getUTCFullYear()}W${week}`;
 }
 
-function bucketKey(bucket?: string): string {
+function bucketKey(bucket?: string, timeZone?: string): string {
     if (bucket === "none") return "once";
     if (bucket === "week") return weekBucket();
-    return dayBucket();
+    return dayBucket(timeZone);
 }
 
 /** Render an action's templated payload against the fact context. */
@@ -169,7 +171,7 @@ export async function queueRuleActions(
     });
 
     // 4. One task per action.
-    const bkt = bucketKey(rule.dedup_bucket);
+    const bkt = bucketKey(rule.dedup_bucket, facts.org?.timezone || undefined);
     let queued = 0;
     for (const r of rendered) {
         const spec = getActionSpec(r.action.key);

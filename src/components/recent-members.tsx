@@ -7,14 +7,15 @@ import { Skeleton } from "@/components/ui/skeleton"
 import { useQuery } from "convex/react"
 import { api } from "../../convex/_generated/api"
 import { formatDayShort } from '@/lib/display'
+import type { Id } from "../../convex/_generated/dataModel"
 
 /** "26 Sep": the day a member was added, as people read it. */
 function addedOn(timestamp: number): string {
   return formatDayShort(new Date(timestamp))
 }
 
-export function RecentMembers() {
-  const members = useQuery(api.members.getRecent, { limit: 5 });
+export function RecentMembers({ unitId }: { unitId?: Id<"units"> } = {}) {
+  const members = useQuery(api.members.getRecent, { limit: 5, ...(unitId ? { unit_id: unitId } : {}) });
 
   if (members === undefined) {
     return (

@@ -31,6 +31,7 @@ import { Save, RotateCcw } from "lucide-react"
 import { CURRENCIES, DEFAULT_CURRENCY } from "@/lib/money"
 import { cn } from "@/lib/utils"
 import { BrandingPanel } from "@/components/branding-panel"
+import { TimeZonePicker } from "@/components/time-zone-picker"
 import { AiCredentialsPanel } from "@/components/ai-credentials-panel"
 import { useSubscription } from "@/providers/SubscriptionProvider"
 import { useFlag } from "@/hooks/use-flags"
@@ -132,6 +133,10 @@ export function SettingsDialog({ open, onOpenChange, onSuccess }: SettingsDialog
   // The currency every amount in Floc is shown in (organizations.currency).
   const currentCurrency = (currentOrg?.currency as string | undefined) || DEFAULT_CURRENCY
   const [isSavingCurrency, setIsSavingCurrency] = useState(false)
+
+  // The church's time zone (organizations.timezone). Unset means UTC.
+  const currentTimeZone = (currentOrg?.timezone as string | undefined) || undefined
+  const [isSavingTimeZone, setIsSavingTimeZone] = useState(false)
 
   const handleLevelTypeChange = (level: '1' | '2' | '3' | '4', type: LevelType) => {
     const levelKey = `level${level}` as keyof typeof levelTypes
@@ -251,6 +256,22 @@ export function SettingsDialog({ open, onOpenChange, onSuccess }: SettingsDialog
     }
   }
 
+  const handleTimeZoneChange = async (timezone: string) => {
+    if (!currentOrg || timezone === currentTimeZone) return
+    setIsSavingTimeZone(true)
+    try {
+      await updateOrgMutation({
+        id: currentOrg._id as Id<"organizations">,
+        updates: { timezone },
+      })
+      toast({ title: "Time zone updated" })
+    } catch (error) {
+      toast({ title: "Couldn't change the time zone", description: error instanceof Error ? error.message : undefined, variant: "destructive" })
+    } finally {
+      setIsSavingTimeZone(false)
+    }
+  }
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-[700px] max-h-[85vh] flex flex-col overflow-hidden p-0 rounded-2xl">
@@ -266,7 +287,7 @@ export function SettingsDialog({ open, onOpenChange, onSuccess }: SettingsDialog
         <div className="flex-1 min-h-0 overflow-y-auto custom-scrollbar p-6">
           <Tabs defaultValue="terminology" className="space-y-6">
             <TabsList className="bg-muted/50 p-1 rounded-xl w-full flex justify-start overflow-x-auto">
-              <TabsTrigger value="terminology" className="rounded-lg data-[state=active]:bg-background data-[state=active]:shadow-sm">Name and currency</TabsTrigger>
+              <TabsTrigger value="terminology" className="rounded-lg data-[state=active]:bg-background data-[state=active]:shadow-sm">Name, currency and time zone</TabsTrigger>
               <TabsTrigger value="organization" className="rounded-lg data-[state=active]:bg-background data-[state=active]:shadow-sm">Structure</TabsTrigger>
               {brandingEnabled && (
                 <TabsTrigger value="branding" className="rounded-lg data-[state=active]:bg-background data-[state=active]:shadow-sm">Branding</TabsTrigger>
@@ -326,6 +347,26 @@ export function SettingsDialog({ open, onOpenChange, onSuccess }: SettingsDialog
                   </Select>
                   <p className="text-xs text-muted-foreground">
                     Used for every amount in Floc. Online giving is always taken in cedis.
+                  </p>
+                </CardContent>
+              </Card>
+
+              <Card className="overflow-hidden">
+                <CardHeader className="bg-muted/20 border-b border-border/50 px-6 py-4">
+                  <CardTitle className="text-base font-semibold">Time zone</CardTitle>
+                  <CardDescription>Where your church keeps its clock</CardDescription>
+                </CardHeader>
+                <CardContent className="p-6 space-y-2">
+                  <Label htmlFor="church-time-zone" className="text-sm">Time zone</Label>
+                  <TimeZonePicker
+                    id="church-time-zone"
+                    value={currentTimeZone}
+                    onChange={handleTimeZoneChange}
+                    disabled={!currentOrg || isSavingTimeZone}
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    Used for lateness at check-in, birthdays and what counts as today.
+                    {!currentTimeZone && " Until you choose one, Floc uses UTC."}
                   </p>
                 </CardContent>
               </Card>

@@ -36,7 +36,7 @@ interface CreateUnitDialogProps {
   onCreateUnit: (data: {
     name: string
     description: string
-    type: 'administrative' | 'functional' | 'geographic'
+    type: 'administrative' | 'functional' | 'geographic' | 'ministry'
     category: string
     unitId?: string
     leader_id?: string
@@ -56,7 +56,7 @@ export function CreateUnitDialog({
 }: CreateUnitDialogProps) {
   const [name, setName] = useState('')
   const [description, setDescription] = useState('')
-  const [type, setType] = useState<'administrative' | 'functional' | 'geographic'>('administrative')
+  const [type, setType] = useState<'administrative' | 'functional' | 'geographic' | 'ministry'>('administrative')
   const [category, setCategory] = useState('')
   const [unitId, setUnitId] = useState('')
   const [leaderId, setLeaderId] = useState<string | undefined>()
@@ -169,6 +169,7 @@ export function CreateUnitDialog({
                   <SelectItem value="administrative">Administrative</SelectItem>
                   <SelectItem value="functional">Functional</SelectItem>
                   <SelectItem value="geographic">Geographic</SelectItem>
+                  <SelectItem value="ministry">Ministry</SelectItem>
                 </SelectContent>
               </Select>
             </div>

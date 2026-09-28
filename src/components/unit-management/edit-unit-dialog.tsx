@@ -40,6 +40,14 @@ interface TargetUnit {
     leader_id?: string
 }
 
+const OFFERED_TYPES = ['administrative', 'functional', 'geographic', 'ministry']
+
+/** "sub_unit" -> "Sub unit": a stored type as people read it. */
+function typeLabel(type: string): string {
+    const t = type.replace(/[_-]+/g, ' ')
+    return t.charAt(0).toUpperCase() + t.slice(1).toLowerCase()
+}
+
 interface EditUnitDialogProps {
     open: boolean
     onOpenChange: (open: boolean) => void
@@ -48,7 +56,7 @@ interface EditUnitDialogProps {
     onUpdateUnit: (id: string, data: {
         name: string
         description: string
-        type: 'administrative' | 'functional' | 'geographic'
+        type: string
         category: string
         unit_id: string
         leader_id?: string
@@ -66,7 +74,7 @@ export function EditUnitDialog({
 }: EditUnitDialogProps) {
     const [name, setName] = useState('')
     const [description, setDescription] = useState('')
-    const [type, setType] = useState<'administrative' | 'functional' | 'geographic'>('administrative')
+    const [type, setType] = useState<string>('administrative')
     const [category, setCategory] = useState('')
     const [unitId, setUnitId] = useState('')
     const [leaderId, setLeaderId] = useState<string | undefined>()
@@ -86,12 +94,15 @@ export function EditUnitDialog({
         if (unit) {
             setName(unit.name || '')
             setDescription(unit.description || '')
-            setType((unit.type as 'administrative' | 'functional' | 'geographic') || 'administrative')
+            setType(unit.type || 'administrative')
             setCategory(unit.category || '')
             setUnitId(unit.parent_unit_id || 'none')
             setLeaderId(unit.leader_id || undefined)
         }
     }, [unit])
+
+    // Ministry units are functional ones by another name (see unit-card, filters).
+    const hasCategory = type === 'functional' || type === 'ministry'
 
     const handleSubmit = async () => {
         if (!name.trim() || !unitId || !unit) return;
@@ -100,7 +111,7 @@ export function EditUnitDialog({
                 name: name.trim(),
                 description: description.trim(),
                 type,
-                category: type === 'functional' ? category : '',
+                category: hasCategory ? category : '',
                 unit_id: unitId === 'none' ? '' : unitId,
                 leader_id: leaderId,
             })
@@ -166,7 +177,7 @@ export function EditUnitDialog({
                             <Label className="text-sm font-medium">Type *</Label>
                             <Select
                                 value={type}
-                                onValueChange={(value: 'administrative' | 'functional' | 'geographic') => setType(value)}
+                                onValueChange={setType}
                                 disabled={updating}
                             >
                                 <SelectTrigger className="bg-background/50 border-input-border">
@@ -176,12 +187,17 @@ export function EditUnitDialog({
                                     <SelectItem value="administrative">Administrative</SelectItem>
                                     <SelectItem value="functional">Functional</SelectItem>
                                     <SelectItem value="geographic">Geographic</SelectItem>
+                                    <SelectItem value="ministry">Ministry</SelectItem>
+                                    {/* A type set elsewhere (e.g. imported) stays selected instead of being replaced on save. */}
+                                    {!OFFERED_TYPES.includes(type) && (
+                                        <SelectItem value={type}>{typeLabel(type)}</SelectItem>
+                                    )}
                                 </SelectContent>
                             </Select>
                         </div>
                     </div>
 
-                    {type === 'functional' && (
+                    {hasCategory && (
                         <div className="space-y-2">
                             <Label className="text-sm font-medium">Category</Label>
                             <Input

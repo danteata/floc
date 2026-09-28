@@ -24,6 +24,7 @@ import {
     assertEventAppliesToMember,
 } from "./attendance";
 import { emitEventSafe } from "./automation/events";
+import { localDayBoundsIso, localDayIn, zonedTimeToUtcMs } from "./lib/timezone";
 
 /**
  * Fire automation triggers for a completed member check-in: always
@@ -114,51 +115,6 @@ function haversineMeters(
 }
 
 /**
- * The UTC instant of a wall-clock time (`date` "YYYY-MM-DD", `time` "HH:mm") in
- * an IANA time zone. Returns NaN when the inputs don't parse. An unknown zone
- * falls back to UTC.
- */
-function zonedTimeToUtcMs(date: string, time: string, timeZone: string): number {
-    const naiveMs = Date.parse(`${date}T${time}:00Z`);
-    if (Number.isNaN(naiveMs) || timeZone === "UTC") return naiveMs;
-    let dtf: Intl.DateTimeFormat;
-    try {
-        dtf = new Intl.DateTimeFormat("en-US", {
-            timeZone,
-            hourCycle: "h23",
-            year: "numeric",
-            month: "2-digit",
-            day: "2-digit",
-            hour: "2-digit",
-            minute: "2-digit",
-            second: "2-digit",
-        });
-    } catch {
-        return naiveMs;
-    }
-    // Offset of the zone at a given instant, in ms (zone wall clock - UTC).
-    const offsetAt = (ms: number) => {
-        const parts: Record<string, number> = {};
-        for (const p of dtf.formatToParts(new Date(ms))) {
-            if (p.type !== "literal") parts[p.type] = Number(p.value);
-        }
-        const asUtc = Date.UTC(
-            parts.year,
-            parts.month - 1,
-            parts.day,
-            parts.hour,
-            parts.minute,
-            parts.second,
-        );
-        return asUtc - ms;
-    };
-    // Two passes settle the offset across a DST change.
-    let utcMs = naiveMs - offsetAt(naiveMs);
-    utcMs = naiveMs - offsetAt(utcMs);
-    return utcMs;
-}
-
-/**
  * Compute whether a check-in is late relative to event_type.default_time + grace.
  *
  * `default_time` is the church's local wall-clock time on the session's
@@ -192,24 +148,6 @@ async function orgTimeZone(
 ): Promise<string | undefined> {
     const org = await ctx.db.get(orgId);
     return org?.timezone || undefined;
-}
-
-/** The calendar day ("YYYY-MM-DD") of an instant in an IANA time zone (UTC by default). */
-function localDayIn(now: Date, timeZone?: string): string {
-    if (timeZone) {
-        try {
-            // en-CA formats as YYYY-MM-DD.
-            return new Intl.DateTimeFormat("en-CA", {
-                timeZone,
-                year: "numeric",
-                month: "2-digit",
-                day: "2-digit",
-            }).format(now);
-        } catch {
-            // Unknown zone: fall through to UTC.
-        }
-    }
-    return now.toISOString().slice(0, 10);
 }
 
 // ---------------------------------------------------------------------------
@@ -635,10 +573,13 @@ export const getCommandCenterSummary = query({
         }
         const totalHeadcount = presentToday.size;
 
-        // First-timers: visitors created today (UTC day boundaries, matching
-        // the date-string convention used across the app).
-        const dayStart = `${args.date}T00:00:00.000Z`;
-        const dayEnd = `${args.date}T23:59:59.999Z`;
+        // First-timers: visitors created today, and failures below, use the
+        // church's local day when it has set a time zone (UTC otherwise, so
+        // a church in Ghana sees exactly what it always did).
+        const { start: dayStart, end: dayEnd } = localDayBoundsIso(
+            args.date,
+            await orgTimeZone(ctx, orgId),
+        );
         const orgMembers = await ctx.db
             .query("members")
             .withIndex("by_org", (q) => q.eq("organization_id", orgId))

@@ -18,6 +18,7 @@ import { DeleteConfirmDialog } from "@/components/delete-confirm-dialog"
 import { EmptyState } from "@/components/ui/empty-state"
 import { LoadingState } from "@/components/ui/loading-state"
 import { toast } from "sonner"
+import { errorMessage } from "@/lib/errors"
 import { useOrganization } from "@/hooks/use-organization"
 import { CreateUnitDialog } from "@/components/unit-management/create-unit-dialog"
 import { EditUnitDialog } from "@/components/unit-management/edit-unit-dialog"
@@ -141,7 +142,7 @@ export function AdminContent() {
       setDeleteDialog({ open: false, type: 'unit', item: null })
     } catch (error) {
       console.error("Error deleting unit:", error)
-      toast.error("Couldn't delete the unit", { description: error instanceof Error ? error.message : undefined })
+      toast.error("Couldn't delete the unit", { description: errorMessage(error) })
     }
   }
 

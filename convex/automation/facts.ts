@@ -10,6 +10,7 @@
 import { Doc, Id } from "../_generated/dataModel";
 import { MutationCtx, QueryCtx } from "../_generated/server";
 import { MemberFacts, OrgFacts, StreakFacts } from "./catalog";
+import { localDayIn } from "../lib/timezone";
 
 type Ctx = MutationCtx | QueryCtx;
 
@@ -35,15 +36,16 @@ function firstName(name: string): string {
     return name.trim().split(/\s+/)[0] || name;
 }
 
-function computeAge(member: Doc<"members">): number | undefined {
+function computeAge(member: Doc<"members">, timeZone?: string): number | undefined {
     // Prefer full dob; fall back to birth_month/day (no year → no age).
+    // "Today" is the church's local day (UTC when it hasn't set a time zone).
     if (member.dob) {
         const d = new Date(member.dob);
         if (!isNaN(d.getTime())) {
-            const now = new Date();
-            let age = now.getUTCFullYear() - d.getUTCFullYear();
-            const m = now.getUTCMonth() - d.getUTCMonth();
-            if (m < 0 || (m === 0 && now.getUTCDate() < d.getUTCDate())) age--;
+            const [ny, nm, nd] = localDayIn(new Date(), timeZone).split("-").map(Number);
+            let age = ny - d.getUTCFullYear();
+            const m = nm - 1 - d.getUTCMonth();
+            if (m < 0 || (m === 0 && nd < d.getUTCDate())) age--;
             if (age >= 0 && age < 150) return age;
         }
     }
@@ -62,7 +64,11 @@ function computeYearsAsMember(member: Doc<"members">): number | undefined {
 // Member facts
 // ---------------------------------------------------------------------------
 
-export async function buildMemberFacts(ctx: Ctx, member: Doc<"members">): Promise<MemberFacts> {
+export async function buildMemberFacts(
+    ctx: Ctx,
+    member: Doc<"members">,
+    timeZone?: string,
+): Promise<MemberFacts> {
     const memberUnits = await ctx.db
         .query("member_units")
         .withIndex("by_member", (q) => q.eq("member_id", member._id))
@@ -84,7 +90,7 @@ export async function buildMemberFacts(ctx: Ctx, member: Doc<"members">): Promis
         has_email: isRealEmail(member.email),
         unit_ids: memberUnits.map((mu) => mu.unit_id as string),
         label_ids: memberLabels.map((ml) => ml.label_id as string),
-        age: computeAge(member),
+        age: computeAge(member, timeZone),
         years_as_member: computeYearsAsMember(member),
         engagement_score: member.engagement_score,
         engagement_risk_level: member.engagement_risk_level,
