@@ -6,7 +6,7 @@
 // =============================================================================
 
 import { v } from "convex/values";
-import { query } from "../_generated/server";
+import { query, type QueryCtx } from "../_generated/server";
 import { Doc, Id } from "../_generated/dataModel";
 import { isSuperAdmin, requireUser, resolveOrgId } from "../auth";
 import {
@@ -14,6 +14,7 @@ import {
     isOrgWideScope,
     memberIdInScope,
     resolveManagedMemberIds,
+    unitMemberIds,
 } from "../scope";
 import {
     impactLevel,
@@ -24,50 +25,88 @@ import {
     wasAtRisk,
 } from "./impact";
 
+// engagement/scoring.ts riskLevelFor: 70 and above is "low" risk.
+const AT_RISK_BELOW = 70;
+
 /**
- * Lowest-scoring members for the org (or the caller's managed scope), for the
- * "members at risk" dashboard widget. Reads whatever the daily recompute last
- * wrote — Free orgs simply have no scored members, so this returns [].
+ * Members at risk (high or medium risk level) for the org or the caller's
+ * managed scope, lowest score first, for the "members at risk" dashboard
+ * widget. Reads whatever the daily recompute last wrote — Free orgs simply
+ * have no scored members, so this returns an empty list.
+ *
+ * `total` is every at-risk member in scope; `members` is the first `limit`
+ * of them, so the widget can say "12 members at risk, showing 5".
  */
+const atRiskArgs = {
+    organization_id: v.optional(v.id("organizations")),
+    limit: v.optional(v.number()),
+    // The dashboard's unit filter: only this unit's members.
+    unit_id: v.optional(v.id("units")),
+};
+
+/** Members at medium or high risk, with the true total before the list is cut short. */
+export const listAtRiskSummary = query({
+    args: atRiskArgs,
+    handler: (ctx, args) => atRiskSummary(ctx, args),
+});
+
+/** The list alone, for clients built before listAtRiskSummary. Remove once they're gone. */
 export const listAtRisk = query({
-    args: {
-        organization_id: v.optional(v.id("organizations")),
-        limit: v.optional(v.number()),
-    },
-    handler: async (ctx, args) => {
+    args: atRiskArgs,
+    handler: async (ctx, args) => (await atRiskSummary(ctx, args)).members,
+});
+
+async function atRiskSummary(
+    ctx: QueryCtx,
+    args: { organization_id?: Id<"organizations">; limit?: number; unit_id?: Id<"units"> },
+) {
+    {
+        const empty = { total: 0, members: [] };
         const user = await requireUser(ctx);
         const orgId = isSuperAdmin(user)
             ? args.organization_id
             : await resolveOrgId(ctx, args.organization_id);
-        if (!orgId) return [];
+        if (!orgId) return empty;
 
         const limit = Math.min(Math.max(args.limit ?? 5, 1), 20);
         const scope = await resolveManagedMemberIds(ctx);
+        const unitIds = args.unit_id ? await unitMemberIds(ctx, args.unit_id) : null;
 
-        // Range on the trailing index field excludes docs where
+        // Risk levels come from the score (engagement/scoring.ts: under 70 is
+        // medium or high), so the at-risk pool is the index range below 70.
+        // Range on the trailing index field also excludes docs where
         // engagement_score is undefined (Free orgs, or not yet computed).
+        // "new" members can score low too, but aren't at risk; the level
+        // check drops them.
         const candidates = await ctx.db
             .query("members")
             .withIndex("by_org_and_engagement_score", (q) =>
-                q.eq("organization_id", orgId).gte("engagement_score", 0),
+                q.eq("organization_id", orgId).gte("engagement_score", 0).lt("engagement_score", AT_RISK_BELOW),
             )
             .order("asc")
-            .take(100);
+            .collect();
 
-        const inScope = candidates.filter(
-            (m) => !m.archived_at && (isOrgWideScope(scope) || scope.has(m._id)),
+        const atRisk = candidates.filter(
+            (m) =>
+                !m.archived_at &&
+                (m.engagement_risk_level === "high" || m.engagement_risk_level === "medium") &&
+                (isOrgWideScope(scope) || scope.has(m._id)) &&
+                (!unitIds || unitIds.has(m._id)),
         );
 
-        return inScope.slice(0, limit).map((m) => ({
-            id: m._id,
-            name: m.name,
-            avatar_url: m.avatar_url,
-            engagement_score: m.engagement_score,
-            engagement_risk_level: m.engagement_risk_level,
-            household_id: m.household_id,
-        }));
-    },
-});
+        return {
+            total: atRisk.length,
+            members: atRisk.slice(0, limit).map((m) => ({
+                id: m._id,
+                name: m.name,
+                avatar_url: m.avatar_url,
+                engagement_score: m.engagement_score,
+                engagement_risk_level: m.engagement_risk_level,
+                household_id: m.household_id,
+            })),
+        };
+    }
+}
 
 // Statuses that mean a member is already being followed up on (so they should
 // not resurface in the "who to call next" queue).
@@ -179,6 +218,8 @@ export const careImpactStats = query({
     args: {
         organization_id: v.optional(v.id("organizations")),
         window_days: v.optional(v.number()),
+        // The dashboard's unit filter: only follow-ups with this unit's members.
+        unit_id: v.optional(v.id("units")),
     },
     handler: async (ctx, args) => {
         const user = await requireUser(ctx);
@@ -198,6 +239,7 @@ export const careImpactStats = query({
         if (!orgId) return empty;
 
         const scope = await resolveManagedMemberIds(ctx);
+        const unitIds = args.unit_id ? await unitMemberIds(ctx, args.unit_id) : null;
         const callerOrg = callerOrgId(ctx, user);
         const cutoffIso = new Date(Date.now() - windowDays * 24 * 3600 * 1000).toISOString();
 
@@ -225,6 +267,7 @@ export const careImpactStats = query({
             if (t.created_at < cutoffIso) continue;
             if (!wasAtRisk(t.member_risk_at_contact)) continue;
             if (!memberIdInScope(t.member_id, orgId, scope, callerOrg)) continue;
+            if (unitIds && !unitIds.has(t.member_id)) continue;
             const prev = baselineByMember.get(t.member_id as string);
             if (prev === "high") continue;
             baselineByMember.set(t.member_id as string, t.member_risk_at_contact!);

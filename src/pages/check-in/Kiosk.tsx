@@ -404,7 +404,10 @@ export default function KioskPage() {
                         <h2 className="text-sm font-semibold flex items-center gap-2">
                             <Users className="h-4 w-4" /> Recently checked in
                         </h2>
-                        <Badge variant="secondary">{roster?.length ?? 0}</Badge>
+                        {/* The roster query returns at most the latest 30 check-ins. */}
+                        {roster && roster.length >= 30 && (
+                            <Badge variant="secondary">Latest 30</Badge>
+                        )}
                     </div>
                     <div className="rounded-xl border bg-background flex-1 overflow-y-auto max-h-[60vh]">
                         {roster === undefined ? (

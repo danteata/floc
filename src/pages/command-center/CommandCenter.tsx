@@ -3,6 +3,7 @@
 import { useState } from "react"
 import { Link } from "react-router-dom"
 import { useMutation, useQuery } from "convex/react"
+import { format } from "date-fns"
 import { toast } from "sonner"
 import {
     Users,
@@ -81,7 +82,7 @@ type StartedSession = {
 
 export default function CommandCenterPage() {
     const { organization } = useOrganization()
-    const [date] = useState<string>(() => new Date().toISOString().split("T")[0])
+    const [date] = useState<string>(() => format(new Date(), "yyyy-MM-dd"))
     const [showLate, setShowLate] = useState(false)
     const [showFailures, setShowFailures] = useState(false)
     const [startingEventTypeId, setStartingEventTypeId] = useState<string | null>(null)
@@ -146,7 +147,7 @@ export default function CommandCenterPage() {
                 ) : (
                     <>
                         <StatGrid>
-                            <StatCard icon={Users} label="Checked in today" value={summary.totalHeadcount} />
+                            <StatCard icon={Users} label="Present today" value={summary.totalHeadcount} />
                             <StatCard icon={UserPlus} label="First-timers today" value={summary.firstTimersToday} />
                             <StatCard
                                 icon={Clock}
@@ -159,7 +160,7 @@ export default function CommandCenterPage() {
                             <StatCard
                                 icon={AlertTriangle}
                                 label="Failed check-ins"
-                                value={summary.recentFailures.length}
+                                value={summary.failedCount}
                                 onClick={
                                     summary.recentFailures.length > 0
                                         ? () => setShowFailures((v) => !v)
@@ -213,7 +214,9 @@ export default function CommandCenterPage() {
                                                 showFailures && "rotate-180",
                                             )}
                                         />
-                                        Failed check-ins ({summary.recentFailures.length})
+                                        {summary.failedCount > summary.recentFailures.length
+                                            ? `Latest ${summary.recentFailures.length} of ${summary.failedCount} failed check-ins`
+                                            : `Failed check-ins (${summary.failedCount})`}
                                     </Button>
                                 </CollapsibleTrigger>
                                 <CollapsibleContent>

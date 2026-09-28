@@ -4,6 +4,7 @@ import { Link } from "react-router-dom"
 import { useQuery } from "convex/react"
 import { AlertTriangle, ArrowRight } from "lucide-react"
 import { api } from "../../convex/_generated/api"
+import type { Id } from "../../convex/_generated/dataModel"
 import { MemberAvatar } from "@/components/ui/member-avatar"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -23,18 +24,22 @@ const RISK: Record<string, { label: string; tone: string }> = {
 }
 
 /**
- * "N members need outreach": reads from the daily engagement-score
- * recompute (Pro feature). Renders nothing for Free orgs or orgs with no
- * scored members yet, same as MyCareTasksWidget's empty-state convention.
+ * "N members at risk": high and medium risk members from the daily
+ * engagement-score recompute (Pro feature). Renders nothing for Free orgs or
+ * when no one in scope is at risk, same as MyCareTasksWidget's empty-state
+ * convention.
  */
-export function AtRiskWidget() {
+export function AtRiskWidget({ unitId }: { unitId?: Id<"units"> } = {}) {
   const { organization } = useOrganization()
-  const atRisk = useQuery(
-    api.engagement.queries.listAtRisk,
-    organization ? { organization_id: organization._id, limit: MAX_SHOWN } : "skip",
+  const result = useQuery(
+    api.engagement.queries.listAtRiskSummary,
+    organization
+      ? { organization_id: organization._id, limit: MAX_SHOWN, ...(unitId ? { unit_id: unitId } : {}) }
+      : "skip",
   )
+  const atRisk = result?.members ?? []
 
-  if (!organization || !atRisk || atRisk.length === 0) return null
+  if (!organization || !result || atRisk.length === 0) return null
 
   return (
     <Card>
@@ -44,7 +49,8 @@ export function AtRiskWidget() {
           Members at risk
         </CardTitle>
         <CardDescription>
-          {atRisk.length} {atRisk.length === 1 ? "member" : "members"} with a low engagement score
+          {result.total} {result.total === 1 ? "member" : "members"} at risk
+          {result.total > atRisk.length && `, showing ${atRisk.length}`}
         </CardDescription>
         <CardAction>
           <Button asChild size="sm" variant="ghost">

@@ -3,8 +3,6 @@
 import { FinancialTransaction } from '@/types/database'
 
 import { useState, useMemo } from 'react'
-import { useNavigate } from 'react-router-dom'
-import { useUser } from '@clerk/clerk-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
@@ -40,32 +38,43 @@ import {
     ArrowUpRight,
     ArrowDownRight,
     BarChart3,
+    ClipboardList,
 } from 'lucide-react'
 import {
     calculateTransactionTotals,
     monthOnMonth,
     describeMonthOnMonth,
     exportTransactionsToCSV,
+    isCountedTransaction,
+    sortByTransactionDate,
+    transactionDay,
     TRANSACTION_CATEGORIES
 } from '@/lib/financial-utils'
 import { LayoutWrapper } from '@/components/layout-wrapper'
 import { PageHeader } from '@/components/ui/page-header'
 import { StatCard, StatGrid } from '@/components/ui/stat-card'
 import { EmptyState } from '@/components/ui/empty-state'
-import { useMoney } from '@/lib/money'
+import { formatMoney, useMoney } from '@/lib/money'
+import { downloadCsv, todayStamp } from '@/lib/csv'
 import { useQuery, useMutation } from 'convex/react'
 import { api } from '../../../convex/_generated/api'
 import { Id } from '../../../convex/_generated/dataModel'
 import { useOrganization } from '@/hooks/use-organization'
 import { useToast } from '@/hooks/use-toast'
 import { cn } from '@/lib/utils'
-import { formatDay } from '@/lib/display'
+import { formatDay, titleCase, toDayKey } from '@/lib/display'
+
+const DATE_RANGE_LABELS: Record<string, string> = {
+    all: 'All time',
+    today: 'Today',
+    week: 'Last 7 days',
+    month: 'This month',
+    year: 'This year',
+}
 
 export default function FinancialPage() {
-    const { user, isLoaded } = useUser()
     const { organization } = useOrganization()
     const { toast } = useToast()
-    const navigate = useNavigate()
     const money = useMoney()
 
     // State
@@ -83,32 +92,12 @@ export default function FinancialPage() {
         organization_id: organization?._id as Id<"organizations">
     }) as any || []
 
-    // Convex Mutations
-    const createTransaction = useMutation(api.financial.createTransaction)
-    const updateTransaction = useMutation(api.financial.updateTransaction)
-    const voidTransaction = useMutation(api.financial.voidTransaction)
+    const serviceSummaries = useQuery(api.financial.listServiceSummaries,
+        organization ? { organization_id: organization._id as Id<"organizations"> } : "skip"
+    )
+    const eventTypes = useQuery(api.event_types.getAll, organization ? {} : "skip")
 
-    const handleSaveTransaction = async (transactionData: any) => {
-        try {
-            if (editingTransaction) {
-                await updateTransaction({
-                    id: editingTransaction._id as Id<"financial_transactions">,
-                    ...transactionData
-                })
-                toast({ title: "Transaction updated" })
-            } else {
-                await createTransaction({
-                    ...transactionData,
-                    organization_id: organization?._id as Id<"organizations">
-                })
-                toast({ title: "Transaction added" })
-            }
-            setShowTransactionDialog(false)
-            setEditingTransaction(null)
-        } catch (error: any) {
-            toast({ title: "Couldn't save the transaction", description: error.message, variant: "destructive" })
-        }
-    }
+    const voidTransaction = useMutation(api.financial.voidTransaction)
 
     const handleVoidTransaction = async (transactionId: string) => {
         // Financial records are never deleted once entered — voiding keeps
@@ -127,62 +116,67 @@ export default function FinancialPage() {
         }
     }
 
+    // The ledger's search, type and category filters, without the date range:
+    // the month-on-month hint compares like with like across two spans.
+    const matchesLedgerFilters = (transaction: any) => {
+        const matchesSearch = searchTerm === '' ||
+            transaction.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
+            (transaction.member_name || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+            (transaction.giver_name || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+            (transaction.event_name || '').toLowerCase().includes(searchTerm.toLowerCase())
+        const matchesCategory = categoryFilter === 'all' || transaction.category === categoryFilter
+        const matchesType = typeFilter === 'all' || transaction.type === typeFilter
+        return matchesSearch && matchesCategory && matchesType
+    }
+
+    const ledgerMatches = useMemo(
+        () => ((transactions || []) as any[]).filter(matchesLedgerFilters),
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+        [transactions, searchTerm, categoryFilter, typeFilter],
+    )
+
     const filteredTransactions = useMemo(() => {
-        const rawTransactions = (transactions || []) as unknown as any[];
-        const filtered = rawTransactions.filter((transaction: any) => {
-            const matchesSearch = searchTerm === '' ||
-                transaction.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                (transaction.member_name || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
-                (transaction.event_name || '').toLowerCase().includes(searchTerm.toLowerCase())
-
-            const matchesCategory = categoryFilter === 'all' || transaction.category === categoryFilter
-            const matchesType = typeFilter === 'all' || transaction.type === typeFilter
-
-            let matchesDateRange = true
-            if (dateRange !== 'all') {
-                const transactionDate = new Date(transaction.date)
-                const now = new Date()
-
-                switch (dateRange) {
-                    case 'today':
-                        matchesDateRange = transactionDate.toDateString() === now.toDateString()
-                        break
-                    case 'week':
-                        const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000)
-                        matchesDateRange = transactionDate >= weekAgo
-                        break
-                    case 'month':
-                        matchesDateRange = transactionDate.getMonth() === now.getMonth() &&
-                            transactionDate.getFullYear() === now.getFullYear()
-                        break
-                    case 'year':
-                        matchesDateRange = transactionDate.getFullYear() === now.getFullYear()
-                        break
-                }
+        // Stored dates are calendar days: compare "yyyy-mm-dd" strings, never
+        // new Date(day), which is UTC midnight and slips a day west of Greenwich.
+        const now = new Date()
+        const today = toDayKey(now)
+        const weekStart = toDayKey(new Date(now.getFullYear(), now.getMonth(), now.getDate() - 6))
+        const filtered = ledgerMatches.filter((transaction: any) => {
+            const day = transactionDay(transaction.date)
+            switch (dateRange) {
+                case 'today': return day === today
+                case 'week': return day >= weekStart && day <= today
+                case 'month': return day.slice(0, 7) === today.slice(0, 7)
+                case 'year': return day.slice(0, 4) === today.slice(0, 4)
+                default: return true
             }
-            return matchesSearch && matchesCategory && matchesType && matchesDateRange
-        });
-        return filtered as FinancialTransaction[];
-    }, [transactions, searchTerm, categoryFilter, typeFilter, dateRange])
+        })
+        // Newest transaction date first (not the order they were entered).
+        return sortByTransactionDate(filtered) as FinancialTransaction[]
+    }, [ledgerMatches, dateRange])
 
     const totals = useMemo(() => calculateTransactionTotals(filteredTransactions), [filteredTransactions])
-    // Worked out from the transactions' dates; no hint at all when last month
-    // has nothing to compare with, rather than an invented trend.
-    const incomeTrend = useMemo(() => monthOnMonth(transactions, 'income').change, [transactions])
-    const expenseTrend = useMemo(() => monthOnMonth(transactions, 'expense').change, [transactions])
+    const countedCount = useMemo(() => filteredTransactions.filter(isCountedTransaction).length, [filteredTransactions])
+    const uncountedCount = filteredTransactions.length - countedCount
+    // Only meaningful when the cards cover this month: this month so far against
+    // the same days of last month. No hint when there is nothing to compare with.
+    const incomeTrend = useMemo(() => dateRange === 'month' ? monthOnMonth(ledgerMatches, 'income').change : null, [ledgerMatches, dateRange])
+    const expenseTrend = useMemo(() => dateRange === 'month' ? monthOnMonth(ledgerMatches, 'expense').change : null, [ledgerMatches, dateRange])
+    const periodLabel = DATE_RANGE_LABELS[dateRange] ?? 'All time'
+    const isFiltered = searchTerm !== '' || categoryFilter !== 'all' || typeFilter !== 'all'
 
     const handleExportData = () => {
-        const csvContent = exportTransactionsToCSV(filteredTransactions)
-        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' })
-        const link = document.createElement('a')
-        const url = URL.createObjectURL(blob)
-        link.setAttribute('href', url)
-        link.setAttribute('download', `financial-transactions-${new Date().toISOString().split('T')[0]}.csv`)
-        link.style.visibility = 'hidden'
-        document.body.appendChild(link)
-        link.click()
-        document.body.removeChild(link)
+        // Every row the filters show, with a Status column: voided, pending
+        // and failed rows are in the file but no total counts them.
+        downloadCsv(`financial-transactions-${todayStamp()}.csv`, exportTransactionsToCSV(filteredTransactions))
+        toast({
+            title: 'Ledger exported',
+            description: `${filteredTransactions.length} ${filteredTransactions.length === 1 ? 'row' : 'rows'}, including voided, pending and failed ones (see the Status column).`,
+        })
     }
+
+    const serviceTypeLabel = (value: string) =>
+        (eventTypes as any[] | undefined)?.find((et) => et.value === value)?.label ?? titleCase(value.replace(/_/g, ' '))
 
     return (
         <LayoutWrapper>
@@ -209,34 +203,8 @@ export default function FinancialPage() {
                     </>}
                 />
 
-                <StatGrid>
-                    <StatCard
-                        label="Total income"
-                        value={money(totals.income)}
-                        icon={ArrowUpRight}
-                        hint={describeMonthOnMonth(incomeTrend)}
-                        hintTone={incomeTrend === null || incomeTrend === 0 ? 'neutral' : incomeTrend > 0 ? 'positive' : 'negative'}
-                    />
-                    <StatCard
-                        label="Total expenses"
-                        value={money(totals.expense)}
-                        icon={ArrowDownRight}
-                        hint={describeMonthOnMonth(expenseTrend)}
-                    />
-                    <StatCard
-                        label="Net"
-                        value={money(totals.net)}
-                        icon={BarChart3}
-                    />
-                    <StatCard
-                        label="Total transactions"
-                        value={filteredTransactions.length.toString()}
-                        icon={CalendarIcon}
-                    />
-                </StatGrid>
-
                 <Tabs defaultValue="overview" className="space-y-8">
-                    <TabsList className="bg-muted/50 p-1 rounded-xl w-full md:w-auto inline-flex">
+                    <TabsList className="bg-muted/50 p-1 rounded-xl w-full md:w-auto inline-flex overflow-x-auto justify-start">
                         <TabsTrigger
                             value="overview"
                             className="rounded-lg data-[state=active]:bg-background data-[state=active]:shadow-sm px-6 transition-all"
@@ -248,6 +216,12 @@ export default function FinancialPage() {
                             className="rounded-lg data-[state=active]:bg-background data-[state=active]:shadow-sm px-6 transition-all"
                         >
                             Ledger
+                        </TabsTrigger>
+                        <TabsTrigger
+                            value="summaries"
+                            className="rounded-lg data-[state=active]:bg-background data-[state=active]:shadow-sm px-6 transition-all"
+                        >
+                            Service summaries
                         </TabsTrigger>
                         <TabsTrigger
                             value="reports"
@@ -262,22 +236,13 @@ export default function FinancialPage() {
                             onAddTransaction={() => setShowTransactionDialog(true)}
                         />
 
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                            <ActionBox
-                                title="Service summary"
-                                description="Record the attendance and giving for one service or event."
-                                buttonText="Add summary"
-                                onClick={() => setShowSummaryDialog(true)}
-                                icon={<Plus className="h-5 w-5" />}
-                            />
-                            <ActionBox
-                                title="Import transactions"
-                                description="Bring in transactions from a CSV file or spreadsheet."
-                                buttonText="Import"
-                                onClick={() => { }}
-                                icon={<Download className="h-5 w-5" />}
-                            />
-                        </div>
+                        <ActionBox
+                            title="Service summary"
+                            description="Record the tithes and offerings counted at one service or event."
+                            buttonText="Add summary"
+                            onClick={() => setShowSummaryDialog(true)}
+                            icon={<Plus className="h-5 w-5" />}
+                        />
                     </TabsContent>
 
                     <TabsContent value="transactions" className="animate-in fade-in duration-500 space-y-8">
@@ -342,6 +307,42 @@ export default function FinancialPage() {
                             </CardContent>
                         </Card>
 
+                        {/* Totals for exactly what the ledger below shows. They live
+                            here, not above the tabs, so a ledger filter never
+                            silently changes the Overview. */}
+                        <section className="space-y-3" aria-label="Ledger totals">
+                            <p className="text-sm text-muted-foreground">
+                                Totals for {periodLabel.toLowerCase()}{isFiltered ? ', with the filters above' : ''}. Voided, pending and failed transactions are not counted.
+                            </p>
+                            <StatGrid>
+                                <StatCard
+                                    label="Income"
+                                    value={money(totals.income)}
+                                    icon={ArrowUpRight}
+                                    hint={describeMonthOnMonth(incomeTrend) ?? periodLabel}
+                                    hintTone={incomeTrend === null || incomeTrend === 0 ? 'neutral' : incomeTrend > 0 ? 'positive' : 'negative'}
+                                />
+                                <StatCard
+                                    label="Expenses"
+                                    value={money(totals.expense)}
+                                    icon={ArrowDownRight}
+                                    hint={describeMonthOnMonth(expenseTrend) ?? periodLabel}
+                                />
+                                <StatCard
+                                    label="Net"
+                                    value={money(totals.net)}
+                                    icon={BarChart3}
+                                    hint={periodLabel}
+                                />
+                                <StatCard
+                                    label="Transactions counted"
+                                    value={countedCount.toString()}
+                                    icon={CalendarIcon}
+                                    hint={uncountedCount > 0 ? `${periodLabel}. ${uncountedCount} voided, pending or failed not counted` : periodLabel}
+                                />
+                            </StatGrid>
+                        </section>
+
                         {/* Table */}
                         <div className="rounded-xl overflow-hidden shadow-soft border border-border/50 bg-card">
                             <Table>
@@ -362,7 +363,7 @@ export default function FinancialPage() {
                                         return (
                                         <TableRow key={transaction._id} className={cn("hover:bg-muted/30 border-b border-border/50 transition-colors", isVoided && "opacity-50")}>
                                             <TableCell className="pl-6 text-sm text-muted-foreground">
-                                                {formatDay(new Date(transaction.date))}
+                                                {formatDay(transactionDay(transaction.date))}
                                             </TableCell>
                                             <TableCell>
                                                 <div className="flex flex-col gap-1">
@@ -440,7 +441,7 @@ export default function FinancialPage() {
                                     <EmptyState
                                         icon={Search}
                                         title="No transactions yet"
-                                        description="Add a transaction or a service summary and it will appear here."
+                                        description="Add a transaction and it will appear here. Service summaries have their own tab."
                                     />
                                 ) : (
                                     <EmptyState
@@ -449,6 +450,87 @@ export default function FinancialPage() {
                                         description="Change or clear the filters to see more."
                                     />
                                 )
+                            )}
+                        </div>
+                    </TabsContent>
+
+                    <TabsContent value="summaries" className="animate-in fade-in duration-500 space-y-4">
+                        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                            <p className="text-sm text-muted-foreground max-w-2xl">
+                                What was counted at each service. These totals are a record of the count and are not added to income or to any report; record the money as transactions to include it.
+                            </p>
+                            <Button variant="outline" className="rounded-lg shrink-0" onClick={() => setShowSummaryDialog(true)}>
+                                <Plus className="h-4 w-4 mr-2" />
+                                Add summary
+                            </Button>
+                        </div>
+                        <div className="rounded-xl overflow-hidden shadow-soft border border-border/50 bg-card">
+                            {serviceSummaries === undefined ? (
+                                <p className="p-6 text-sm text-muted-foreground">Loading service summaries…</p>
+                            ) : serviceSummaries.length === 0 ? (
+                                <EmptyState
+                                    icon={ClipboardList}
+                                    title="No service summaries yet"
+                                    description="Add a summary after a service to keep a record of what was counted."
+                                />
+                            ) : (
+                                <div className="overflow-x-auto">
+                                    <Table>
+                                        <TableHeader>
+                                            <TableRow className="bg-muted/40 hover:bg-muted/40 border-b border-border/50">
+                                                <TableHead className="font-semibold text-muted-foreground pl-6">Date</TableHead>
+                                                <TableHead className="font-semibold text-muted-foreground">Service</TableHead>
+                                                <TableHead className="font-semibold text-muted-foreground text-right">Tithes</TableHead>
+                                                <TableHead className="font-semibold text-muted-foreground text-right">Offerings</TableHead>
+                                                <TableHead className="font-semibold text-muted-foreground text-right">Special offerings</TableHead>
+                                                <TableHead className="font-semibold text-muted-foreground text-right">Total counted</TableHead>
+                                                <TableHead className="font-semibold text-muted-foreground">Witnesses</TableHead>
+                                                <TableHead className="font-semibold text-muted-foreground text-right pr-6">Actions</TableHead>
+                                            </TableRow>
+                                        </TableHeader>
+                                        <TableBody>
+                                            {[...serviceSummaries]
+                                                .sort((a, b) => (a.service_date === b.service_date ? b._creationTime - a._creationTime : a.service_date < b.service_date ? 1 : -1))
+                                                .map((summary) => {
+                                                    const special = summary.special_offerings ?? 0
+                                                    const total = summary.total_tithes + summary.total_offerings + summary.total_donations + special
+                                                    return (
+                                                        <TableRow key={summary._id} className="hover:bg-muted/30 border-b border-border/50 transition-colors">
+                                                            <TableCell className="pl-6 text-sm text-muted-foreground whitespace-nowrap">{formatDay(summary.service_date)}</TableCell>
+                                                            <TableCell className="text-sm">
+                                                                <div className="flex flex-col">
+                                                                    <span className="font-medium text-foreground">{summary.service_name ? titleCase(summary.service_name) : serviceTypeLabel(summary.service_type)}</span>
+                                                                    {summary.service_name && (
+                                                                        <span className="text-xs text-muted-foreground">{serviceTypeLabel(summary.service_type)}</span>
+                                                                    )}
+                                                                </div>
+                                                            </TableCell>
+                                                            <TableCell className="text-right text-sm tabular-nums">{formatMoney(summary.total_tithes, summary.currency)}</TableCell>
+                                                            <TableCell className="text-right text-sm tabular-nums">{formatMoney(summary.total_offerings, summary.currency)}</TableCell>
+                                                            <TableCell className="text-right text-sm tabular-nums">{formatMoney(special, summary.currency)}</TableCell>
+                                                            <TableCell className="text-right text-sm font-medium tabular-nums">{formatMoney(total, summary.currency)}</TableCell>
+                                                            <TableCell className="text-sm text-muted-foreground">{summary.witnessed_by_name || summary.witnessed_by || 'None recorded'}</TableCell>
+                                                            <TableCell className="text-right pr-6">
+                                                                <Button
+                                                                    variant="ghost"
+                                                                    size="icon"
+                                                                    className="h-8 w-8 text-muted-foreground hover:text-foreground hover:bg-muted/50 rounded-lg"
+                                                                    aria-label="Edit service summary"
+                                                                    title="Edit"
+                                                                    onClick={() => {
+                                                                        setEditingSummary(summary)
+                                                                        setShowSummaryDialog(true)
+                                                                    }}
+                                                                >
+                                                                    <Edit className="h-4 w-4" />
+                                                                </Button>
+                                                            </TableCell>
+                                                        </TableRow>
+                                                    )
+                                                })}
+                                        </TableBody>
+                                    </Table>
+                                </div>
                             )}
                         </div>
                     </TabsContent>

@@ -23,6 +23,14 @@ interface OrganizationHierarchyProps {
   onOverrideUnit?: (unitId: string) => void
   onResetUnit?: (unitId: string) => void
   onMergeUnit?: (unitId: string) => void
+  /** Organization admins only: show each unit's actions menu. */
+  canManage?: boolean
+}
+
+// "Functional" covers ministry units too, the same grouping as the stat card.
+function matchesUnitType(type: string | undefined, filterType: string) {
+  if (filterType === 'functional') return type === 'functional' || type === 'ministry'
+  return type === filterType
 }
 
 // Look up a unit's stats from the memberCounts array.
@@ -42,6 +50,7 @@ function UnitNode({
   onOverrideUnit,
   onResetUnit,
   onMergeUnit,
+  canManage = true,
   depth = 0
 }: {
   unit: any
@@ -53,6 +62,7 @@ function UnitNode({
   onOverrideUnit?: (unitId: string) => void
   onResetUnit?: (unitId: string) => void
   onMergeUnit?: (unitId: string) => void
+  canManage?: boolean
   depth?: number
 }) {
   const [isExpanded, setIsExpanded] = useState(true)
@@ -88,6 +98,7 @@ function UnitNode({
             onOverride={onOverrideUnit}
             onReset={onResetUnit}
             onMerge={onMergeUnit}
+            canManage={canManage}
           />
         </div>
       </div>
@@ -107,6 +118,7 @@ function UnitNode({
               onOverrideUnit={onOverrideUnit}
               onResetUnit={onResetUnit}
               onMergeUnit={onMergeUnit}
+              canManage={canManage}
               depth={depth + 1}
             />
           ))}
@@ -126,7 +138,8 @@ export function OrganizationHierarchy({
   onEditUnit,
   onOverrideUnit,
   onResetUnit,
-  onMergeUnit
+  onMergeUnit,
+  canManage = true,
 }: OrganizationHierarchyProps) {
   if (!organization) return null
 
@@ -149,7 +162,7 @@ export function OrganizationHierarchy({
         query === '' ||
         u.name?.toLowerCase().includes(query) ||
         u.description?.toLowerCase().includes(query)
-      const matchesType = !filterType || filterType === 'all' || u.type === filterType
+      const matchesType = !filterType || filterType === 'all' || matchesUnitType(u.type, filterType)
       const matchesInheritance =
         filterInheritance === 'direct' ? !u.source_template_id
           : filterInheritance === 'inherited' ? !!u.source_template_id
@@ -178,6 +191,7 @@ export function OrganizationHierarchy({
                   onOverride={onOverrideUnit}
                   onReset={onResetUnit}
                   onMerge={onMergeUnit}
+                  canManage={canManage}
                 />
               )
             })}
@@ -232,6 +246,7 @@ export function OrganizationHierarchy({
                 onOverrideUnit={onOverrideUnit}
                 onResetUnit={onResetUnit}
                 onMergeUnit={onMergeUnit}
+                canManage={canManage}
               />
             ))}
           </div>

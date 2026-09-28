@@ -88,6 +88,7 @@ export async function buildMemberFacts(ctx: Ctx, member: Doc<"members">): Promis
         years_as_member: computeYearsAsMember(member),
         engagement_score: member.engagement_score,
         engagement_risk_level: member.engagement_risk_level,
+        archived: !!member.archived_at,
     };
 }
 

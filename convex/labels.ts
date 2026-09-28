@@ -1,6 +1,7 @@
 
 import { v } from "convex/values";
-import { mutation, query } from "./_generated/server";
+import { mutation, query, type MutationCtx } from "./_generated/server";
+import { isOrgWideScope, resolveManagedMemberIds } from "./scope";
 import { Doc, Id } from "./_generated/dataModel";
 import { requireOrgAdmin, requireOrgAccess, requireUser, resolveOrgId, isSuperAdmin } from "./auth";
 import { api, internal } from "./_generated/api";
@@ -36,14 +37,26 @@ export const list = query({
             }
         }
 
-        // Add usage_count to each label
+        // Add usage_count to each label: members currently carrying it, so an
+        // archived member's labels don't inflate the figure. Each member is
+        // read at most once however many labels they carry.
+        const memberIsCurrent = new Map<Id<"members">, Promise<boolean>>();
+        const isCurrent = (id: Id<"members">) => {
+            let pending = memberIsCurrent.get(id);
+            if (!pending) {
+                pending = ctx.db.get(id).then((m) => !!m && !m.archived_at);
+                memberIsCurrent.set(id, pending);
+            }
+            return pending;
+        };
         const labelsWithCounts = await Promise.all(
             labels.map(async (label) => {
-                const count = (await ctx.db
+                const rows = await ctx.db
                     .query("member_labels")
                     .withIndex("by_label", (q) => q.eq("label_id", label._id))
-                    .collect()).length;
-                return { ...label, usage_count: count };
+                    .collect();
+                const current = await Promise.all(rows.map((r) => isCurrent(r.member_id)));
+                return { ...label, usage_count: current.filter(Boolean).length };
             })
         );
 
@@ -63,7 +76,9 @@ export const create = mutation({
         created_by_name: v.optional(v.string()),
     },
     handler: async (ctx, args) => {
-        const user = await requireUser(ctx);
+        // Labels are shared across the church, so only administrators make
+        // them, as they already are the only ones who can edit or remove them.
+        const user = await requireOrgAdmin(ctx);
         const orgId = await resolveOrgId(ctx, args.organization_id);
         const labelId = await ctx.db.insert("labels", {
             ...args,
@@ -180,6 +195,19 @@ export const remove = mutation({
     },
 });
 
+/**
+ * Who may put labels on a member: administrators for anyone in the church,
+ * leaders for the members they look after. Plain members can't.
+ */
+async function requireLabelAccessTo(ctx: MutationCtx, memberIds: Id<"members">[]) {
+    await requireUser(ctx);
+    const scope = await resolveManagedMemberIds(ctx);
+    if (isOrgWideScope(scope)) return;
+    for (const id of memberIds) {
+        if (!scope.has(id)) throw new Error("Forbidden: you can only label the members you look after");
+    }
+}
+
 export const toggleMemberLabel = mutation({
     args: {
         member_id: v.id("members"),
@@ -188,7 +216,7 @@ export const toggleMemberLabel = mutation({
         assigned_by_name: v.optional(v.string()),
     },
     handler: async (ctx, args) => {
-        await requireUser(ctx);
+        await requireLabelAccessTo(ctx, [args.member_id]);
         const member = await ctx.db.get(args.member_id);
         const label = await ctx.db.get(args.label_id);
         if (!member || !label) throw new Error("Member or label not found");
@@ -249,7 +277,7 @@ export const bulk = mutation({
         notes: v.optional(v.string()),
     },
     handler: async (ctx, args) => {
-        await requireUser(ctx);
+        await requireLabelAccessTo(ctx, args.member_ids);
         for (const memberId of args.member_ids) {
             const member = await ctx.db.get(memberId);
             if (member?.organization_id) {

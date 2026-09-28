@@ -11,7 +11,6 @@ import { RecentMembers } from "@/components/recent-members"
 import { UpcomingEvents } from "@/components/upcoming-events"
 import { BirthdayWidget } from "@/components/birthday-widget"
 import { FinancialWidget } from "@/components/financial-widget"
-import { ServiceSummaryWidget } from "@/components/service-summary-widget"
 import { MyCareTasksWidget } from "@/components/my-care-tasks-widget"
 import { AtRiskWidget } from "@/components/at-risk-widget"
 import { CareImpactWidget } from "@/components/care-impact-widget"
@@ -22,7 +21,8 @@ import type { Id } from "../../convex/_generated/dataModel"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { ScopeBadge } from "@/components/scope-badge"
 import { useState } from "react"
-import { sessionName, titleCase } from "@/lib/display"
+import { format } from "date-fns"
+import { formatDay, sessionName } from "@/lib/display"
 
 export function DashboardContent() {
   const { isAdmin, role } = useUserRole()
@@ -36,7 +36,9 @@ export function DashboardContent() {
   const [unitFilter, setUnitFilter] = useState<string>("all")
   const unitId = unitFilter === "all" ? undefined : (unitFilter as Id<"units">)
 
-  const data = useQuery(api.dashboard.getDashboardData, unitId ? { unit_id: unitId } : {});
+  // The viewer's own calendar day, so "last Sunday" and "upcoming" follow it.
+  const today = format(new Date(), "yyyy-MM-dd")
+  const data = useQuery(api.dashboard.getDashboardData, { today, ...(unitId ? { unit_id: unitId } : {}) });
 
   const unitPicker = (
     <div className="flex flex-wrap items-center gap-3">
@@ -56,7 +58,7 @@ export function DashboardContent() {
       <ScopeBadge scope={data?.scope} />
       <p className="text-xs text-muted-foreground">
         {data?.unitName
-          ? `Every figure below counts ${data.unitName} only.`
+          ? `Figures below count ${data.unitName} only, except Recent members and your care tasks.`
           : "Counting everyone you oversee."}
       </p>
     </div>
@@ -118,7 +120,7 @@ export function DashboardContent() {
     )
   }
 
-  const { stats, upcomingEvents, birthdayMembers, financialTransactions } = data;
+  const { stats, upcomingEvents, birthdayMembers } = data;
   // True when the headline figure covers less than the whole church, i.e. a
   // unit filter is on or the viewer is a unit admin. Drives the "of N
   // church-wide" context lines.
@@ -136,12 +138,26 @@ export function DashboardContent() {
         hintTone={stats.newMembersThisMonthCount > 0 ? "positive" : "neutral"}
       />
 
+      {/* The most recent Sunday service on record, which may not be this
+          week's, so its date is on the card. */}
       <StatCard
-        label="Attendance"
-        value={stats.weeklyAttendance}
+        label="Last Sunday service"
+        value={stats.lastServiceDate ? stats.weeklyAttendance : "None yet"}
         icon={Church}
-        hint={`${stats.attendanceChange >= 0 ? "+" : "-"}${Math.abs(stats.attendanceChange)}% vs last week${stats.orgWeeklyAttendance !== stats.weeklyAttendance ? ` · of ${stats.orgWeeklyAttendance} church-wide` : ""}`}
-        hintTone={stats.attendanceChange >= 0 ? "positive" : "negative"}
+        hint={
+          !stats.lastServiceDate
+            ? "No Sunday service recorded yet"
+            : [
+                formatDay(stats.lastServiceDate),
+                stats.attendanceChange === null
+                  ? stats.previousServiceCount === null ? "No earlier service" : "None at the service before"
+                  : `${stats.attendanceChange > 0 ? "+" : ""}${stats.attendanceChange}% on the one before`,
+                stats.orgWeeklyAttendance !== stats.weeklyAttendance ? `of ${stats.orgWeeklyAttendance} church-wide` : null,
+              ].filter(Boolean).join(" · ")
+        }
+        hintTone={
+          stats.attendanceChange === null ? "neutral" : stats.attendanceChange >= 0 ? "positive" : "negative"
+        }
       />
 
       <StatCard
@@ -183,18 +199,20 @@ export function DashboardContent() {
         <CardHeader>
           <CardTitle className="text-lg font-semibold">Attendance overview</CardTitle>
           <CardDescription>
-            Weekly attendance over the last 3 months
+            Attendance at every service, Sunday to Saturday, over the last 12 weeks
             {data.unitName && ` (${data.unitName} only)`}
           </CardDescription>
         </CardHeader>
         <CardContent className="pl-0 sm:pl-2">
-          <Overview unitId={unitId} />
+          <Overview unitId={unitId} today={today} />
         </CardContent>
       </Card>
       <Card className="min-w-0 lg:col-span-3">
         <CardHeader>
           <CardTitle className="text-lg font-semibold">Recent members</CardTitle>
-          <CardDescription>The latest people added</CardDescription>
+          <CardDescription>
+            The latest people added{data.unitName ? ", across everyone you oversee" : ""}
+          </CardDescription>
         </CardHeader>
         <CardContent>
           <RecentMembers />
@@ -206,11 +224,11 @@ export function DashboardContent() {
     </div>
 
     <div className="mt-6">
-      <CareImpactWidget />
+      <CareImpactWidget unitId={unitId} />
     </div>
 
     <div className="mt-6">
-      <AtRiskWidget />
+      <AtRiskWidget unitId={unitId} />
     </div>
 
     <div className="mt-6">
@@ -223,14 +241,6 @@ export function DashboardContent() {
           onAddTransaction={() => {
             window.location.href = '/financial'
           }}
-        />
-      </div>
-    )}
-
-    {role === "super_admin" && (
-      <div className="mt-6">
-        <ServiceSummaryWidget
-          summaries={[]}
         />
       </div>
     )}

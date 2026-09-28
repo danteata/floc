@@ -412,7 +412,9 @@ export function OrganizationChart({ organizationId }: OrganizationChartProps) {
     const container = gRef.current
     if (!container) return
 
-    if (node) {
+    // Only organization admins may move units (units.moveUnit requires it);
+    // for everyone else a press on a unit pans like the background.
+    if (node && isAdmin) {
       if (node.type === 'organization') return // Can't move root
       e.stopPropagation()
       e.preventDefault() // Prevent text selection
@@ -547,7 +549,7 @@ export function OrganizationChart({ organizationId }: OrganizationChartProps) {
           strokeWidth={isDraggedOver ? 4 : 0}
           rx={16}
           filter="url(#shadow)"
-          className={`cursor-grab active:cursor-grabbing transition-all ${isBeingDragged ? 'opacity-0' : 'hover:scale-[1.02]'}`}
+          className={`${isAdmin ? 'cursor-grab active:cursor-grabbing ' : ''}transition-all ${isBeingDragged ? 'opacity-0' : 'hover:scale-[1.02]'}`}
           onMouseDown={(e) => handleMouseDown(e, node)}
           onClick={(e) => {
             e.stopPropagation()
@@ -663,8 +665,9 @@ export function OrganizationChart({ organizationId }: OrganizationChartProps) {
                 Org chart
               </CardTitle>
               <CardDescription className="text-xs">
-                Drag the background to move around, drag a unit onto another to move it beneath that unit, and use the
-                circle on a box to collapse its branch.
+                {isAdmin
+                  ? 'Drag the background to move around, drag a unit onto another to move it beneath that unit, and use the circle on a box to collapse its branch.'
+                  : 'Drag the background to move around, and use the circle on a box to collapse its branch.'}
               </CardDescription>
             </div>
 

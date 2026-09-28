@@ -1,7 +1,7 @@
 "use client"
 
 import { useCallback, useState, useMemo } from "react"
-import { Download, Mail, Phone, CalendarIcon, ArrowUpDown, UserCheck } from "lucide-react"
+import { Download, Mail, Phone, CalendarIcon, ArrowUpDown, UserCheck, Printer } from "lucide-react"
 
 import { MemberAvatar } from "@/components/ui/member-avatar"
 import { Badge } from "@/components/ui/badge"
@@ -21,9 +21,13 @@ import { api } from "../../convex/_generated/api"
 import { useAnalytics } from "@/hooks/useAnalytics"
 import { AnalyticsEventType } from "@/services/analytics/types"
 import { toast } from "sonner"
+import { downloadCsv, slugForFilename, toCsv } from "@/lib/csv"
 import { MemberProfileDialog } from "./member-profile-dialog"
 import type { Member } from "@/types/database"
+import type { Id } from "../../convex/_generated/dataModel"
+import { tenureStart } from "../../convex/lib/tenure"
 import { useOrganization } from "@/hooks/use-organization"
+import { useUserRole } from "@/hooks/use-user-role"
 import { ShareAbsentLinkDialog } from "@/components/share-absent-link-dialog"
 import { AssignFollowUpDialog } from "@/components/assign-follow-up-dialog"
 
@@ -84,6 +88,8 @@ export function AbsentMembers({ unitId, unitName }: AbsentMembersProps = {}) {
   const { eventTypes, isLoading: eventTypesLoading } = useEventTypes();
   const effectiveEventType = eventType || eventTypes[0]?.value || ""
   const { organization } = useOrganization()
+  // Only administrators can create share links; the server enforces it.
+  const { isAdmin } = useUserRole()
 
   // Convex Queries
   const rawMembersData = useQuery(api.members.getAll, {})
@@ -146,9 +152,13 @@ export function AbsentMembers({ unitId, unitName }: AbsentMembersProps = {}) {
 
     const lastAttended = memberRecords[0] // Most recent (sorted desc)
 
-    // Count consecutive absences: records after last attendance where member is absent
+    // Count consecutive absences: records after last attendance where member is
+    // absent, and only since they joined
+    const since = member ? tenureStart(member) : null
     let consecutiveAbsences = 0
     for (const record of recordsOnOrBeforeBase) {
+      if (since && record.date < since) break
+
       // Stop if we've reached a record the member attended
       if (record._id === lastAttended?._id) break
 
@@ -159,8 +169,8 @@ export function AbsentMembers({ unitId, unitName }: AbsentMembersProps = {}) {
     return consecutiveAbsences
   }, [allMembers, attendanceRecords, effectiveEventType, eventTypes])
 
-  // Get absent members for the selected event
-  const absentMembers = useMemo(() => {
+  // Absent members for the selected event, after every filter except search
+  const filteredAbsent = useMemo(() => {
     if (!selectedAttendanceRecord || !selectedDate) return []
 
     // Find the current event type config to check unit scoping
@@ -173,6 +183,9 @@ export function AbsentMembers({ unitId, unitName }: AbsentMembersProps = {}) {
       .filter((member) => {
         // Check if member was absent
         if (selectedAttendanceRecord.members.includes(member.id)) return false
+
+        // Not yet a member on the day: not absent
+        if ((tenureStart(member) ?? "") > selectedAttendanceRecord.date) return false
 
         // Apply unit scoping: if event has unit_ids, member must be in one of those units
         if (eventUnitIds.length > 0) {
@@ -210,17 +223,33 @@ export function AbsentMembers({ unitId, unitName }: AbsentMembersProps = {}) {
       filteredMembers = filteredMembers.filter((member) => allowedStatuses.includes(member.status))
     }
 
-    // Apply search filter
-    if (searchQuery) {
-      filteredMembers = filteredMembers.filter(
-        (member) =>
-          member.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-          member.email?.toLowerCase().includes(searchQuery.toLowerCase()),
-      )
-    }
-
     return filteredMembers
-  }, [selectedAttendanceRecord, selectedDate, allMembers, absenceFilter, searchQuery, unitId, statusFilter, calculateConsecutiveAbsences, effectiveEventType, eventTypes])
+  }, [selectedAttendanceRecord, selectedDate, allMembers, absenceFilter, unitId, statusFilter, calculateConsecutiveAbsences, effectiveEventType, eventTypes])
+
+  // Present, counted over the same people as the absent list (event scope and
+  // unit), not the whole church, so the two numbers add up.
+  const presentInScope = useMemo(() => {
+    if (!selectedAttendanceRecord) return 0
+    const present = new Set(selectedAttendanceRecord.members)
+    const eventUnitIds = (eventTypes.find((et) => et.value === effectiveEventType)?.unit_ids || []).map(String)
+    return allMembers.filter((member) => {
+      if (!present.has(member.id)) return false
+      const ids = (member.unit_ids || []).map(String)
+      if (eventUnitIds.length > 0 && !eventUnitIds.some((id) => ids.includes(id))) return false
+      if (unitId && !ids.includes(unitId)) return false
+      return true
+    }).length
+  }, [selectedAttendanceRecord, allMembers, eventTypes, effectiveEventType, unitId])
+
+  // The search box narrows what is on screen; the count, the shared link and
+  // the export describe the whole filtered list above.
+  const absentMembers = useMemo(() => {
+    const q = searchQuery.trim().toLowerCase()
+    if (!q) return filteredAbsent
+    return filteredAbsent.filter(
+      (member) => member.name.toLowerCase().includes(q) || member.email?.toLowerCase().includes(q),
+    )
+  }, [filteredAbsent, searchQuery])
 
   const handleSort = (field: string) => {
     if (sortField === field) {
@@ -231,9 +260,9 @@ export function AbsentMembers({ unitId, unitName }: AbsentMembersProps = {}) {
     }
   }
 
-  const sortedMembers = useMemo(() => {
-    if (!sortField) return absentMembers
-    return [...absentMembers].sort((a, b) => {
+  const sortRows = useCallback((rows: typeof filteredAbsent) => {
+    if (!sortField) return rows
+    return [...rows].sort((a, b) => {
       let comparison: number
       switch (sortField) {
         case "name":
@@ -259,7 +288,35 @@ export function AbsentMembers({ unitId, unitName }: AbsentMembersProps = {}) {
       }
       return sortDirection === "asc" ? comparison : -comparison
     })
-  }, [absentMembers, sortField, sortDirection, selectedDate, calculateConsecutiveAbsences])
+  }, [sortField, sortDirection, selectedDate, calculateConsecutiveAbsences])
+
+  const sortedMembers = useMemo(() => sortRows(absentMembers), [sortRows, absentMembers])
+  const sortedAll = useMemo(() => sortRows(filteredAbsent), [sortRows, filteredAbsent])
+
+  // Follow-up acts on the people on screen.
+  const followUpEmails = useMemo(
+    () => [...new Set(sortedMembers.map((m) => m.email?.trim()).filter((e): e is string => !!e))],
+    [sortedMembers],
+  )
+  const followUpPhones = useMemo(
+    () => [...new Set(sortedMembers.map((m) => m.phone?.trim()).filter((p): p is string => !!p))],
+    [sortedMembers],
+  )
+
+  const printContactList = () => {
+    const esc = (v: unknown) => String(v ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]!)
+    const title = `${titleCase(selectedAttendanceRecord?.event_type_label ?? "")} · ${selectedAttendanceRecord ? formatDay(selectedAttendanceRecord.date) : ""}`
+    const rows = sortedMembers.map((m) => `<tr><td>${esc(m.name)}</td><td>${esc(m.phone)}</td><td>${esc(m.email)}</td><td>${selectedDate ? calculateConsecutiveAbsences(m.id, selectedDate) : ""}</td><td>${esc(m.unit_names?.join(", "))}</td></tr>`).join("")
+    const w = window.open("", "_blank")
+    if (!w) {
+      toast.error("Couldn't open the print view", { description: "Allow pop-ups for this site and try again." })
+      return
+    }
+    w.document.write(`<!doctype html><meta charset="utf-8"><title>Who was missing</title><style>body{font:14px system-ui,sans-serif;margin:32px;color:#1c1917}h1{font-size:20px;margin:0}p{color:#57534e;margin:4px 0 20px}table{border-collapse:collapse;width:100%}th,td{text-align:left;padding:6px 8px;border-bottom:1px solid #e7e5e4;vertical-align:top}th{font-size:12px;color:#57534e}</style><h1>Who was missing</h1><p>${esc(title)}${unitName ? ` · ${esc(unitName)}` : ""} · ${sortedMembers.length} ${sortedMembers.length === 1 ? "person" : "people"}</p><table><thead><tr><th>Name</th><th>Phone</th><th>Email</th><th>Missed in a row</th><th>Units</th></tr></thead><tbody>${rows}</tbody></table>`)
+    w.document.close()
+    w.focus()
+    w.print()
+  }
 
   return (
     <div className="space-y-4">
@@ -341,39 +398,27 @@ export function AbsentMembers({ unitId, unitName }: AbsentMembersProps = {}) {
             variant="outline"
             size="sm"
             onClick={() => {
-              if (absentMembers.length === 0) {
+              if (filteredAbsent.length === 0) {
                 toast.error("Nothing to export", { description: "The absent list is empty for this service and date." })
                 return
               }
 
               // Create CSV content
-              const headers = ["Name", "Email", "Phone", "Status", "Last Attendance", "Consecutive Absences", "Units"]
-              const csvContent = [
-                headers.join(","),
-                ...absentMembers.map((member) => {
-                  const absences = selectedDate ? calculateConsecutiveAbsences(member.id, selectedDate) : 0
-                  return [
-                    `"${member.name}"`,
-                    `"${member.email || ''}"`,
-                    `"${member.phone || ''}"`,
-                    `"${member.status}"`,
-                    `"${member.lastAttendance ? format(new Date(member.lastAttendance), "MMM dd, yyyy") : 'N/A'}"`,
-                    absences,
-                    `"${member.unit_names?.join('; ') || 'None'}"`
-                  ].join(",")
-                })
-              ].join("\n")
-
-              // Download CSV
-              const blob = new Blob([csvContent], { type: "text/csv" })
-              const url = window.URL.createObjectURL(blob)
-              const a = document.createElement("a")
-              a.href = url
-              a.download = `absent-members-${effectiveEventType}-${format(selectedDate || new Date(), "yyyy-MM-dd")}.csv`
-              document.body.appendChild(a)
-              a.click()
-              document.body.removeChild(a)
-              window.URL.revokeObjectURL(url)
+              downloadCsv(
+                `absent-members-${slugForFilename(effectiveEventType, "event")}-${format(selectedDate || new Date(), "yyyy-MM-dd")}.csv`,
+                toCsv(
+                  ["Name", "Email", "Phone", "Status", "Last attended", "Missed in a row", "Units"],
+                  sortedAll.map((member) => [
+                    member.name,
+                    member.email || "",
+                    member.phone || "",
+                    titleCase(member.status),
+                    member.lastAttendance ? formatDay(member.lastAttendance) : "Never recorded",
+                    selectedDate ? calculateConsecutiveAbsences(member.id, selectedDate) : 0,
+                    member.unit_names?.join("; ") || "None",
+                  ]),
+                ),
+              )
 
               trackEvent(AnalyticsEventType.REPORT_EXPORTED, {
                 report: 'absent_members',
@@ -388,24 +433,31 @@ export function AbsentMembers({ unitId, unitName }: AbsentMembersProps = {}) {
             <Download className="mr-2 h-4 w-4" />
             Export list
           </Button>
-          {organization?._id && effectiveEventType && selectedDate && (
+          {isAdmin && organization?._id && effectiveEventType && selectedDate && (
             <ShareAbsentLinkDialog
               organizationId={organization._id}
               eventType={effectiveEventType}
               eventTypeLabel={titleCase(eventTypes.find((t) => t.value === effectiveEventType)?.label ?? effectiveEventType)}
               date={selectedDate}
+              unitId={unitId as Id<"units"> | undefined}
+              unitName={unitName}
+              statuses={STATUS_FILTERS.find((f) => f.value === statusFilter)?.statuses ?? ["active", "visitor", "inactive"]}
+              minConsecutive={absenceFilter === "all" ? undefined : parseInt(absenceFilter)}
+              count={filteredAbsent.length}
             />
           )}
         </div>
 
         {selectedAttendanceRecord && (
           <div className="text-sm text-muted-foreground">
-            <strong className="text-foreground">{absentMembers.length}</strong> absent
+            <strong className="text-foreground">{filteredAbsent.length}</strong> absent
             {unitName && <> in <strong className="text-foreground">{unitName}</strong></>} for{" "}
             <strong>{titleCase(selectedAttendanceRecord.event_type_label)}</strong> on{" "}
             <strong>{formatDay(selectedAttendanceRecord.date)}</strong>
             {". "}
-            <strong className="text-foreground">{selectedAttendanceRecord.members.length}</strong> marked present.
+            <strong className="text-foreground">{presentInScope}</strong> marked present
+            {unitName && <> in {unitName}</>}.
+            {searchQuery.trim() && <> Showing the {absentMembers.length} that match your search.</>}
           </div>
         )}
       </div>
@@ -568,11 +620,35 @@ export function AbsentMembers({ unitId, unitName }: AbsentMembersProps = {}) {
       <div className="flex flex-col gap-2">
         <h3 className="text-base font-semibold">Follow up</h3>
         <div className="flex flex-wrap gap-2">
-          <Button size="sm" variant="outline">
-            Email everyone
+          <Button
+            size="sm"
+            variant="outline"
+            disabled={followUpEmails.length === 0}
+            onClick={() => {
+              // Bcc, so no one sees anyone else's address.
+              window.location.href = `mailto:?bcc=${followUpEmails.map(encodeURIComponent).join(",")}`
+            }}
+          >
+            <Mail className="mr-2 h-4 w-4" />
+            {followUpEmails.length === 0 ? "No emails on this list" : `Email ${followUpEmails.length}`}
           </Button>
-          <Button size="sm" variant="outline">
-            Send a text
+          <Button
+            size="sm"
+            variant="outline"
+            disabled={followUpPhones.length === 0}
+            onClick={async () => {
+              try {
+                await navigator.clipboard.writeText(followUpPhones.join("\n"))
+                toast.success(`${followUpPhones.length} phone ${followUpPhones.length === 1 ? "number" : "numbers"} copied`, {
+                  description: "Paste them into your messaging app.",
+                })
+              } catch {
+                toast.error("Couldn't copy the numbers")
+              }
+            }}
+          >
+            <Phone className="mr-2 h-4 w-4" />
+            {followUpPhones.length === 0 ? "No phone numbers on this list" : `Copy ${followUpPhones.length} phone ${followUpPhones.length === 1 ? "number" : "numbers"}`}
           </Button>
           {organization?._id && (
             <AssignFollowUpDialog
@@ -580,7 +656,8 @@ export function AbsentMembers({ unitId, unitName }: AbsentMembersProps = {}) {
               members={sortedMembers.map((m) => ({ id: m.id, name: m.name, household_id: m.household_id }))}
             />
           )}
-          <Button size="sm" variant="outline">
+          <Button size="sm" variant="outline" disabled={sortedMembers.length === 0} onClick={printContactList}>
+            <Printer className="mr-2 h-4 w-4" />
             Print contact list
           </Button>
         </div>

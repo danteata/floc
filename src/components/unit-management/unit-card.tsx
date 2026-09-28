@@ -36,16 +36,20 @@ interface UnitCardProps {
   onOverride?: (unitId: string) => void
   onReset?: (unitId: string) => void
   onMerge?: (unitId: string) => void
+  /** Show the actions menu. Only organization admins may change units (units.ts requireOrgAdmin). */
+  canManage?: boolean
 }
 
-export function UnitCard({ unit, viewMode, memberCount, leaderName, onEdit, onCreateChild, onOverride, onReset, onMerge }: UnitCardProps) {
+const COUNT_HINT = 'Members of any status in this unit, not counting archived members'
+
+export function UnitCard({ unit, viewMode, memberCount, leaderName, onEdit, onCreateChild, onOverride, onReset, onMerge, canManage = true }: UnitCardProps) {
   const { toast } = useToast();
   const removeMutation = useMutation(api.units.remove);
   const isInherited = !!unit.source_template_id
   const hasOverrides = (unit.template_overrides?.length ?? 0) > 0
 
   const handleDelete = async () => {
-    if (!confirm(`Delete "${unit.name}"? This can't be undone.`)) return;
+    if (!confirm(`Delete "${unit.name}"? Its members stay in the church but are taken out of this unit, and its leaders lose access to it. This can't be undone.`)) return;
     try {
       await removeMutation({ id: unit._id as Id<"units"> });
       toast({ title: `${unit.name} deleted` });
@@ -83,7 +87,7 @@ export function UnitCard({ unit, viewMode, memberCount, leaderName, onEdit, onCr
                   <Link2 className="h-3 w-3" /> Inherited{hasOverrides ? ' (overridden)' : ''}
                 </Badge>
               )}
-              <span className="inline-flex items-center gap-1 text-xs text-muted-foreground">
+              <span className="inline-flex items-center gap-1 text-xs text-muted-foreground" title={COUNT_HINT}>
                 <Users className="h-3 w-3" /> {memberCount ?? 0}
               </span>
               {leaderName && (
@@ -95,6 +99,7 @@ export function UnitCard({ unit, viewMode, memberCount, leaderName, onEdit, onCr
           </div>
         </div>
 
+        {canManage && (
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <Button variant="ghost" size="sm" aria-label={`Actions for ${unit.name}`} className="h-8 w-8 opacity-0 group-hover:opacity-100 focus:opacity-100 transition-opacity rounded-full hover:bg-muted">
@@ -118,6 +123,7 @@ export function UnitCard({ unit, viewMode, memberCount, leaderName, onEdit, onCr
             <DropdownMenuItem onClick={handleDelete} className="text-destructive cursor-pointer rounded-lg focus:bg-destructive/10"><Trash2 className="h-4 w-4 mr-2" /> Delete</DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
+        )}
       </div>
     )
   }
@@ -145,6 +151,7 @@ export function UnitCard({ unit, viewMode, memberCount, leaderName, onEdit, onCr
             </div>
           </div>
 
+          {canManage && (
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button variant="ghost" size="sm" aria-label={`Actions for ${unit.name}`} className="h-8 w-8 -mr-2 opacity-0 group-hover:opacity-100 focus:opacity-100 transition-opacity rounded-full hover:bg-muted">
@@ -168,6 +175,7 @@ export function UnitCard({ unit, viewMode, memberCount, leaderName, onEdit, onCr
               <DropdownMenuItem onClick={handleDelete} className="text-destructive cursor-pointer rounded-lg focus:bg-destructive/10"><Trash2 className="h-4 w-4 mr-2" /> Delete</DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
+          )}
         </div>
 
         <div className="space-y-4">
@@ -175,7 +183,7 @@ export function UnitCard({ unit, viewMode, memberCount, leaderName, onEdit, onCr
             {unit.description || "No description yet."}
           </p>
           <div className="flex items-center gap-3 flex-wrap pt-1 text-xs text-muted-foreground border-t border-border/40 mt-2 pt-3">
-            <span className="inline-flex items-center gap-1.5">
+            <span className="inline-flex items-center gap-1.5" title={COUNT_HINT}>
               <Users className="h-3.5 w-3.5" /> {memberCount ?? 0} {(memberCount ?? 0) === 1 ? 'member' : 'members'}
             </span>
             <span className={cn("inline-flex items-center gap-1.5", !leaderName && "text-muted-foreground/70")}>

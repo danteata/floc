@@ -12,7 +12,7 @@ import { Button } from "@/components/ui/button"
 import { MultiSelectFilter } from "@/components/multi-select-filter"
 import { BrandProvider } from "@/components/brand-provider"
 import { downloadCsv, slugForFilename, toCsv } from "@/lib/csv"
-import { formatDay, titleCase } from '@/lib/display'
+import { describeStatuses, formatDay, titleCase } from '@/lib/display'
 
 export default function AbsentMembersSharePage() {
   const { token } = useParams<{ token: string }>()
@@ -66,6 +66,14 @@ export default function AbsentMembersSharePage() {
     )
   }
 
+  const scopeText = [
+    data.scope.unit_name ?? "All units",
+    describeStatuses(data.scope.statuses),
+    data.scope.min_consecutive ? `missed ${data.scope.min_consecutive} or more in a row` : null,
+  ].filter(Boolean).join(" · ")
+  // A link made for one unit is already that unit; offer the filter only when there is a choice.
+  const showUnitFilter = !data.scope.unit_name && data.units.length > 1
+
   return (
     <BrandProvider brandHex={data.brand_hex}>
     <div className="min-h-dvh bg-muted/30 py-6 px-4 sm:py-8">
@@ -83,6 +91,10 @@ export default function AbsentMembersSharePage() {
                 <CardDescription>
                   {[titleCase(data.event_type_label), formatDay(data.date)].filter(Boolean).join(" · ")}
                 </CardDescription>
+                <p className="mt-3 text-2xl font-semibold tabular-nums text-foreground">
+                  {data.members.length} {data.members.length === 1 ? "person" : "people"}
+                </p>
+                <p className="text-sm text-muted-foreground">{scopeText}</p>
               </div>
               {filteredMembers.length > 0 && (
                 <Button variant="outline" className="h-10" onClick={handleExport}>
@@ -93,7 +105,7 @@ export default function AbsentMembersSharePage() {
             </div>
           </CardHeader>
           <CardContent className="space-y-4">
-            {data.units.length > 0 && (
+            {showUnitFilter && (
               <MultiSelectFilter
                 title="Unit"
                 options={data.units.map((unit) => ({ value: unit, label: unit }))}
@@ -106,8 +118,8 @@ export default function AbsentMembersSharePage() {
             {filteredMembers.length === 0 ? (
               <EmptyState
                 icon={UserCheck}
-                title={unitFilter.length > 0 ? "No one missing from these units" : "No one was missing"}
-                description={unitFilter.length > 0 ? "Clear the unit filter to see everyone who was absent." : "Everyone on the list was there."}
+                title={!data.attendance_taken ? "Attendance hasn't been taken yet" : unitFilter.length > 0 ? "No one missing from these units" : "No one was missing"}
+                description={!data.attendance_taken ? "This list fills in once attendance for this service is recorded." : unitFilter.length > 0 ? "Clear the unit filter to see everyone who was absent." : "Everyone on this list was there."}
                 action={
                   unitFilter.length > 0 ? (
                     <Button variant="outline" className="h-10" onClick={() => setUnitFilter([])}>
@@ -162,9 +174,11 @@ export default function AbsentMembersSharePage() {
           </CardContent>
         </Card>
 
-        <p className="text-center text-xs text-muted-foreground">
-          Showing {filteredMembers.length} of {data.members.length} {data.members.length === 1 ? "member" : "members"} who were absent
-        </p>
+        {unitFilter.length > 0 && (
+          <p className="text-center text-xs text-muted-foreground">
+            Showing {filteredMembers.length} of {data.members.length}
+          </p>
+        )}
       </div>
     </div>
     </BrandProvider>

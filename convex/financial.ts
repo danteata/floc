@@ -1,6 +1,6 @@
 import { v } from "convex/values";
 import { mutation, query, internalMutation } from "./_generated/server";
-import { Id } from "./_generated/dataModel";
+import { Doc, Id } from "./_generated/dataModel";
 import {
     isOrgAdmin,
     isSuperAdmin,
@@ -25,6 +25,22 @@ function assertPositiveAmount(amount: number) {
     if (!Number.isFinite(amount) || amount <= 0) {
         throw new Error("Amount must be a positive number.");
     }
+}
+
+/**
+ * An amount for an audit line, in the church's own currency ("GHS 120.00").
+ * The app's money formatter (src/lib/money.ts) is a React hook module the
+ * backend can't import, so this prints the ISO code rather than a symbol.
+ * GHS is the app-wide default when a church hasn't set one.
+ */
+async function describeAmount(
+    ctx: { db: { get: (id: Id<"organizations">) => Promise<{ currency?: string } | null> } },
+    orgId: Id<"organizations"> | undefined | null,
+    amount: number,
+): Promise<string> {
+    const org = orgId ? await ctx.db.get(orgId) : null;
+    const currency = org?.currency || "GHS";
+    return `${currency} ${amount.toFixed(2)}`;
 }
 
 function isCompletedGivingRow(row: { type: string; category: string; status?: string }): boolean {
@@ -115,7 +131,7 @@ export const createTransaction = mutation({
             action: "financial.transaction_created",
             entity_type: "financial_transaction",
             entity_id: transactionId,
-            entity_name: `${args.type}: ${args.description} - $${args.amount}`,
+            entity_name: `${args.type}: ${args.description} - ${await describeAmount(ctx, orgId ?? args.organization_id, args.amount)}`,
             performed_by: user.clerk_user_id,
             performed_by_name: user.name || args.recorded_by_name,
             performed_by_role: user.role,
@@ -143,10 +159,12 @@ export const updateTransaction = mutation({
         description: v.string(),
         date: v.string(),
         payment_method: v.string(),
-        member_id: v.optional(v.id("members")),
-        member_name: v.optional(v.string()),
-        event_id: v.optional(v.id("events")),
-        event_name: v.optional(v.string()),
+        // null clears the link (the member or event was removed on edit);
+        // leaving the field out keeps what is stored.
+        member_id: v.optional(v.union(v.id("members"), v.null())),
+        member_name: v.optional(v.union(v.string(), v.null())),
+        event_id: v.optional(v.union(v.id("events"), v.null())),
+        event_name: v.optional(v.union(v.string(), v.null())),
         notes: v.optional(v.string()),
         receipt_url: v.optional(v.string()),
     },
@@ -161,7 +179,14 @@ export const updateTransaction = mutation({
         if (existing.status === "voided") {
             throw new Error("Cannot edit a voided transaction.");
         }
-        const { id, ...data } = args;
+        const { id, member_id, member_name, event_id, event_name, ...rest } = args;
+        // A patch with an undefined field removes it, so null (clear) maps to
+        // undefined and an absent field stays absent (keep).
+        const data: Partial<Doc<"financial_transactions">> = { ...rest };
+        if (member_id !== undefined) data.member_id = member_id ?? undefined;
+        if (member_name !== undefined) data.member_name = member_name ?? undefined;
+        if (event_id !== undefined) data.event_id = event_id ?? undefined;
+        if (event_name !== undefined) data.event_name = event_name ?? undefined;
 
         // Track changes for audit log
         const changedFields: Record<string, { before: any; after: any }> = {};
@@ -180,7 +205,7 @@ export const updateTransaction = mutation({
                 action: "financial.transaction_updated",
                 entity_type: "financial_transaction",
                 entity_id: args.id,
-                entity_name: `${args.type}: ${args.description} - $${args.amount}`,
+                entity_name: `${args.type}: ${args.description} - ${await describeAmount(ctx, existing.organization_id, args.amount)}`,
                 performed_by: user.clerk_user_id,
                 performed_by_name: user.name || "Unknown",
                 performed_by_role: user.role,
@@ -215,7 +240,7 @@ export const removeTransaction = mutation({
             action: "financial.transaction_deleted",
             entity_type: "financial_transaction",
             entity_id: args.id,
-            entity_name: `${existing.type}: ${existing.description} - $${existing.amount}`,
+            entity_name: `${existing.type}: ${existing.description} - ${await describeAmount(ctx, existing.organization_id, existing.amount)}`,
             performed_by: user.clerk_user_id,
             performed_by_name: user.name || "Unknown",
             performed_by_role: user.role,
@@ -267,7 +292,7 @@ export const voidTransaction = mutation({
             action: "financial.transaction_voided",
             entity_type: "financial_transaction",
             entity_id: args.id,
-            entity_name: `${existing.type}: ${existing.description} - ${existing.amount}`,
+            entity_name: `${existing.type}: ${existing.description} - ${await describeAmount(ctx, existing.organization_id, existing.amount)}`,
             performed_by: user.clerk_user_id,
             performed_by_name: user.name || "Unknown",
             performed_by_role: user.role,
@@ -472,15 +497,18 @@ export const listServiceSummaries = query({
     args: { organization_id: v.optional(v.id("organizations")) },
     handler: async (ctx, args) => {
         const user = await requireUser(ctx);
-        const orgId = isSuperAdmin(user) ? args.organization_id : await resolveOrgId(ctx, args.organization_id);
-        if (orgId) {
-            return await ctx.db
-                .query("service_financial_summaries")
-                .withIndex("by_org", (q) => q.eq("organization_id", orgId))
-                .order("desc")
-                .collect();
+        // Only a super admin with no church chosen sees every church's rows;
+        // anyone else without a resolvable church sees none.
+        if (isSuperAdmin(user) && !args.organization_id) {
+            return await ctx.db.query("service_financial_summaries").order("desc").collect();
         }
-        return await ctx.db.query("service_financial_summaries").order("desc").collect();
+        const orgId = isSuperAdmin(user) ? args.organization_id : await resolveOrgId(ctx, args.organization_id);
+        if (!orgId) return [];
+        return await ctx.db
+            .query("service_financial_summaries")
+            .withIndex("by_org", (q) => q.eq("organization_id", orgId))
+            .order("desc")
+            .collect();
     },
 });
 
@@ -531,7 +559,8 @@ export const updateServiceSummary = mutation({
         service_date: v.string(),
         service_type: v.string(),
         service_name: v.optional(v.string()),
-        event_id: v.optional(v.id("events")),
+        // null unlinks the event; leaving it out keeps what is stored.
+        event_id: v.optional(v.union(v.id("events"), v.null())),
         total_attendance: v.number(),
         tithe_payers: v.number(),
         total_tithes: v.number(),
@@ -559,7 +588,9 @@ export const updateServiceSummary = mutation({
         if (existing.organization_id) {
             await requireOrgAccess(ctx, existing.organization_id);
         }
-        const { id, ...data } = args;
+        const { id, event_id, ...rest } = args;
+        const data: Partial<Doc<"service_financial_summaries">> = { ...rest };
+        if (event_id !== undefined) data.event_id = event_id ?? undefined;
         await ctx.db.patch(id, data);
         return id;
     },
@@ -571,15 +602,18 @@ export const listMetadataSummaries = query({
     args: { organization_id: v.optional(v.id("organizations")) },
     handler: async (ctx, args) => {
         const user = await requireUser(ctx);
-        const orgId = isSuperAdmin(user) ? args.organization_id : await resolveOrgId(ctx, args.organization_id);
-        if (orgId) {
-            return await ctx.db
-                .query("service_metadata_summaries")
-                .withIndex("by_org", (q) => q.eq("organization_id", orgId))
-                .order("desc")
-                .collect();
+        // Only a super admin with no church chosen sees every church's rows;
+        // anyone else without a resolvable church sees none.
+        if (isSuperAdmin(user) && !args.organization_id) {
+            return await ctx.db.query("service_metadata_summaries").order("desc").collect();
         }
-        return await ctx.db.query("service_metadata_summaries").order("desc").collect();
+        const orgId = isSuperAdmin(user) ? args.organization_id : await resolveOrgId(ctx, args.organization_id);
+        if (!orgId) return [];
+        return await ctx.db
+            .query("service_metadata_summaries")
+            .withIndex("by_org", (q) => q.eq("organization_id", orgId))
+            .order("desc")
+            .collect();
     },
 });
 

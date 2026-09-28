@@ -114,13 +114,39 @@ async function processTask(ctx: MutationCtx, task: Doc<"automation_tasks">) {
 
         case "send_in_app": {
             if (!task.member_id) return void (await finish(ctx, task, "failed", "failed", preview, "no member"));
+            const title = rendered.title || "Notification";
+            const body = rendered.body || "";
             await insertInApp(ctx, {
                 orgId: task.organization_id,
                 memberId: task.member_id,
-                title: rendered.title || "Notification",
-                body: rendered.body || "",
+                title,
+                body,
                 category: rendered.category || categoryForAction(task.action_key),
                 ruleId: task.rule_id,
+            });
+            // in_app_notifications has no reader yet (no member inbox), so on
+            // its own nobody would ever see this. The notification bell reads
+            // `notifications` by clerk user, so deliver there when the member
+            // has a Floc account; without one there is nowhere to show it, and
+            // the outcome says so instead of claiming it was sent.
+            const clerkUserId = await resolveClerkUserIdForMember(ctx, task.member_id);
+            if (!clerkUserId) {
+                return void (await finish(
+                    ctx,
+                    task,
+                    "skipped_no_account",
+                    "skipped_no_account",
+                    preview,
+                    "This member has no Floc account, so there is nowhere to show an in-app notification.",
+                ));
+            }
+            await ctx.db.insert("notifications", {
+                clerk_user_id: clerkUserId,
+                organization_id: task.organization_id,
+                type: "automation",
+                title,
+                body,
+                created_at: new Date().toISOString(),
             });
             await finish(ctx, task, "sent", "sent", preview);
             return;

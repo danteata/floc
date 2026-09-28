@@ -76,6 +76,120 @@ async function formatMember(ctx: Ctx, member: Doc<"members">) {
     };
 }
 
+/**
+ * How many of a member's most recently recorded check-ins are read to find
+ * their last attendance. The latest-dated service is almost always among the
+ * last few recorded; reading every row a long-standing member has would make
+ * a 400-row directory page read tens of thousands of documents.
+ */
+const LAST_ATTENDANCE_LOOKBACK = 5;
+
+/** Per-request caches so a page reads each label and service once. */
+type DirectoryCaches = {
+    labels: Map<Id<"labels">, Promise<Doc<"labels"> | null>>;
+    attendance: Map<Id<"attendance">, Promise<Doc<"attendance"> | null>>;
+    lastAttendance: Map<Id<"members">, Promise<string | null>>;
+};
+
+function newDirectoryCaches(): DirectoryCaches {
+    return { labels: new Map(), attendance: new Map(), lastAttendance: new Map() };
+}
+
+function cachedGet<T extends "labels" | "attendance">(
+    ctx: Ctx,
+    cache: Map<Id<T>, Promise<Doc<T> | null>>,
+    id: Id<T>,
+): Promise<Doc<T> | null> {
+    let pending = cache.get(id);
+    if (!pending) {
+        pending = ctx.db.get(id) as Promise<Doc<T> | null>;
+        cache.set(id, pending);
+    }
+    return pending;
+}
+
+/** The date ("yyyy-mm-dd") of the member's latest recorded attendance, or null. */
+function lastAttendanceDate(ctx: Ctx, memberId: Id<"members">, caches: DirectoryCaches): Promise<string | null> {
+    let pending = caches.lastAttendance.get(memberId);
+    if (!pending) {
+        pending = (async () => {
+            const rows = await ctx.db
+                .query("member_attendance")
+                .withIndex("by_member", (q) => q.eq("member_id", memberId))
+                .order("desc")
+                .take(LAST_ATTENDANCE_LOOKBACK);
+            const records = await Promise.all(
+                rows.map((r) => cachedGet(ctx, caches.attendance, r.attendance_id)),
+            );
+            let latest: string | null = null;
+            for (const record of records) {
+                if (record && (!latest || record.date > latest)) latest = record.date;
+            }
+            return latest;
+        })();
+        caches.lastAttendance.set(memberId, pending);
+    }
+    return pending;
+}
+
+/** Labels and last attendance for the directory's Labels and Last attendance columns. */
+async function directoryDetails(ctx: Ctx, member: Doc<"members">, caches: DirectoryCaches) {
+    const [labelRows, last_attendance] = await Promise.all([
+        ctx.db
+            .query("member_labels")
+            .withIndex("by_member", (q) => q.eq("member_id", member._id))
+            .collect(),
+        lastAttendanceDate(ctx, member._id, caches),
+    ]);
+    const labels = (
+        await Promise.all(labelRows.map((r) => cachedGet(ctx, caches.labels, r.label_id)))
+    ).filter((l): l is Doc<"labels"> => l !== null);
+    labels.sort((a, b) => a.name.localeCompare(b.name));
+    return { labels, last_attendance: last_attendance ?? undefined };
+}
+
+type SortColumn = "name" | "status" | "joined_date" | "last_attendance" | "score";
+
+/**
+ * Sort the whole filtered set (not just a loaded page) by a directory column.
+ * Members with no value for the column always go last, whichever way the
+ * column is sorted; ties fall back to name.
+ */
+async function sortMembers(
+    ctx: Ctx,
+    members: Doc<"members">[],
+    column: SortColumn,
+    direction: "asc" | "desc",
+    caches: DirectoryCaches,
+): Promise<Doc<"members">[]> {
+    if (column === "name") {
+        return direction === "desc" ? [...members].reverse() : members;
+    }
+    let keyOf: (m: Doc<"members">) => string | number | undefined;
+    if (column === "last_attendance") {
+        const dates = await Promise.all(members.map((m) => lastAttendanceDate(ctx, m._id, caches)));
+        const byId = new Map(members.map((m, i) => [m._id, dates[i] ?? undefined]));
+        keyOf = (m) => byId.get(m._id);
+    } else if (column === "status") {
+        keyOf = (m) => m.status || undefined;
+    } else if (column === "joined_date") {
+        keyOf = (m) => m.joined_date || undefined;
+    } else {
+        keyOf = (m) => m.engagement_score ?? undefined;
+    }
+    const sign = direction === "asc" ? 1 : -1;
+    return [...members].sort((a, b) => {
+        const ka = keyOf(a);
+        const kb = keyOf(b);
+        if (ka === undefined && kb === undefined) return a.name.localeCompare(b.name);
+        if (ka === undefined) return 1;
+        if (kb === undefined) return -1;
+        if (ka < kb) return -sign;
+        if (ka > kb) return sign;
+        return a.name.localeCompare(b.name);
+    });
+}
+
 function matchesArchiveFilter(
     m: Doc<"members">,
     mode: "active" | "archived" | "all",
@@ -294,6 +408,16 @@ export const listPage = query({
         ...memberFilterArgs,
         pageSize: v.optional(v.number()),
         cursor: v.optional(v.string()),
+        // Sorted here across the whole filtered set, so a sorted directory is
+        // right even before every page is loaded. Name ascending by default.
+        sort: v.optional(v.union(
+            v.literal("name"),
+            v.literal("status"),
+            v.literal("joined_date"),
+            v.literal("last_attendance"),
+            v.literal("score"),
+        )),
+        sort_dir: v.optional(v.union(v.literal("asc"), v.literal("desc"))),
     },
     handler: async (ctx, args) => {
         // The client grows pageSize on "Load more" rather than advancing an
@@ -303,18 +427,35 @@ export const listPage = query({
         const pageSize = Math.min(Math.max(args.pageSize ?? 50, 1), 2000);
         const offset = args.cursor ? Math.max(0, parseInt(args.cursor, 10) || 0) : 0;
 
-        const members = await resolveFilteredMembers(ctx, args);
+        const caches = newDirectoryCaches();
+        const members = await sortMembers(
+            ctx,
+            await resolveFilteredMembers(ctx, args),
+            args.sort ?? "name",
+            args.sort_dir ?? "asc",
+            caches,
+        );
 
         const totalCount = members.length;
         const slice = members.slice(offset, offset + pageSize);
         const nextOffset = offset + pageSize;
         const isDone = nextOffset >= totalCount;
 
-        const page = await Promise.all(slice.map((m) => formatMember(ctx, m)));
+        // Labels and last attendance only for the rows being returned.
+        const page = await Promise.all(
+            slice.map(async (m) => ({
+                ...(await formatMember(ctx, m)),
+                ...(await directoryDetails(ctx, m, caches)),
+            })),
+        );
         return {
             page,
             nextCursor: isDone ? null : String(nextOffset),
             totalCount,
+            // Of those, how many have the Active status, so the directory can
+            // say "392 people · 346 active" rather than a bare figure that
+            // disagrees with the dashboard's active-member count.
+            activeCount: members.filter((m) => m.status === "active").length,
             isDone,
         };
     },
@@ -1389,18 +1530,22 @@ export const getInsights = query({
             return !lastSeen || lastSeen < inactiveThresholdStr;
         });
 
-        const newMembersThisMonth = members.filter(m => {
-            if (!m.joined_date) return false;
-            const joined = new Date(m.joined_date);
-            return joined.getMonth() === now.getMonth() && joined.getFullYear() === now.getFullYear();
-        }).length;
+        // When someone joined: the join date the church recorded, else when
+        // their record was created. Compared as "yyyy-mm" so a calendar date
+        // is never shifted by a time zone.
+        const joinMonth = (m: Doc<"members">): string | null => {
+            if (m.joined_date && /^\d{4}-\d{2}/.test(m.joined_date)) return m.joined_date.slice(0, 7);
+            const created = m.created_at ? Date.parse(m.created_at) : NaN;
+            const at = Number.isFinite(created) ? created : m._creationTime;
+            return new Date(at).toISOString().slice(0, 7);
+        };
+        const monthKey = (d: Date) =>
+            `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+        const thisMonthKey = monthKey(now);
+        const lastMonthKey = monthKey(new Date(now.getFullYear(), now.getMonth() - 1, 1));
 
-        const newMembersLastMonth = members.filter(m => {
-            if (!m.joined_date) return false;
-            const joined = new Date(m.joined_date);
-            const lastMonth = new Date(now.getFullYear(), now.getMonth() - 1);
-            return joined.getMonth() === lastMonth.getMonth() && joined.getFullYear() === lastMonth.getFullYear();
-        }).length;
+        const newMembersThisMonth = members.filter(m => joinMonth(m) === thisMonthKey).length;
+        const newMembersLastMonth = members.filter(m => joinMonth(m) === lastMonthKey).length;
 
         const genderBreakdown = {
             male: activeMembers.filter(m => m.gender === 'male').length,
@@ -1414,8 +1559,21 @@ export const getInsights = query({
                 ageGroups.unspecified++;
                 return;
             }
-            const birthDate = new Date(m.dob);
-            const age = now.getFullYear() - birthDate.getFullYear();
+            // Age in whole years, one less until this year's birthday.
+            const parts = /^(\d{4})-(\d{2})-(\d{2})/.exec(m.dob);
+            const birth = parts
+                ? { y: Number(parts[1]), m: Number(parts[2]) - 1, d: Number(parts[3]) }
+                : (() => {
+                    const b = new Date(m.dob);
+                    return { y: b.getFullYear(), m: b.getMonth(), d: b.getDate() };
+                })();
+            if (!Number.isFinite(birth.y)) {
+                ageGroups.unspecified++;
+                return;
+            }
+            const hadBirthday =
+                now.getMonth() > birth.m || (now.getMonth() === birth.m && now.getDate() >= birth.d);
+            const age = now.getFullYear() - birth.y - (hadBirthday ? 0 : 1);
             if (age < 18) ageGroups.under18++;
             else if (age < 31) ageGroups['18-30']++;
             else if (age < 51) ageGroups['31-50']++;
@@ -1423,9 +1581,35 @@ export const getInsights = query({
             else ageGroups.over70++;
         });
 
-        const attendanceTrend = retentionData.slice(-4);
-        const trendingUp = attendanceTrend.length >= 2 &&
-            attendanceTrend[attendanceTrend.length - 1].avgAttendance > attendanceTrend[0].avgAttendance;
+        // Growth compares whole months only: the last complete month against
+        // the complete month three before it (the current month is still
+        // filling up). No trend when either month had no gatherings.
+        const lastComplete = retentionData[retentionData.length - 2];
+        const compareWith = retentionData[retentionData.length - 5];
+        const trend: "up" | "down" | "flat" | null =
+            lastComplete && compareWith && lastComplete.avgAttendance > 0 && compareWith.avgAttendance > 0
+                ? lastComplete.avgAttendance > compareWith.avgAttendance
+                    ? "up"
+                    : lastComplete.avgAttendance < compareWith.avgAttendance
+                        ? "down"
+                        : "flat"
+                : null;
+        const trendingUp = trend === "up";
+
+        // The "Not seen recently" card lists ten; say how many there are, and
+        // tell "never recorded" apart from "not in the last 12 months" (the
+        // window read above) for the ones shown.
+        const shownInactive = potentiallyInactive.slice(0, 10);
+        const shownInactiveDetails = await Promise.all(
+            shownInactive.map(async (m) => {
+                const lastSeen = memberLastAttendance.get(m._id) ?? null;
+                const everAttended = lastSeen !== null || (await ctx.db
+                    .query("member_attendance")
+                    .withIndex("by_member", (q) => q.eq("member_id", m._id))
+                    .first()) !== null;
+                return { id: m._id, name: m.name, lastSeen, everAttended, unit_names: [] as string[] };
+            }),
+        );
 
         return {
             overview: {
@@ -1440,15 +1624,12 @@ export const getInsights = query({
                 retentionRate: retentionData.length >= 2 && retentionData[0].uniqueAttendees > 0
                     ? Math.round((retentionData[retentionData.length - 1].uniqueAttendees / retentionData[0].uniqueAttendees) * 100)
                     : 100,
-                trendingUp
+                trendingUp,
+                trend,
             },
             retentionData,
-            potentiallyInactive: potentiallyInactive.map(m => ({
-                id: m._id,
-                name: m.name,
-                lastSeen: memberLastAttendance.get(m._id) ?? null,
-                unit_names: []
-            })).slice(0, 10),
+            potentiallyInactive: shownInactiveDetails,
+            potentiallyInactiveCount: potentiallyInactive.length,
             demographics: {
                 gender: genderBreakdown,
                 ageGroups

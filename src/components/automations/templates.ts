@@ -272,7 +272,9 @@ export function buildRulePayload(
     actions,
     cooldown_days: template.fields.includes("cooldown_days") ? values.cooldown_days : undefined,
     dedup_bucket: template.dedupBucket,
-    unit_ids: unitIds.length > 0 ? unitIds : undefined,
+    // Always sent (even empty) so clearing every unit on an existing rule
+    // clears the limit instead of keeping the old units.
+    unit_ids: unitIds,
   }
 }
 

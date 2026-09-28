@@ -15,6 +15,9 @@ import {
 } from 'lucide-react'
 import {
     calculateTransactionTotals,
+    isCountedTransaction,
+    periodToDateRanges,
+    transactionDay,
     TRANSACTION_CATEGORIES
 } from '@/lib/financial-utils'
 import { useQuery } from 'convex/react'
@@ -51,53 +54,17 @@ export function FinancialWidget({
         )
     }
 
-    // Calculate current period totals
-    const currentTotals = calculateTransactionTotals(
-        (transactions || []).map(t => ({ ...t, type: t.type as any, category: t.category as any, payment_method: (t as any).payment_method as any, organization_id: t.organization_id as any, status: t.status as FinancialTransaction['status'] })).filter(t => {
-            const transactionDate = new Date(t.date)
-            const now = new Date()
-
-            switch (selectedPeriod) {
-                case 'month':
-                    return transactionDate.getMonth() === now.getMonth() &&
-                        transactionDate.getFullYear() === now.getFullYear()
-                case 'quarter':
-                    const currentQuarter = Math.floor(now.getMonth() / 3)
-                    const transactionQuarter = Math.floor(transactionDate.getMonth() / 3)
-                    return transactionQuarter === currentQuarter &&
-                        transactionDate.getFullYear() === now.getFullYear()
-                case 'year':
-                    return transactionDate.getFullYear() === now.getFullYear()
-                default:
-                    return true
-            }
-        })
-    )
-
-    // Calculate previous period totals for comparison
-    const previousTotals = calculateTransactionTotals(
-        (transactions || []).map(t => ({ ...t, type: t.type as any, category: t.category as any, payment_method: (t as any).payment_method as any, organization_id: t.organization_id as any, status: t.status as FinancialTransaction['status'] })).filter(t => {
-            const transactionDate = new Date(t.date)
-            const now = new Date()
-
-            switch (selectedPeriod) {
-                case 'month':
-                    const lastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1)
-                    return transactionDate.getMonth() === lastMonth.getMonth() &&
-                        transactionDate.getFullYear() === lastMonth.getFullYear()
-                case 'quarter':
-                    const lastQuarter = new Date(now.getFullYear(), now.getMonth() - 3, 1)
-                    const lastQuarterNum = Math.floor(lastQuarter.getMonth() / 3)
-                    const transactionQuarter = Math.floor(transactionDate.getMonth() / 3)
-                    return transactionQuarter === lastQuarterNum &&
-                        transactionDate.getFullYear() === lastQuarter.getFullYear()
-                case 'year':
-                    return transactionDate.getFullYear() === now.getFullYear() - 1
-                default:
-                    return false
-            }
-        })
-    )
+    // This period so far against the same span of the one before (1 to 5
+    // September against 1 to 5 August), from each row's own calendar day. A
+    // few days set against a whole month read as a steep fall every month.
+    const ranges = periodToDateRanges(selectedPeriod)
+    const rows = (transactions || []).map(t => ({ ...t, type: t.type as any, category: t.category as any, payment_method: (t as any).payment_method as any, organization_id: t.organization_id as any, status: t.status as FinancialTransaction['status'] }))
+    const inRange = (range: { start: string; end: string }) => rows.filter(t => {
+        const day = transactionDay(t.date)
+        return day >= range.start && day <= range.end
+    })
+    const currentTotals = calculateTransactionTotals(inRange(ranges.current))
+    const previousTotals = calculateTransactionTotals(inRange(ranges.previous))
 
     // Calculate percentage changes
     const incomeChange = previousTotals.income > 0
@@ -111,6 +78,8 @@ export function FinancialWidget({
     const netChange = previousTotals.net !== 0
         ? ((currentTotals.net - previousTotals.net) / Math.abs(previousTotals.net)) * 100
         : 0
+
+    const countedCount = rows.filter(isCountedTransaction).length
 
     // Get top income categories
     const topIncomeCategories = Object.entries(currentTotals.byCategory)
@@ -130,8 +99,7 @@ export function FinancialWidget({
             case 'month':
                 return now.toLocaleDateString('en-GB', { month: 'long', year: 'numeric' })
             case 'quarter':
-                const quarter = Math.floor(now.getMonth() / 3) + 1
-                return `Q${quarter} ${now.getFullYear()}`
+                return `Q${Math.floor(now.getMonth() / 3) + 1} ${now.getFullYear()}`
             case 'year':
                 return now.getFullYear().toString()
             default:
@@ -139,7 +107,8 @@ export function FinancialWidget({
         }
     }
 
-    const previousWord = { month: 'last month', quarter: 'last quarter', year: 'last year' }[selectedPeriod]
+    // Says exactly what the comparison covers: the same days of the last period.
+    const previousWord = { month: 'Same days last month', quarter: 'Same days last quarter', year: 'Same days last year' }[selectedPeriod]
     const reportTitle = { month: 'Monthly report', quarter: 'Quarterly report', year: 'Yearly report' }[selectedPeriod]
     const thisPeriod = { month: 'this month', quarter: 'this quarter', year: 'this year' }[selectedPeriod]
     const changeText = (change: number) =>
@@ -175,7 +144,7 @@ export function FinancialWidget({
                     <Wallet className="h-4 w-4 text-muted-foreground" aria-hidden="true" />
                     {reportTitle}
                 </CardTitle>
-                <CardDescription>{getPeriodLabel()}</CardDescription>
+                <CardDescription>{getPeriodLabel()} so far, against the same days of {selectedPeriod === 'month' ? 'last month' : selectedPeriod === 'quarter' ? 'last quarter' : 'last year'}</CardDescription>
                 <div className="col-span-full mt-3 flex flex-wrap items-center gap-3">
                     <Tabs value={selectedPeriod} onValueChange={(value) => setSelectedPeriod(value as any)}>
                         <TabsList>
@@ -199,14 +168,14 @@ export function FinancialWidget({
                         label="Income"
                         value={money(currentTotals.income)}
                         icon={TrendingUp}
-                        hint={`${previousWord[0].toUpperCase()}${previousWord.slice(1)}: ${money(previousTotals.income)}${changeText(incomeChange)}`}
+                        hint={`${previousWord}: ${money(previousTotals.income)}${changeText(incomeChange)}`}
                         hintTone={incomeChange > 0 ? 'positive' : incomeChange < 0 ? 'negative' : 'neutral'}
                     />
                     <StatCard
                         label="Expenses"
                         value={money(currentTotals.expense)}
                         icon={TrendingDown}
-                        hint={`${previousWord[0].toUpperCase()}${previousWord.slice(1)}: ${money(previousTotals.expense)}${changeText(expenseChange)}`}
+                        hint={`${previousWord}: ${money(previousTotals.expense)}${changeText(expenseChange)}`}
                         hintTone={expenseChange > 0 ? 'warning' : 'neutral'}
                     />
                     <StatCard
@@ -238,9 +207,9 @@ export function FinancialWidget({
                     </section>
                 </div>
 
-                {(transactions?.length || 0) > 0 && (
+                {countedCount > 0 && (
                     <p className="text-center text-xs text-muted-foreground">
-                        {transactions?.length || 0} {(transactions?.length || 0) === 1 ? 'transaction' : 'transactions'} recorded in all
+                        {countedCount} {countedCount === 1 ? 'transaction' : 'transactions'} counted in all (voided, pending and failed ones are left out)
                     </p>
                 )}
             </CardContent>

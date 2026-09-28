@@ -39,12 +39,27 @@ export function formatDay(value: string | number | Date | null | undefined): str
     return `${date.getDate()} ${MONTHS[date.getMonth()]} ${date.getFullYear()}`
 }
 
-function toDate(value: string | number | Date): Date {
+/**
+ * A value as a Date, reading a plain "yyyy-mm-dd" calendar day as local
+ * midnight (new Date("2026-09-26") would be UTC midnight, a day early west of
+ * Greenwich).
+ */
+export function toDate(value: string | number | Date): Date {
     if (typeof value === "string" && /^\d{4}-\d{2}-\d{2}$/.test(value)) {
         const [y, m, d] = value.split("-").map(Number)
         return new Date(y, m - 1, d)
     }
     return value instanceof Date ? value : new Date(value)
+}
+
+/**
+ * The local calendar day of a Date as "yyyy-mm-dd", for comparing with stored
+ * day strings. Never toISOString(), which gives the UTC day.
+ */
+export function toDayKey(date: Date): string {
+    const month = String(date.getMonth() + 1).padStart(2, "0")
+    const day = String(date.getDate()).padStart(2, "0")
+    return `${date.getFullYear()}-${month}-${day}`
 }
 
 /** "26 Sep", or "26 Sep 2025" when it isn't this year. */
@@ -79,4 +94,16 @@ export function formatMonth(value: string | number | Date): string {
  */
 export function sessionName(value: string | null | undefined): string {
     return titleCase((value ?? "").replace(/\s*[-—–]\s*\d{4}-\d{2}-\d{2}\s*$/, ""))
+}
+
+/** A member-status filter in words: ["active", "visitor"] → "Active members and visitors". */
+export function describeStatuses(statuses: readonly string[] | null | undefined): string {
+    const set = new Set(statuses ?? [])
+    if (set.size === 0 || (set.has("active") && set.has("visitor") && set.has("inactive"))) return "All members"
+    const parts: string[] = []
+    if (set.has("active")) parts.push("active members")
+    if (set.has("inactive")) parts.push("inactive members")
+    if (set.has("visitor")) parts.push("visitors")
+    const text = parts.length > 1 ? `${parts.slice(0, -1).join(", ")} and ${parts[parts.length - 1]}` : parts[0] ?? "Members"
+    return text.charAt(0).toUpperCase() + text.slice(1)
 }

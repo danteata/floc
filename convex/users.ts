@@ -2,7 +2,7 @@
 import { v } from "convex/values";
 import { mutation, query, internalMutation, internalQuery } from "./_generated/server";
 import { requireIdentity, requireOrgAdmin, requireOrgAccess, requireSuperAdmin, requireUser, resolveOrgId } from "./auth";
-import { getUnitIdsAdministeredBy, addUnitAdminInternal } from "./unit_admins";
+import { getUnitIdsAdministeredBy, addUnitAdminInternal, removeUnitAdminInternal } from "./unit_admins";
 import { Id } from "./_generated/dataModel";
 import { api, internal } from "./_generated/api";
 
@@ -321,6 +321,7 @@ export const updateRole = mutation({
         const target = await ctx.db.get(args.id);
         if (!target) throw new Error("User not found");
 
+        // Keep in step with the roles in permissions.ts.
         const allowedRoles = new Set([
             "super_admin",
             "organization_admin",
@@ -328,18 +329,43 @@ export const updateRole = mutation({
             "division_admin",
             "unit_admin",
             "sub_unit_admin",
+            "treasurer",
             "member",
         ]);
         if (!allowedRoles.has(args.role)) throw new Error("Invalid role");
 
+        // Nobody changes their own role (an admin could lock themselves out).
+        if (target._id === user._id) throw new Error("You can't change your own role");
+
         if (user.role !== "super_admin") {
             const orgId = await resolveOrgId(ctx);
             if (!orgId || target.organization_id !== orgId) throw new Error("Forbidden");
-            if (args.role === "super_admin") throw new Error("Forbidden");
+            if (args.role === "super_admin") throw new Error("Only a super admin can make someone a super admin");
+            if (target.role === "super_admin") throw new Error("Only a super admin can change a super admin's role");
         }
 
         const previousRole = target.role;
         await ctx.db.patch(args.id, { role: args.role });
+
+        // A plain member leads no units: drop any unit-admin access their
+        // member profile still has, so the role and their access agree.
+        const removedUnitIds: Id<"units">[] = [];
+        if (args.role === "member" && previousRole !== "member") {
+            const linkedMembers = await ctx.db
+                .query("members")
+                .withIndex("by_user_id", (q) => q.eq("user_id", args.id))
+                .collect();
+            for (const m of linkedMembers) {
+                const rows = await ctx.db
+                    .query("unit_admins")
+                    .withIndex("by_member", (q) => q.eq("member_id", m._id))
+                    .collect();
+                for (const row of rows) {
+                    await removeUnitAdminInternal(ctx, { unitId: row.unit_id, memberId: m._id });
+                    removedUnitIds.push(row.unit_id);
+                }
+            }
+        }
 
         // Audit log for role change
         const normalizedOrgId = target.organization_id ? ctx.db.normalizeId("organizations", target.organization_id) : null;
@@ -356,7 +382,8 @@ export const updateRole = mutation({
                 role: {
                     before: previousRole,
                     after: args.role
-                }
+                },
+                ...(removedUnitIds.length > 0 ? { unit_admin_removed: removedUnitIds } : {}),
             },
         });
     }

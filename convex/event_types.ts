@@ -1,6 +1,6 @@
 
 import { v } from "convex/values";
-import { mutation, query } from "./_generated/server";
+import { mutation, query, type QueryCtx } from "./_generated/server";
 import { Id } from "./_generated/dataModel";
 import { isSuperAdmin, requireSuperAdmin, requireOrgAdmin, resolveOrgId, getUserSafe, normalizeOrgId } from "./auth";
 
@@ -20,7 +20,8 @@ async function assertUnitsBelongToOrg(
     }
 }
 
-function mergeOrgOverrides(types: any[], orgId: Id<"organizations"> | null) {
+/** The event types a church sees: shared defaults, replaced by the church's own copy of the same value. */
+export function mergeOrgOverrides(types: any[], orgId: Id<"organizations"> | null) {
     const visible = types.filter((type) => !type.organization_id || type.organization_id === orgId);
     const byValue = new Map<string, any>();
 
@@ -34,6 +35,44 @@ function mergeOrgOverrides(types: any[], orgId: Id<"organizations"> | null) {
     return Array.from(byValue.values())
         .filter((type) => type.is_active)
         .sort((a, b) => (a.sort_order || 0) - (b.sort_order || 0));
+}
+
+/**
+ * Every event type id a church's records for `value` may be filed under: the
+ * shared default and the church's own copy (made when it edits the default).
+ * Attendance filed before and after that edit must count as one service.
+ */
+export async function eventTypeIdsForValue(
+    ctx: QueryCtx,
+    orgId: Id<"organizations"> | null,
+    value: string,
+): Promise<Set<Id<"event_types">>> {
+    const rows = await ctx.db
+        .query("event_types")
+        .withIndex("by_value", (q) => q.eq("value", value))
+        .collect();
+    return new Set(
+        rows.filter((t) => !t.organization_id || t.organization_id === orgId).map((t) => t._id),
+    );
+}
+
+/**
+ * The event type rows a reset or template load may replace: the current
+ * church's own rows when there is one, otherwise (a super admin working
+ * outside any church) the shared defaults. Never another church's rows.
+ */
+async function replaceableEventTypes(ctx: any, orgId: Id<"organizations"> | null) {
+    if (orgId) {
+        return await ctx.db
+            .query("event_types")
+            .withIndex("by_org", (q: any) => q.eq("organization_id", orgId))
+            .collect();
+    }
+    const rows = await ctx.db
+        .query("event_types")
+        .withIndex("by_org", (q: any) => q.eq("organization_id", undefined))
+        .collect();
+    return rows.filter((t: any) => !t.organization_id);
 }
 
 export const getAll = query({
@@ -208,9 +247,10 @@ export const resetToDefaults = mutation({
     args: {},
     handler: async (ctx) => {
         await requireSuperAdmin(ctx);
-        // Delete all
-        const all = await ctx.db.query("event_types").collect();
-        for (const t of all) {
+        const orgId = await resolveOrgId(ctx);
+        // Replace only the current church's rows (or, outside a church, the
+        // shared defaults), never every church's event types.
+        for (const t of await replaceableEventTypes(ctx, orgId)) {
             await ctx.db.delete(t._id);
         }
 
@@ -228,7 +268,7 @@ export const resetToDefaults = mutation({
         ];
 
         for (const t of defaults) {
-            await ctx.db.insert("event_types", t);
+            await ctx.db.insert("event_types", { ...t, organization_id: orgId ?? undefined });
         }
     }
 });
@@ -237,6 +277,7 @@ export const loadTemplate = mutation({
     args: { templateName: v.string() },
     handler: async (ctx, args) => {
         await requireSuperAdmin(ctx);
+        const orgId = await resolveOrgId(ctx);
         const config = await ctx.db
             .query("app_config")
             .withIndex("by_key", (q) => q.eq("key", "event_types_templates"))
@@ -249,9 +290,9 @@ export const loadTemplate = mutation({
 
         if (!template || !Array.isArray(template)) throw new Error("Template not found");
 
-        // Delete all
-        const all = await ctx.db.query("event_types").collect();
-        for (const t of all) {
+        // Replace only the current church's rows (or, outside a church, the
+        // shared defaults), never every church's event types.
+        for (const t of await replaceableEventTypes(ctx, orgId)) {
             await ctx.db.delete(t._id);
         }
 
@@ -266,6 +307,7 @@ export const loadTemplate = mutation({
                 description: t.description,
                 is_active: true,
                 sort_order: i + 1,
+                organization_id: orgId ?? undefined,
             });
         }
     }

@@ -65,8 +65,13 @@ const ROLE_LABELS: Record<string, string> = {
   organization_admin: 'Organization admin',
   division_admin: 'Division admin',
   unit_admin: 'Unit admin',
+  sub_unit_admin: 'Sub-unit admin',
+  treasurer: 'Treasurer',
   member: 'Member',
 }
+
+// Roles that lead units, so the editor offers the unit list for them.
+const UNIT_LEADING_ROLES = ['organization_admin', 'division_admin', 'unit_admin', 'sub_unit_admin']
 
 /** "organization_admin" reads "Organization admin"; unknown roles fall back to sentence case. */
 function roleLabel(role: string | undefined): string {
@@ -81,6 +86,8 @@ const ROLE_TONES: Record<string, string> = {
   organization_admin: 'bg-info/15 text-info-strong',
   division_admin: 'bg-warning/15 text-warning-strong',
   unit_admin: 'bg-success/15 text-success-strong',
+  sub_unit_admin: 'bg-success/15 text-success-strong',
+  treasurer: 'bg-warning/15 text-warning-strong',
   member: 'bg-muted text-muted-foreground',
 }
 
@@ -168,15 +175,30 @@ export function UserManagement() {
   const handleSaveUser = async () => {
     if (!editingUser) return
 
+    // Find member by user_id foreign key
+    const member = members.find(m => m.user_id === editingUser._id)
+    const memberId = member?._id
+    const leadsUnits = UNIT_LEADING_ROLES.includes(selectedRole)
+    const unitsChanged =
+      selectedUnits.length !== originalUnits.length ||
+      selectedUnits.some(id => !originalUnits.includes(id))
+
+    // Unit access hangs off the member profile; without one it can't be saved.
+    if (!memberId && leadsUnits && unitsChanged) {
+      toast({
+        title: "Couldn't save the units",
+        description: 'This account has no member profile, so it can\'t lead units. Link it to a member first.',
+        variant: 'destructive',
+      })
+      return
+    }
+
     try {
-      // Update user role
+      // Update user role. Changing someone to Member also removes their unit
+      // access on the server.
       await updateRole({ id: editingUser._id, role: selectedRole })
 
-      // Find member by user_id foreign key
-      const member = members.find(m => m.user_id === editingUser._id)
-      const memberId = member?._id
-
-      if (memberId) {
+      if (memberId && leadsUnits) {
         const memberIdTyped = memberId as Id<"members">
         // Grant/revoke unit admin access (additive — does not displace other
         // admins). New admins become primary leader only if the unit has none.
@@ -318,6 +340,8 @@ export function UserManagement() {
                   <SelectItem value="organization_admin">Organization admin</SelectItem>
                   <SelectItem value="division_admin">Division admin</SelectItem>
                   <SelectItem value="unit_admin">Unit admin</SelectItem>
+                  <SelectItem value="sub_unit_admin">Sub-unit admin</SelectItem>
+                  <SelectItem value="treasurer">Treasurer</SelectItem>
                   <SelectItem value="member">Member</SelectItem>
                 </SelectContent>
               </Select>
@@ -409,6 +433,7 @@ export function UserManagement() {
                               variant="ghost"
                               size="sm"
                               onClick={() => handleEditUser(user)}
+                              disabled={!canModifyUser(user)}
                               title="Edit role"
                               aria-label={`Edit role for ${user.name || user.email || 'this account'}`}
                             >
@@ -495,18 +520,31 @@ export function UserManagement() {
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="member">Member</SelectItem>
+                      <SelectItem value="treasurer">Treasurer</SelectItem>
+                      <SelectItem value="sub_unit_admin">Sub-unit admin</SelectItem>
                       <SelectItem value="unit_admin">Unit admin</SelectItem>
                       <SelectItem value="division_admin">Division admin</SelectItem>
                       <SelectItem value="organization_admin">Organization admin</SelectItem>
-                      <SelectItem value="super_admin">Super admin</SelectItem>
-
+                      {currentUser?.role === 'super_admin' && (
+                        <SelectItem value="super_admin">Super admin</SelectItem>
+                      )}
                     </SelectContent>
                   </Select>
                 </div>
 
-                {(selectedRole === 'organization_admin' ||
-                  selectedRole === 'division_admin' ||
-                  selectedRole === 'unit_admin') && (
+                {selectedRole === 'member' && originalUnits.length > 0 && (
+                  <p className="text-xs text-muted-foreground">
+                    As a member they no longer lead any units, so their unit access is removed.
+                  </p>
+                )}
+
+                {UNIT_LEADING_ROLES.includes(selectedRole) && !editingMemberId && (
+                  <p className="text-xs text-muted-foreground">
+                    This account has no member profile, so it can't lead units yet. Link it to a member first.
+                  </p>
+                )}
+
+                {UNIT_LEADING_ROLES.includes(selectedRole) && editingMemberId && (
                     <div>
                       <Label>Units they lead</Label>
                       <div className="space-y-2 max-h-32 overflow-y-auto">

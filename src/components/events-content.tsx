@@ -10,7 +10,7 @@ import {
 import {
   Calendar,
   Church,
-  Heart,
+  CalendarClock,
   Users,
   Plus,
   Edit,
@@ -53,7 +53,7 @@ import { UpcomingEvents } from '@/components/upcoming-events'
 import { EventDialog } from '@/components/event-dialog'
 import { useTerminology, getUnitLabels } from '@/hooks/use-terminology'
 import { useEventTypes } from '@/hooks/use-event-types'
-import { format, isAfter, isBefore, startOfDay } from 'date-fns'
+import { format, isAfter, isBefore, parse, startOfDay } from 'date-fns'
 import { Skeleton } from '@/components/ui/skeleton'
 import { useQuery, useMutation } from 'convex/react'
 import { api } from '../../convex/_generated/api'
@@ -62,15 +62,28 @@ import { useToast } from '@/hooks/use-toast'
 import { cn } from '@/lib/utils'
 import { EmptyState } from '@/components/ui/empty-state'
 import { formatDay, titleCase } from '@/lib/display'
+import { useUserRole } from '@/hooks/use-user-role'
 
 // Auto-created titles end in the date, written with a hyphen or a dash.
 const TRAILING_ISO_DATE = /\s*[-—–]\s*(\d{4}-\d{2}-\d{2})\s*$/
 
 /** "sunday service" -> "Sunday Service". Titles someone already cased are left alone. */
 
-function readableDate(date: string | number | Date): string {
-  return formatDay(new Date(date))
+function readableDate(date: string): string {
+  return formatDay(date)
 }
+
+/** An event's stored "yyyy-MM-dd" date as local midnight (not UTC, which slips a day west of Greenwich). */
+function eventDay(date: string): Date {
+  return startOfDay(parse(date, 'yyyy-MM-dd', new Date()))
+}
+
+function isUpcomingDate(date: string, today: Date): boolean {
+  const day = eventDay(date)
+  return isAfter(day, today) || day.getTime() === today.getTime()
+}
+
+const UNIT_ROLES = ['unit_admin', 'division_admin', 'sub_unit_admin']
 
 /**
  * How an event's stored title reads on screen (display only, never saved):
@@ -108,8 +121,19 @@ export function EventsContent() {
   const { terminology, isLoading: terminologyLoading } = useTerminology()
   const { eventTypes } = useEventTypes()
   const unitLabels = getUnitLabels(terminology)
+  const { isAdmin, role, unitLeaderships } = useUserRole()
 
   const isLoading = events === undefined || terminologyLoading
+
+  // Mirrors events.ts requireEventTypeWriteAccess: org admins may change any
+  // event; a unit-level admin only one whose type is scoped to a unit they lead.
+  const ledUnitIds = new Set(unitLeaderships.map((u) => String(u._id)))
+  const leadsAnyOf = (unitIds: unknown[] | undefined) =>
+    UNIT_ROLES.includes(role) && (unitIds ?? []).some((id) => ledUnitIds.has(String(id)))
+  const canWriteEvent = (event: any) => isAdmin || leadsAnyOf(event?.write_unit_ids)
+  const canAddEvent = isAdmin || eventTypes.some((t) => leadsAnyOf(t.unit_ids))
+
+  const today = startOfDay(new Date())
 
   // Filtering and pagination logic
   const filteredEvents = (events || []).filter((event: any) => {
@@ -123,20 +147,17 @@ export function EventsContent() {
       eventTypeFilter === 'all' ||
       event.event_type_value === eventTypeFilter
 
-    const today = startOfDay(new Date())
-    const eventDate = startOfDay(new Date(event.date))
+    const eventDate = eventDay(event.date)
     const matchesStatus =
       statusFilter === 'all' ||
-      (statusFilter === 'upcoming' &&
-        (isAfter(eventDate, today) ||
-          eventDate.getTime() === today.getTime())) ||
+      (statusFilter === 'upcoming' && isUpcomingDate(event.date, today)) ||
       (statusFilter === 'past' && isBefore(eventDate, today))
 
     return matchesSearch && matchesEventType && matchesStatus
   })
 
   // Sort by date ascending
-  filteredEvents.sort((a: any, b: any) => new Date(a.date).getTime() - new Date(b.date).getTime())
+  filteredEvents.sort((a: any, b: any) => eventDay(a.date).getTime() - eventDay(b.date).getTime())
 
   const totalPages = Math.ceil(filteredEvents.length / itemsPerPage)
   const paginatedEvents = filteredEvents.slice(
@@ -147,15 +168,33 @@ export function EventsContent() {
   const [eventToDelete, setEventToDelete] = useState<any | null>(null)
   const [activeTab, setActiveTab] = useState('overview')
 
-  // The overview shows six cards; titles and descriptions are tidied for display
-  // only, and editing hands the dialog the original stored event.
-  const overviewEvents = events.slice(0, 6).map((event) => ({
+  // A filter change starts the list again from page 1.
+  const changeFilter = (setter: (value: string) => void) => (value: string) => {
+    setter(value)
+    setCurrentPage(1)
+  }
+
+  // The overview shows the next six events, soonest first; titles and
+  // descriptions are tidied for display only, and editing hands the dialog
+  // the original stored event.
+  const upcomingEvents = events
+    .filter((event) => isUpcomingDate(event.date, today))
+    .sort((a, b) => eventDay(a.date).getTime() - eventDay(b.date).getTime())
+  const overviewEvents = upcomingEvents.slice(0, 6).map((event) => ({
     ...event,
     title: displayEventTitle(event.title),
     description: displayEventDescription(event.description),
     event_type_label: event.event_type_label ? titleCase(event.event_type_label) : event.event_type_label,
   }))
-  const moreEventsCount = events.length - overviewEvents.length
+  const moreEventsCount = upcomingEvents.length - overviewEvents.length
+
+  const showUpcomingList = () => {
+    setSearchQuery('')
+    setEventTypeFilter('all')
+    setStatusFilter('upcoming')
+    setCurrentPage(1)
+    setActiveTab('all-events')
+  }
 
   const handleDeleteEvent = async (eventId: string) => {
     try {
@@ -212,7 +251,7 @@ export function EventsContent() {
         title="Events"
         description="Services and events, and when each one runs."
         actions={
-          <>
+          canAddEvent ? (
             <Button
               onClick={handleAddEvent}
               className="bg-primary text-primary-foreground shadow-soft hover:shadow-soft-lg transition-all rounded-lg"
@@ -220,7 +259,7 @@ export function EventsContent() {
               <Plus className="mr-2 h-4 w-4" />
               Add event
             </Button>
-          </>
+          ) : undefined
         }
       />
 
@@ -249,7 +288,7 @@ export function EventsContent() {
             />
             <StatCard
               label={`${unitLabels.single} events`}
-              value={events.filter((e: any) => e.event_type_label?.toLowerCase().includes(terminology.unit_term.toLowerCase())).length.toString()}
+              value={events.filter((e: any) => (e.event_type_unit_ids ?? []).length > 0).length.toString()}
               icon={Users}
             />
             <StatCard
@@ -258,9 +297,9 @@ export function EventsContent() {
               icon={Church}
             />
             <StatCard
-              label="Active"
-              value={events.filter((e: any) => e.active).length.toString()}
-              icon={Heart}
+              label="Upcoming"
+              value={upcomingEvents.length.toString()}
+              icon={CalendarClock}
             />
           </StatGrid>
 
@@ -268,11 +307,12 @@ export function EventsContent() {
             <UpcomingEvents
               events={overviewEvents as any}
               onEditEvent={(shown) => handleEditEvent(events.find((e) => e._id === (shown as { _id?: string })._id) ?? shown)}
+              canEditEvent={canWriteEvent}
             />
             {moreEventsCount > 0 && (
               <div className="mt-4 text-center">
-                <Button variant="link" size="sm" onClick={() => setActiveTab('all-events')}>
-                  {moreEventsCount} more {moreEventsCount === 1 ? 'event' : 'events'}
+                <Button variant="link" size="sm" onClick={showUpcomingList}>
+                  {moreEventsCount} more upcoming {moreEventsCount === 1 ? 'event' : 'events'}
                 </Button>
               </div>
             )}
@@ -294,11 +334,11 @@ export function EventsContent() {
                   <Input
                     placeholder="Search events…"
                     value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
+                    onChange={(e) => { setSearchQuery(e.target.value); setCurrentPage(1) }}
                     className="pl-9 bg-background border-input-border rounded-lg"
                   />
                 </div>
-                <Select value={eventTypeFilter} onValueChange={setEventTypeFilter}>
+                <Select value={eventTypeFilter} onValueChange={changeFilter(setEventTypeFilter)}>
                   <SelectTrigger className="rounded-lg">
                     <SelectValue placeholder="Event type" />
                   </SelectTrigger>
@@ -311,7 +351,7 @@ export function EventsContent() {
                     ))}
                   </SelectContent>
                 </Select>
-                <Select value={statusFilter} onValueChange={setStatusFilter}>
+                <Select value={statusFilter} onValueChange={changeFilter(setStatusFilter)}>
                   <SelectTrigger className="rounded-lg">
                     <SelectValue placeholder="Status" />
                   </SelectTrigger>
@@ -324,6 +364,10 @@ export function EventsContent() {
               </div>
             </CardContent>
           </Card>
+
+          <p className="text-sm text-muted-foreground" aria-live="polite">
+            {filteredEvents.length} {filteredEvents.length === 1 ? 'event' : 'events'}
+          </p>
 
           <div className="rounded-xl overflow-hidden shadow-soft border border-border/50 bg-card">
             <Table>
@@ -349,9 +393,8 @@ export function EventsContent() {
                   </TableRow>
                 ) : (
                   paginatedEvents.map((event: any) => {
-                    const today = startOfDay(new Date())
-                    const eventDate = startOfDay(new Date(event.date))
-                    const isUpcoming = isAfter(eventDate, today) || eventDate.getTime() === today.getTime()
+                    const isUpcoming = isUpcomingDate(event.date, today)
+                    const canWrite = canWriteEvent(event)
 
                     return (
                       <TableRow key={event._id} className="hover:bg-muted/30 border-b border-border/50 transition-colors">
@@ -371,7 +414,7 @@ export function EventsContent() {
                           </Badge>
                         </TableCell>
                         <TableCell className="text-sm text-muted-foreground">
-                          {format(new Date(event.date), 'd MMM yyyy')}
+                          {format(eventDay(event.date), 'd MMM yyyy')}
                         </TableCell>
                         <TableCell>
                           <Badge
@@ -387,6 +430,7 @@ export function EventsContent() {
                           </Badge>
                         </TableCell>
                         <TableCell className="text-right pr-6">
+                          {canWrite && (
                           <div className="flex items-center justify-end gap-1">
                             <Button
                               variant="ghost"
@@ -405,6 +449,7 @@ export function EventsContent() {
                               <Trash2 className="h-4 w-4" />
                             </Button>
                           </div>
+                          )}
                         </TableCell>
                       </TableRow>
                     )

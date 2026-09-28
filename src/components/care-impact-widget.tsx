@@ -4,6 +4,7 @@ import { Link } from "react-router-dom"
 import { useQuery } from "convex/react"
 import { TrendingUp, ArrowRight } from "lucide-react"
 import { api } from "../../convex/_generated/api"
+import type { Id } from "../../convex/_generated/dataModel"
 import { Button } from "@/components/ui/button"
 import { Card, CardAction, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { EmptyState } from "@/components/ui/empty-state"
@@ -17,11 +18,11 @@ import { cn } from "@/lib/utils"
  * something to show: Free orgs, plain members, and orgs with no attributed
  * at-risk follow-ups yet all get null.
  */
-export function CareImpactWidget() {
+export function CareImpactWidget({ unitId }: { unitId?: Id<"units"> } = {}) {
   const { organization } = useOrganization()
   const stats = useQuery(
     api.engagement.queries.careImpactStats,
-    organization ? { organization_id: organization._id } : "skip",
+    organization ? { organization_id: organization._id, ...(unitId ? { unit_id: unitId } : {}) } : "skip",
   )
 
   // Hide entirely when scoring doesn't apply (Free orgs / no scored members in

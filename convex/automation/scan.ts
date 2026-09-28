@@ -14,6 +14,7 @@ import { Doc, Id } from "../_generated/dataModel";
 import { MutationCtx, internalMutation } from "../_generated/server";
 import { FactContext, MemberFacts, OrgFacts, StreakFacts, isDerivedTrigger } from "./catalog";
 import { queueRuleActions } from "./engine";
+import { isInRuleScope } from "./conditions";
 import { isAutomationEnabled } from "./guardrails";
 import {
     OrgAttendanceContext,
@@ -78,6 +79,8 @@ export const scanOrg = internalMutation({
             .paginate({ numItems: MEMBER_BATCH, cursor: args.cursor ?? null });
 
         for (const member of page.page) {
+            // Archived members never trigger automations.
+            if (member.archived_at) continue;
             await scanMember(ctx, { member, org, derivedRules, orgAttendance });
         }
 
@@ -111,6 +114,8 @@ async function scanMember(
     if (orgAttendance) attendedIds = await loadMemberAttendedIds(ctx, member._id);
 
     for (const rule of derivedRules) {
+        // Cheap scope check first; queueRuleActions checks it again.
+        if (!isInRuleScope(rule, memberFacts)) continue;
         const { matched, facts } = matchMemberAgainstDerivedRule({
             rule,
             member,

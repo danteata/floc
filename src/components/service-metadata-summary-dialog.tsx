@@ -36,7 +36,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { CalendarIcon, Loader2, Save, Users, Info, Plus, CheckCircle2, BookOpen } from 'lucide-react'
 import { format } from 'date-fns'
 import { cn } from '@/lib/utils'
-import { titleCase } from '@/lib/display'
+import { formatDayShort, titleCase, toDate, toDayKey } from '@/lib/display'
 import { ServiceMetadataSummary } from '@/types/database'
 import { useUser } from '@clerk/clerk-react'
 import { MemberCombobox } from '@/components/ui/member-combobox'
@@ -46,6 +46,9 @@ import { api } from '../../convex/_generated/api'
 import { useOrganization } from '@/hooks/use-organization'
 import { toast } from 'sonner'
 import { Badge } from '@/components/ui/badge'
+
+/** Radix Select can't hold an empty value; this stands for "no event". */
+const NO_EVENT = '__none__'
 
 const serviceMetadataSchema = z.object({
     service_date: z.date(),
@@ -147,7 +150,7 @@ export function ServiceMetadataSummaryDialog({
     useEffect(() => {
         if (open && summary) {
             form.reset({
-                service_date: new Date(summary.service_date),
+                service_date: toDate(summary.service_date),
                 service_type: summary.service_type,
                 service_name: summary.service_name || '',
                 event_id: summary.event_id || '',
@@ -227,28 +230,36 @@ export function ServiceMetadataSummaryDialog({
     }, [form.watch('verified_by_id'), members, form])
 
     const onSubmit = async (data: ServiceMetadataFormData) => {
-        if (!user?.id || !organization?.id) return
+        // The organization object has _id, not id; checking id stopped every save silently.
+        if (!user?.id || !organization?._id) return
 
         setIsLoading(true)
         try {
+            // Optional pickers hold "" when nothing is chosen; the server wants the field left out.
+            const fields = Object.fromEntries(
+                Object.entries(data).filter(([, value]) => value !== '' && value !== NO_EVENT),
+            ) as Partial<ServiceMetadataFormData>
             const summaryPayload: any = {
-                ...data,
-                recorded_by: user.id,
-                recorded_by_name: user.fullName || user.primaryEmailAddress?.emailAddress || 'Unknown User',
+                ...fields,
                 verification_date: data.verified_by_id ? new Date().toISOString() : undefined,
-                service_date: data.service_date.toISOString().split('T')[0],
+                service_date: toDayKey(data.service_date),
                 attendance_total: (data.attendance_adults || 0) + (data.attendance_children || 0),
-                organization_id: organization._id as any,
             }
 
             if (summary) {
+                // Who recorded it and which church are set once, when it's created.
                 await updateSummary({
                     id: summary._id as any,
                     ...summaryPayload
                 })
                 toast.success('Service summary updated')
             } else {
-                await createSummary(summaryPayload)
+                await createSummary({
+                    ...summaryPayload,
+                    recorded_by: user.id,
+                    recorded_by_name: user.fullName || user.primaryEmailAddress?.emailAddress || 'Unknown User',
+                    organization_id: organization._id as any,
+                })
                 toast.success('Service summary saved')
             }
             onOpenChange(false)
@@ -351,17 +362,17 @@ export function ServiceMetadataSummaryDialog({
                                                 render={({ field }) => (
                                                     <FormItem className="animate-in fade-in slide-in-from-top-2">
                                                         <FormLabel className="text-sm">Linked event</FormLabel>
-                                                        <Select onValueChange={field.onChange} value={field.value}>
+                                                        <Select onValueChange={(value) => field.onChange(value === NO_EVENT ? '' : value)} value={field.value || NO_EVENT}>
                                                             <FormControl>
                                                                 <SelectTrigger className="h-11 rounded-lg bg-background">
                                                                     <SelectValue placeholder="Choose an event" />
                                                                 </SelectTrigger>
                                                             </FormControl>
                                                             <SelectContent className="rounded-lg shadow-soft-lg max-h-[300px]">
-                                                                <SelectItem value="" className="text-muted-foreground">None</SelectItem>
+                                                                <SelectItem value={NO_EVENT} className="text-muted-foreground">None</SelectItem>
                                                                 {events?.map((event) => (
                                                                     <SelectItem key={event._id} value={event._id}>
-                                                                        {titleCase(event.title)} ({format(new Date(event.date), 'd MMM')})
+                                                                        {titleCase(event.title)} ({formatDayShort(event.date)})
                                                                     </SelectItem>
                                                                 ))}
                                                             </SelectContent>

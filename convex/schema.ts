@@ -400,6 +400,12 @@ export default defineSchema({
         created_by: v.optional(v.string()), // clerk_user_id
         expires_at: v.optional(v.number()),
         revoked: v.boolean(),
+        // The filters on screen when the link was made, so the link shows the
+        // same list. Links made before these existed mean: every unit, active
+        // members and visitors, any number missed.
+        unit_id: v.optional(v.id("units")),
+        statuses: v.optional(v.array(v.string())),
+        min_consecutive: v.optional(v.number()),
     })
         .index("by_token", ["token"])
         .index("by_org_event_date", ["organization_id", "event_type_value", "date"]),

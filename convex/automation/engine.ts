@@ -11,7 +11,7 @@ import { Doc, Id } from "../_generated/dataModel";
 import { MutationCtx } from "../_generated/server";
 import { orgIsPro } from "../entitlements";
 import { ConditionNode, FactContext, RuleAction, categoryForAction, getActionSpec } from "./catalog";
-import { evaluateCondition } from "./conditions";
+import { evaluateCondition, isInRuleScope } from "./conditions";
 import { renderTemplate } from "./templating";
 
 function dayBucket(): string {
@@ -98,6 +98,10 @@ export async function queueRuleActions(
 ): Promise<QueueResult> {
     const { rule, facts, memberId, source } = opts;
     const simulate = opts.simulate === true;
+
+    // 0. Scope: never archived members, and only the rule's units when it is
+    // limited to some ("Limit to units" on the rule).
+    if (!isInRuleScope(rule, facts.member)) return { matched: false, queued: 0 };
 
     // 1. Condition filter (the trigger already selected the subject).
     const matched = evaluateCondition(rule.conditions as ConditionNode | undefined, facts);

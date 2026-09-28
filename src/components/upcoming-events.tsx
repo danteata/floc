@@ -8,9 +8,11 @@ import { useEventTypes, getEventTypeDisplayName } from "@/hooks/use-event-types"
 interface UpcomingEventsProps {
   events: Event[]
   onEditEvent?: (event: Event) => void
+  /** When given, only events it returns true for open the editor on click. */
+  canEditEvent?: (event: Event) => boolean
 }
 
-export function UpcomingEvents({ events, onEditEvent }: UpcomingEventsProps) {
+export function UpcomingEvents({ events, onEditEvent, canEditEvent }: UpcomingEventsProps) {
   const { eventTypes } = useEventTypes()
   if (!events || events.length === 0) {
     return (
@@ -26,11 +28,13 @@ export function UpcomingEvents({ events, onEditEvent }: UpcomingEventsProps) {
   return (
     <div className="space-y-4">
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-        {events.slice(0, 6).map((event) => (
+        {events.slice(0, 6).map((event) => {
+          const editable = !!onEditEvent && (!canEditEvent || canEditEvent(event))
+          return (
           <div
-            key={event.id}
-            className={`group relative min-w-0 rounded-lg border border-border bg-card p-4 transition-colors${onEditEvent ? " cursor-pointer hover:bg-muted/40" : ""}`}
-            onClick={() => onEditEvent?.(event)}
+            key={event.id ?? (event as { _id?: string })._id}
+            className={`group relative min-w-0 rounded-lg border border-border bg-card p-4 transition-colors${editable ? " cursor-pointer hover:bg-muted/40" : ""}`}
+            onClick={() => { if (editable) onEditEvent?.(event) }}
           >
             <div className="mb-3 flex min-w-0 items-center justify-between gap-2">
               {/* The type only when it adds something: auto-created events are named after their type. */}
@@ -71,7 +75,8 @@ export function UpcomingEvents({ events, onEditEvent }: UpcomingEventsProps) {
               </p>
             )}
           </div>
-        ))}
+          )
+        })}
       </div>
 
     </div>

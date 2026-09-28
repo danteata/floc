@@ -17,7 +17,7 @@ export default function PortalDashboard() {
     const history = useQuery(api.check_ins.getMyAttendanceHistory, { limit: 3 })
 
     const hasUpcoming = upcoming && upcoming.length > 0
-    const openSession = hasUpcoming ? upcoming.find((s: any) => s.status === "open") : null
+    const openSession = hasUpcoming ? upcoming.find((s) => s.status === "open") : null
 
     return (
         <div className="grid gap-6 md:grid-cols-2">
@@ -66,11 +66,15 @@ export default function PortalDashboard() {
                     {upcoming === undefined ? (
                         <Skeleton className="h-12 w-full" />
                     ) : hasUpcoming ? (
-                        upcoming.map((s: any) => (
-                            <div key={s.sessionId} className="flex items-center justify-between gap-3 text-sm">
+                        upcoming.map((s) => (
+                            <div key={s.key} className="flex items-center justify-between gap-3 text-sm">
                                 <div className="min-w-0">
-                                    <p className="truncate font-medium">{sessionName(s.display_name)}</p>
-                                    <p className="text-xs text-muted-foreground">{formatDay(s.date)}</p>
+                                    <p className="truncate font-medium">
+                                        {s.kind === "event" ? titleCase(s.display_name) : sessionName(s.display_name)}
+                                    </p>
+                                    <p className="text-xs text-muted-foreground">
+                                        {[formatDay(s.date), s.time].filter(Boolean).join(", ")}
+                                    </p>
                                 </div>
                                 {s.status === "open" && (
                                     <Badge className="shrink-0 bg-success/15 text-success-strong">Open</Badge>
